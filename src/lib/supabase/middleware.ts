@@ -18,57 +18,67 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options),
-        );
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
   const isClinicianRoute = pathname.startsWith(CLINICIAN_PREFIX);
   const isPatientRoute = pathname.startsWith(PATIENT_PREFIX);
   const isAuthRoute = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
-  if (!user && (isClinicianRoute || isPatientRoute)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/sign-in";
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
+  try {
+    const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
+        },
+      },
+    });
 
-  if (user && isAuthRoute) {
-    const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
-    const url = request.nextUrl.clone();
-    url.pathname = role === "clinician" ? "/clinician" : "/patient";
-    return NextResponse.redirect(url);
-  }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (user && (isClinicianRoute || isPatientRoute)) {
-    const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
-    if (isClinicianRoute && role !== "clinician") {
+    if (!user && (isClinicianRoute || isPatientRoute)) {
       const url = request.nextUrl.clone();
-      url.pathname = "/patient";
+      url.pathname = "/sign-in";
+      url.searchParams.set("redirect", pathname);
       return NextResponse.redirect(url);
     }
-    if (isPatientRoute && role !== "patient") {
+
+    if (user && isAuthRoute) {
+      const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
       const url = request.nextUrl.clone();
-      url.pathname = "/clinician";
+      url.pathname = role === "clinician" ? "/clinician" : "/patient";
       return NextResponse.redirect(url);
     }
-  }
 
-  return supabaseResponse;
+    if (user && (isClinicianRoute || isPatientRoute)) {
+      const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
+      if (isClinicianRoute && role !== "clinician") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/patient";
+        return NextResponse.redirect(url);
+      }
+      if (isPatientRoute && role !== "patient") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/clinician";
+        return NextResponse.redirect(url);
+      }
+    }
+
+    return supabaseResponse;
+  } catch (error) {
+    // A proxy crash takes down every route on the site, not just the one
+    // that triggered it — never let a Supabase/network hiccup do that.
+    // Protected pages still enforce auth themselves via requireProfile(),
+    // so failing open here just means they render their own (recoverable)
+    // redirect instead of a raw connection failure.
+    console.error("proxy: updateSession failed, letting request through", error);
+    return supabaseResponse;
+  }
 }

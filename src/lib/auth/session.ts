@@ -12,11 +12,15 @@ export async function requireProfile(role?: Profile["role"]) {
 
   if (!user) redirect("/sign-in");
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
+
+  if (error) {
+    console.error("[auth/session] requireProfile: profile lookup failed", error.message, error.details);
+  }
 
   if (!profile) redirect("/sign-in");
   if (role && profile.role !== role) {
