@@ -186,12 +186,22 @@ create index if not exists ai_insights_patient_idx on public.ai_insights (patien
 
 -- ---------------------------------------------------------------------------
 -- RLS policies
+--
+-- Every policy is dropped-if-exists before being (re)created, so this whole
+-- file is safe to paste and run again on a database that already has some
+-- (or all) of these objects — e.g. if an earlier run partially failed.
+-- Re-running is the standard way to repair a database stuck in a partial
+-- state (which shows up as "permission denied for table X" errors in the
+-- app, because RLS is enabled but the policy granting access never got
+-- created).
 -- ---------------------------------------------------------------------------
 
 -- profiles
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles
   for select using (id = auth.uid());
 
+drop policy if exists "profiles_select_linked" on public.profiles;
 create policy "profiles_select_linked" on public.profiles
   for select using (
     public.is_clinician_of(id)
@@ -201,13 +211,16 @@ create policy "profiles_select_linked" on public.profiles
     )
   );
 
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
   for update using (id = auth.uid());
 
 -- clinician_patients
+drop policy if exists "clinician_patients_clinician_all" on public.clinician_patients;
 create policy "clinician_patients_clinician_all" on public.clinician_patients
   for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
 
+drop policy if exists "clinician_patients_patient_select" on public.clinician_patients;
 create policy "clinician_patients_patient_select" on public.clinician_patients
   for select using (patient_id = auth.uid());
 
@@ -248,23 +261,29 @@ $$;
 grant execute on function public.claim_invite(text) to authenticated;
 
 -- templates (clinician-owned only)
+drop policy if exists "templates_owner_all" on public.templates;
 create policy "templates_owner_all" on public.templates
   for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 -- assignments
+drop policy if exists "assignments_clinician_all" on public.assignments;
 create policy "assignments_clinician_all" on public.assignments
   for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
 
+drop policy if exists "assignments_patient_select" on public.assignments;
 create policy "assignments_patient_select" on public.assignments
   for select using (patient_id = auth.uid());
 
+drop policy if exists "assignments_patient_update_status" on public.assignments;
 create policy "assignments_patient_update_status" on public.assignments
   for update using (patient_id = auth.uid()) with check (patient_id = auth.uid());
 
 -- activity_attempts
+drop policy if exists "activity_attempts_patient_all" on public.activity_attempts;
 create policy "activity_attempts_patient_all" on public.activity_attempts
   for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
 
+drop policy if exists "activity_attempts_clinician_select" on public.activity_attempts;
 create policy "activity_attempts_clinician_select" on public.activity_attempts
   for select using (
     exists (
@@ -275,5 +294,6 @@ create policy "activity_attempts_clinician_select" on public.activity_attempts
   );
 
 -- ai_insights (clinician-only)
+drop policy if exists "ai_insights_clinician_all" on public.ai_insights;
 create policy "ai_insights_clinician_all" on public.ai_insights
   for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
