@@ -51,25 +51,24 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (user && isAuthRoute) {
+      // Best-effort only — the JWT's role claim can drift from the
+      // profiles table (e.g. an admin edits it directly in Supabase).
+      // requireProfile() on the destination page re-checks against the
+      // database and is the single source of truth; if this guess is
+      // wrong it self-corrects in one hop, it never loops.
       const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
       const url = request.nextUrl.clone();
       url.pathname = role === "clinician" ? "/clinician" : "/patient";
       return NextResponse.redirect(url);
     }
 
-    if (user && (isClinicianRoute || isPatientRoute)) {
-      const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
-      if (isClinicianRoute && role !== "clinician") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/patient";
-        return NextResponse.redirect(url);
-      }
-      if (isPatientRoute && role !== "patient") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/clinician";
-        return NextResponse.redirect(url);
-      }
-    }
+    // Deliberately no role-based redirect for /clinician and /patient here.
+    // Checking the JWT's role claim against the route AND having
+    // requireProfile() separately check the database's role against the
+    // route creates two authorities that can disagree (JWT says patient,
+    // profiles table says clinician) and bounce the request back and
+    // forth forever (ERR_TOO_MANY_REDIRECTS). Proxy only gates
+    // "authenticated or not"; requireProfile() owns role routing.
 
     return supabaseResponse;
   } catch (error) {

@@ -23,8 +23,17 @@ export async function signIn(
     return { error: error.message };
   }
 
-  const role = data.user?.user_metadata?.role === "clinician" ? "clinician" : "patient";
-  redirect(role === "clinician" ? "/clinician" : "/patient");
+  // The profiles table, not the JWT's metadata, is the source of truth for
+  // role — they can drift apart (e.g. a role edited directly in the
+  // database), and trusting the JWT here would send the user to a page
+  // whose own auth check disagrees and bounces them right back.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
+    .single();
+
+  redirect(profile?.role === "clinician" ? "/clinician" : "/patient");
 }
 
 export async function signUpClinician(

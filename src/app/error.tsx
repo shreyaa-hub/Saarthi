@@ -23,7 +23,7 @@ export default function GlobalErrorBoundary({
       </span>
       <h1 className="text-2xl font-bold">Something went wrong</h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        That's on us. Try again, or head back to the homepage — if it keeps happening, the
+        That&apos;s on us. Try again, or head back to the homepage — if it keeps happening, the
         details below may help diagnose it.
       </p>
       <div className="flex gap-3">

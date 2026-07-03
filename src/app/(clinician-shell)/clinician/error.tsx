@@ -24,7 +24,7 @@ export default function ClinicianErrorBoundary({
           <AlertTriangle className="size-7" />
         </span>
         <div>
-          <h2 className="text-lg font-semibold">Couldn't load this page</h2>
+          <h2 className="text-lg font-semibold">Couldn&apos;t load this page</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             Something went wrong fetching your data. This is usually temporary.
           </p>
