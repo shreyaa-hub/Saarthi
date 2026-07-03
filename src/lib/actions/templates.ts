@@ -4,32 +4,60 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { EMPTY_CANVAS, type TemplateCanvas, type TemplateMedium } from "@/lib/types/canvas";
-import type { ActionState } from "@/lib/actions/auth";
+import { getBlueprint } from "@/lib/canvas/blueprints";
 
 const THUMBNAIL_COLORS = ["#1e6f6a", "#f5a623", "#5b6bd6", "#d64545", "#2f9e5b", "#a05bd6"];
 
-export async function createTemplate(
-  _prevState: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const title = String(formData.get("title") || "Untitled template").trim();
-  const domain = String(formData.get("domain") || "General");
-  const medium = String(formData.get("medium") || "interactive");
+export type WizardSource =
+  | { type: "blank" }
+  | { type: "blueprint"; blueprintId: string }
+  | { type: "existing"; templateId: string };
 
+// Backs the Initialize wizard (Medium -> Foundation -> Identity -> Canvas):
+// resolves the starting canvas from whichever Foundation path the clinician
+// took, then creates the template and opens the editor.
+export async function createTemplateFromWizard(input: {
+  medium: TemplateMedium;
+  title: string;
+  domain: string;
+  subdomain?: string;
+  source: WizardSource;
+}): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in." };
 
+  let canvas: TemplateCanvas = EMPTY_CANVAS;
+
+  if (input.source.type === "blueprint") {
+    const blueprint = getBlueprint(input.source.blueprintId);
+    if (!blueprint) return { error: "That blueprint could not be found." };
+    canvas = blueprint.canvas;
+  } else if (input.source.type === "existing") {
+    const { data: existing } = await supabase
+      .from("templates")
+      .select("canvas")
+      .eq("id", input.source.templateId)
+      .eq("owner_id", user.id)
+      .single();
+    if (!existing) return { error: "That template could not be found." };
+    canvas = existing.canvas;
+  }
+
+  const title = input.title.trim() || "Untitled template";
+  const description = input.subdomain?.trim() ? `Subdomain: ${input.subdomain.trim()}` : null;
+
   const { data, error } = await supabase
     .from("templates")
     .insert({
       owner_id: user.id,
       title,
-      domain,
-      medium: medium as TemplateMedium,
-      canvas: EMPTY_CANVAS,
+      domain: input.domain,
+      medium: input.medium,
+      description,
+      canvas,
       thumbnail_color: THUMBNAIL_COLORS[Math.floor(Math.random() * THUMBNAIL_COLORS.length)],
     })
     .select("id")
@@ -37,6 +65,7 @@ export async function createTemplate(
 
   if (error || !data) return { error: error?.message ?? "Could not create template." };
 
+  revalidatePath("/clinician/studio");
   redirect(`/clinician/studio/${data.id}`);
 }
 
