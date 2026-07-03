@@ -317,3 +317,33 @@ create policy "activity_attempts_clinician_select" on public.activity_attempts
 drop policy if exists "ai_insights_clinician_all" on public.ai_insights;
 create policy "ai_insights_clinician_all" on public.ai_insights
   for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- storage — "template-assets" bucket for images uploaded into the canvas
+-- editor. Public bucket (activities render images to patients who aren't
+-- the uploading clinician), but writes are restricted to the uploader's own
+-- folder: objects are stored at "<user_id>/<file>", and the RLS policies
+-- below key off that first path segment via storage.foldername(name).
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('template-assets', 'template-assets', true)
+on conflict (id) do nothing;
+
+drop policy if exists "template_assets_public_read" on storage.objects;
+create policy "template_assets_public_read" on storage.objects
+  for select using (bucket_id = 'template-assets');
+
+drop policy if exists "template_assets_owner_insert" on storage.objects;
+create policy "template_assets_owner_insert" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'template-assets' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "template_assets_owner_update" on storage.objects;
+create policy "template_assets_owner_update" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'template-assets' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "template_assets_owner_delete" on storage.objects;
+create policy "template_assets_owner_delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'template-assets' and (storage.foldername(name))[1] = auth.uid()::text);

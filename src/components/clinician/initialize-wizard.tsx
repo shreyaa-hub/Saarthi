@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Loader2,
@@ -152,7 +153,7 @@ export function InitializeWizard({
           </Link>
         )}
         <div>
-          <h1 className="text-xl font-semibold">Initialize a template</h1>
+          <h1 className="font-display text-xl font-semibold">Initialize a template</h1>
           <p className="text-sm text-muted-foreground">{STEP_LABELS[step]}</p>
         </div>
       </div>
@@ -183,6 +184,14 @@ export function InitializeWizard({
         })}
       </div>
 
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -12 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      >
       {step === "medium" && (
         <div className="grid gap-4 sm:grid-cols-3">
           {mediumOptions.map((m) => (
@@ -459,6 +468,8 @@ export function InitializeWizard({
           </CardContent>
         </Card>
       )}
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

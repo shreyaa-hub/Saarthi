@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import { Reveal } from "@/components/motion/reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,53 +59,55 @@ export function WorksheetGeneratorForm() {
           <ArrowLeft className="size-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold">Worksheet Generator</h1>
+          <h1 className="font-display text-xl font-semibold">Worksheet Generator</h1>
           <p className="text-sm text-muted-foreground">
             Describe a topic — Claude drafts a printable worksheet you can refine on the canvas.
           </p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ws-topic">Topic</Label>
-            <Input
-              id="ws-topic"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Coping strategies for test anxiety"
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Domain</Label>
-            <Select value={domain} onValueChange={(v) => setDomain(v as TemplateDomain)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TEMPLATE_DOMAINS.map((d) => (
-                  <SelectItem key={d} value={d}>{d}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ws-instructions">Instructions (optional)</Label>
-            <Textarea
-              id="ws-instructions"
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              rows={3}
-              placeholder="Any specifics — age range, tone, number of prompts, etc."
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={generate} disabled={loading} className="mt-1 self-start">
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            Generate worksheet
-          </Button>
-        </CardContent>
-      </Card>
+      <Reveal delay={0.08}>
+        <Card>
+          <CardContent className="flex flex-col gap-4 pt-6">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ws-topic">Topic</Label>
+              <Input
+                id="ws-topic"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Coping strategies for test anxiety"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Domain</Label>
+              <Select value={domain} onValueChange={(v) => setDomain(v as TemplateDomain)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_DOMAINS.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ws-instructions">Instructions (optional)</Label>
+              <Textarea
+                id="ws-instructions"
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                rows={3}
+                placeholder="Any specifics — age range, tone, number of prompts, etc."
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button onClick={generate} disabled={loading} className="mt-1 self-start">
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+              Generate worksheet
+            </Button>
+          </CardContent>
+        </Card>
+      </Reveal>
     </div>
   );
 }

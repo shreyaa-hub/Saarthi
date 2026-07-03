@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
+import { ImageUploadButton } from "./image-upload-button";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -44,14 +45,36 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 }
 
 export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
-  const selectedId = useCanvasStore(store, (s) => s.selectedId);
+  const selectedIds = useCanvasStore(store, (s) => s.selectedIds);
   const elements = useCanvasStore(store, (s) => s.elements);
   const width = useCanvasStore(store, (s) => s.width);
   const height = useCanvasStore(store, (s) => s.height);
   const background = useCanvasStore(store, (s) => s.background);
-  const { updateElement, setBackground, setSize } = store.getState();
+  const { updateElement, setBackground, setSize, reorder, removeSelected, duplicateSelected } =
+    store.getState();
 
-  const selected = elements.find((e) => e.id === selectedId) ?? null;
+  const selected = selectedIds.length === 1 ? elements.find((e) => e.id === selectedIds[0]) ?? null : null;
+
+  if (selectedIds.length > 1) {
+    return (
+      <aside className="hidden w-72 shrink-0 flex-col gap-5 overflow-y-auto border-l border-border bg-card p-4 lg:flex">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {selectedIds.length} elements selected
+        </p>
+        <div className="flex flex-col gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={duplicateSelected}>
+            <Copy className="size-3.5" /> Duplicate group
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={removeSelected}>
+            <Trash2 className="size-3.5" /> Delete group
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Shift-click an element to adjust the selection, or drag on empty canvas to marquee-select.
+        </p>
+      </aside>
+    );
+  }
 
   if (!selected) {
     return (
@@ -104,7 +127,51 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         <Field label="Height">
           <Input type="number" value={Math.round(selected.h)} onChange={(e) => patch({ h: Number(e.target.value) })} />
         </Field>
+        <Field label="Rotation">
+          <Input
+            type="number"
+            value={Math.round(selected.rotation ?? 0)}
+            onChange={(e) => patch({ rotation: Number(e.target.value) })}
+          />
+        </Field>
       </div>
+
+      <Field label="Layer order">
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            type="button"
+            onClick={() => reorder(selected.id, "back")}
+            className="flex h-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            title="Send to back"
+          >
+            <ChevronsDown className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => reorder(selected.id, "backward")}
+            className="flex h-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            title="Send backward"
+          >
+            <ChevronDown className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => reorder(selected.id, "forward")}
+            className="flex h-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            title="Bring forward"
+          >
+            <ChevronUp className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => reorder(selected.id, "front")}
+            className="flex h-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            title="Bring to front"
+          >
+            <ChevronsUp className="size-3.5" />
+          </button>
+        </div>
+      </Field>
 
       <Separator />
 
@@ -142,6 +209,19 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
 
       {selected.type === "image" && (
         <>
+          <Field label="Image">
+            <div className="flex flex-col gap-2">
+              {selected.src && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={selected.src}
+                  alt=""
+                  className="h-24 w-full rounded-md border border-border object-cover"
+                />
+              )}
+              <ImageUploadButton onUploaded={(url) => patch({ src: url })} />
+            </div>
+          </Field>
           <Field label="Image URL">
             <Input value={selected.src} onChange={(e) => patch({ src: e.target.value })} placeholder="https://…" />
           </Field>

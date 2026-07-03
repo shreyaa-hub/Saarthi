@@ -57,7 +57,7 @@ export function Palette({ store }: { store: CanvasStoreApi }) {
                 key={item.type}
                 type="button"
                 onClick={() => add(item.type)}
-                className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-xs font-medium transition-colors hover:border-primary hover:bg-secondary cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-xs font-medium transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-secondary hover:shadow-sm cursor-pointer"
               >
                 <Icon className="size-4" />
                 {item.label}
@@ -79,7 +79,7 @@ export function Palette({ store }: { store: CanvasStoreApi }) {
                 key={item.type}
                 type="button"
                 onClick={() => add(item.type)}
-                className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-xs font-medium transition-colors hover:border-primary hover:bg-secondary cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-xs font-medium transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-secondary hover:shadow-sm cursor-pointer"
               >
                 <Icon className="size-4" />
                 {item.label}

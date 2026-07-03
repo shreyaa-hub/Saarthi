@@ -13,6 +13,7 @@ const MIN_SIZE = 24;
 export function ElementBox({
   element,
   selected,
+  soleSelected = selected,
   scale,
   readOnly = false,
   onSelect,
@@ -22,9 +23,10 @@ export function ElementBox({
 }: {
   element: CanvasElement;
   selected: boolean;
+  soleSelected?: boolean;
   scale: number;
   readOnly?: boolean;
-  onSelect: () => void;
+  onSelect: (additive: boolean) => void;
   onChange: (patch: Partial<CanvasElement>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -44,7 +46,7 @@ export function ElementBox({
     (e: React.PointerEvent) => {
       if (readOnly || element.locked) return;
       e.stopPropagation();
-      onSelect();
+      onSelect(e.shiftKey);
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       dragState.current = { startX: e.clientX, startY: e.clientY, elX: element.x, elY: element.y };
     },
@@ -127,18 +129,21 @@ export function ElementBox({
         !readOnly && "cursor-move",
         selected && !readOnly && "outline outline-2 outline-primary outline-offset-2",
       )}
-      style={{ left: element.x, top: element.y, width: element.w, height: element.h }}
+      style={{
+        left: element.x,
+        top: element.y,
+        width: element.w,
+        height: element.h,
+        transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
+      }}
       onPointerDown={handleMoveDown}
       onPointerMove={handleMoveMove}
       onPointerUp={handleMoveUp}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
+      onClick={(e) => e.stopPropagation()}
     >
       <ElementPreview element={element} />
 
-      {selected && !readOnly && (
+      {soleSelected && !readOnly && (
         <>
           <div className="absolute -top-9 right-0 flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow-sm">
             <button
