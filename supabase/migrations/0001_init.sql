@@ -185,15 +185,35 @@ alter table public.ai_insights enable row level security;
 create index if not exists ai_insights_patient_idx on public.ai_insights (patient_id);
 
 -- ---------------------------------------------------------------------------
+-- Base table grants
+--
+-- RLS policies decide WHICH ROWS a role can see; Postgres separately
+-- requires a GRANT before a role can touch a table's ROWS AT ALL, at a
+-- level below RLS. Supabase's dashboard-created tables get this
+-- automatically, but tables created via raw SQL (like this migration) may
+-- not, depending on the project's default privileges — and when that grant
+-- is missing, every query fails with "permission denied for table X"
+-- regardless of how correct the RLS policies are. This block is idempotent
+-- (safe to re-run) and makes the migration self-contained either way.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on
+  public.profiles,
+  public.clinician_patients,
+  public.templates,
+  public.assignments,
+  public.activity_attempts,
+  public.ai_insights
+to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- RLS policies
 --
 -- Every policy is dropped-if-exists before being (re)created, so this whole
 -- file is safe to paste and run again on a database that already has some
 -- (or all) of these objects — e.g. if an earlier run partially failed.
 -- Re-running is the standard way to repair a database stuck in a partial
--- state (which shows up as "permission denied for table X" errors in the
--- app, because RLS is enabled but the policy granting access never got
--- created).
+-- state.
 -- ---------------------------------------------------------------------------
 
 -- profiles
