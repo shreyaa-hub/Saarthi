@@ -23,7 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </Link>
 
         <div>
-          <blockquote className="max-w-sm text-2xl font-semibold leading-snug text-balance">
+          <blockquote className="font-display max-w-sm text-2xl font-medium leading-snug text-balance">
             A canvas for therapy activities — and a clear line of sight into every
             patient&apos;s progress.
           </blockquote>

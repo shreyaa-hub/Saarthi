@@ -5,6 +5,7 @@ import { getDashboardStats, getRecentAttempts } from "@/lib/data/clinician";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CountUp } from "@/components/motion/count-up";
 import { initials, formatDate } from "@/lib/utils";
 
 export default async function ClinicianDashboardPage() {
@@ -34,14 +35,14 @@ export default async function ClinicianDashboardPage() {
       value: stats.openAssignments,
       icon: Send,
       href: "/clinician/assignments",
-      tint: "bg-blue-500/10 text-blue-600",
+      tint: "bg-[#b8923f]/10 text-[#8a6c2c]",
     },
     {
       label: "Total attempts logged",
       value: stats.totalAttempts,
       icon: ClipboardList,
       href: "/clinician/assignments",
-      tint: "bg-violet-500/10 text-violet-600",
+      tint: "bg-[#8b5f72]/10 text-[#8b5f72]",
     },
   ];
 
@@ -49,7 +50,7 @@ export default async function ClinicianDashboardPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-2xl font-semibold">Welcome back, {profile.full_name.split(" ")[0]}</h2>
+          <h2 className="font-display text-2xl font-semibold">Welcome back, {profile.full_name.split(" ")[0]}</h2>
           <p className="text-sm text-muted-foreground">Here&apos;s what&apos;s happening across your caseload.</p>
         </div>
         <div className="flex gap-2">
@@ -72,7 +73,9 @@ export default async function ClinicianDashboardPage() {
             <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
               <CardContent className="flex items-center justify-between pt-6">
                 <div>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    <CountUp value={s.value} />
+                  </p>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                 </div>
                 <span className={`flex size-10 items-center justify-center rounded-xl ${s.tint}`}>

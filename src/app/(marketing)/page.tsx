@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HeroPreview } from "@/components/marketing/hero-preview";
+import { Reveal } from "@/components/motion/reveal";
+import { StaggerGroup, StaggerItem } from "@/components/motion/stagger-group";
 
 const features = [
   {
@@ -57,87 +59,105 @@ export default function HomePage() {
   return (
     <div>
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_var(--secondary),_transparent_60%)]" />
+        <div
+          aria-hidden
+          className="animate-drift absolute inset-x-0 top-[-10%] -z-10 h-[560px] bg-[radial-gradient(ellipse_at_center,_var(--secondary),_transparent_65%)] opacity-90"
+        />
         <div className="mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-20 text-center md:pt-28">
-          <Badge variant="secondary" className="mb-5">
-            Therapy Authoring Studio
-          </Badge>
-          <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-balance md:text-6xl">
-            Build therapy activities on a canvas. Assign them in a click.
-            Watch progress with AI.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg text-muted-foreground text-balance">
-            Saarthi Coach gives clinicians a drag-and-drop studio for authoring interactive
-            activities, a simple way to assign them to patients, and an AI assistant that
-            turns attempt data into clinical insight.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" asChild>
-              <Link href="/sign-up">
-                Start building free <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/workflow">See how it works</Link>
-            </Button>
-          </div>
-
-          <HeroPreview />
+          <StaggerGroup className="flex flex-col items-center">
+            <StaggerItem>
+              <Badge variant="secondary" className="mb-5">
+                Therapy Authoring Studio
+              </Badge>
+            </StaggerItem>
+            <StaggerItem>
+              <h1 className="font-display max-w-3xl text-4xl font-semibold tracking-tight text-balance md:text-6xl">
+                Build therapy activities on a canvas. Assign them in a click.
+                Watch progress with AI.
+              </h1>
+            </StaggerItem>
+            <StaggerItem>
+              <p className="mt-6 max-w-2xl text-lg text-muted-foreground text-balance">
+                Saarthi Coach gives clinicians a drag-and-drop studio for authoring interactive
+                activities, a simple way to assign them to patients, and an AI assistant that
+                turns attempt data into clinical insight.
+              </p>
+            </StaggerItem>
+            <StaggerItem className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Button size="lg" asChild>
+                <Link href="/sign-up">
+                  Start building free <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/workflow">See how it works</Link>
+              </Button>
+            </StaggerItem>
+            <StaggerItem className="w-full">
+              <HeroPreview />
+            </StaggerItem>
+          </StaggerGroup>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-4">
-          {steps.map((s, i) => (
-            <div key={s.label} className="flex items-start gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                {i + 1}
-              </span>
-              <div>
-                <p className="font-semibold">{s.label}</p>
-                <p className="text-sm text-muted-foreground">{s.body}</p>
+        <Reveal>
+          <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-4">
+            {steps.map((s, i) => (
+              <div key={s.label} className="flex items-start gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="font-semibold">{s.label}</p>
+                  <p className="text-sm text-muted-foreground">{s.body}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
       <section id="features" className="mx-auto max-w-6xl px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Everything the caseload loop needs</h2>
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-3xl font-semibold tracking-tight">Everything the caseload loop needs</h2>
           <p className="mt-3 text-muted-foreground">
             From first draft to progress note, one workspace for clinicians and their patients.
           </p>
-        </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        </Reveal>
+        <StaggerGroup className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <Card key={f.title}>
-              <CardContent className="pt-6">
-                <span className="flex size-11 items-center justify-center rounded-xl bg-secondary text-primary">
-                  <f.icon className="size-5" />
-                </span>
-                <h3 className="mt-4 font-semibold">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
-              </CardContent>
-            </Card>
+            <StaggerItem key={f.title}>
+              <Card className="h-full transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
+                <CardContent className="pt-6">
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-secondary text-primary">
+                    <f.icon className="size-5" />
+                  </span>
+                  <h3 className="mt-4 font-semibold">{f.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
+                </CardContent>
+              </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-24">
-        <div className="flex flex-col items-center gap-6 rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground md:flex-row md:justify-between md:text-left">
-          <div>
-            <h2 className="text-2xl font-bold">Ready to build your first activity?</h2>
-            <p className="mt-2 text-primary-foreground/80">
-              Create a free clinician account and open the canvas in under a minute.
-            </p>
+        <Reveal>
+          <div className="flex flex-col items-center gap-6 rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground md:flex-row md:justify-between md:text-left">
+            <div>
+              <h2 className="font-display text-2xl font-semibold">Ready to build your first activity?</h2>
+              <p className="mt-2 text-primary-foreground/80">
+                Create a free clinician account and open the canvas in under a minute.
+              </p>
+            </div>
+            <Button size="lg" variant="secondary" asChild>
+              <Link href="/sign-up">
+                Get started <ArrowRight className="size-4" />
+              </Link>
+            </Button>
           </div>
-          <Button size="lg" variant="secondary" asChild>
-            <Link href="/sign-up">
-              Get started <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </div>
+        </Reveal>
       </section>
     </div>
   );

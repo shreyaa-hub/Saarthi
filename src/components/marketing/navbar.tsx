@@ -41,8 +41,9 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="transition-colors hover:text-foreground">
+            <Link key={l.href} href={l.href} className="group relative py-1 transition-colors hover:text-foreground">
               {l.label}
+              <span className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-accent transition-transform duration-300 ease-out group-hover:scale-x-100" />
             </Link>
           ))}
           <DropdownMenu>

@@ -28,7 +28,7 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         content: "Add your text",
         fontSize: 20,
         fontWeight: "medium",
-        color: "#16233a",
+        color: "#2a2420",
         align: "left",
       } satisfies TextElement;
 
@@ -51,8 +51,8 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         w: 160,
         h: 160,
         shape: "rectangle",
-        fill: "#eef3f2",
-        stroke: "#1e6f6a",
+        fill: "#eeeae0",
+        stroke: "#3b5544",
         strokeWidth: 2,
       } satisfies ShapeElement;
 

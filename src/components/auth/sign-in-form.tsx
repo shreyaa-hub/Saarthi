@@ -17,7 +17,7 @@ export function SignInForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle className="font-display text-2xl">Sign in</CardTitle>
         <CardDescription>Welcome back. Enter your details to continue.</CardDescription>
       </CardHeader>
       <CardContent>

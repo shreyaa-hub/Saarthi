@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Reveal } from "@/components/motion/reveal";
+import { StaggerGroup, StaggerItem } from "@/components/motion/stagger-group";
 import {
   FilePlus2,
   MonitorSmartphone,
@@ -49,38 +51,40 @@ const loopSteps = [
 export default function WorkflowPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <Badge variant="secondary">Workflow</Badge>
-        <h1 className="mt-4 text-4xl font-bold tracking-tight">From blank canvas to progress note</h1>
+        <h1 className="font-display mt-4 text-4xl font-semibold tracking-tight">From blank canvas to progress note</h1>
         <p className="mt-3 text-muted-foreground">
           Two workflows: authoring an activity, and the clinical loop it feeds.
         </p>
-      </div>
+      </Reveal>
 
       <h2 className="mt-16 text-xl font-semibold">Authoring a template</h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-5">
+      <StaggerGroup className="mt-6 grid gap-4 md:grid-cols-5">
         {authoringSteps.map((s) => (
-          <Card key={s.title}>
-            <CardContent className="pt-6">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
-                <s.icon className="size-5" />
-              </span>
-              <h3 className="mt-4 text-sm font-semibold">{s.title}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
-            </CardContent>
-          </Card>
+          <StaggerItem key={s.title}>
+            <Card className="h-full transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
+              <CardContent className="pt-6">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
+                  <s.icon className="size-5" />
+                </span>
+                <h3 className="mt-4 text-sm font-semibold">{s.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
       <p className="mt-4 text-sm text-muted-foreground">
         Summary: <span className="font-medium text-foreground">Initialize → Medium → Foundation → Identity → Canvas.</span>{" "}
         Skip straight to Canvas any time with a blank Initialize.
       </p>
 
       <h2 className="mt-20 text-xl font-semibold">The clinical loop</h2>
-      <div className="relative mt-6 grid gap-6 md:grid-cols-4">
+      <StaggerGroup className="relative mt-6 grid gap-6 md:grid-cols-4">
         <div className="pointer-events-none absolute left-0 right-0 top-9 hidden h-px bg-border md:block" />
         {loopSteps.map((s, i) => (
-          <div key={s.title} className="relative flex flex-col items-center text-center">
+          <StaggerItem key={s.title} className="relative flex flex-col items-center text-center">
             <span className="z-10 flex size-14 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-sm">
               <s.icon className="size-5" />
             </span>
@@ -89,9 +93,9 @@ export default function WorkflowPage() {
             {i < loopSteps.length - 1 && (
               <span className="mt-2 text-xs font-medium text-primary md:hidden">↓</span>
             )}
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
     </div>
   );
 }

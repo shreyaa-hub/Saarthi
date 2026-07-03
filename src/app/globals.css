@@ -1,87 +1,94 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+  Palette: "Moss & Clay" — a warm, muted forest green paired with a clay/
+  terracotta accent on a warm ivory surface. Deliberately avoids the
+  teal-primary / amber-accent / cool-gray-surface combination that shows up
+  by default in most generated SaaS UI.
+*/
+
 :root {
-  --background: #f7f8fb;
-  --foreground: #16233a;
+  --background: #faf7f1;
+  --foreground: #2a2420;
 
   --card: #ffffff;
-  --card-foreground: #16233a;
+  --card-foreground: #2a2420;
 
   --popover: #ffffff;
-  --popover-foreground: #16233a;
+  --popover-foreground: #2a2420;
 
-  --primary: #1e6f6a;
-  --primary-foreground: #ffffff;
+  --primary: #3b5544;
+  --primary-foreground: #faf7f1;
 
-  --secondary: #eef3f2;
-  --secondary-foreground: #1e6f6a;
+  --secondary: #eeeae0;
+  --secondary-foreground: #3b5544;
 
-  --accent: #f5a623;
-  --accent-foreground: #2a1a00;
+  --accent: #a85a39;
+  --accent-foreground: #fff8f3;
 
-  --muted: #eef1f5;
-  --muted-foreground: #5c6b7a;
+  --muted: #f1ede4;
+  --muted-foreground: #6b6259;
 
-  --destructive: #d64545;
-  --destructive-foreground: #ffffff;
+  --destructive: #b84c3e;
+  --destructive-foreground: #fff8f6;
 
-  --success: #2f9e5b;
-  --success-foreground: #ffffff;
+  --success: #4c7a52;
+  --success-foreground: #f5faf4;
 
-  --border: #e2e6ec;
-  --input: #e2e6ec;
-  --ring: #1e6f6a;
+  --border: #e4ded2;
+  --input: #e4ded2;
+  --ring: #3b5544;
 
-  --radius: 0.75rem;
+  --radius: 0.7rem;
 
-  --sidebar: #0f2b2a;
-  --sidebar-foreground: #e7f1ef;
-  --sidebar-accent: #143938;
-  --sidebar-border: #1c4341;
+  --sidebar: #1c2620;
+  --sidebar-foreground: #ede8de;
+  --sidebar-accent: #2a3830;
+  --sidebar-border: #33413a;
 
-  --canvas-grid: #e2e6ec;
+  --canvas-grid: #e4ded2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1220;
-    --foreground: #e7ecf3;
+    --background: #18150f;
+    --foreground: #ede7da;
 
-    --card: #111a2c;
-    --card-foreground: #e7ecf3;
+    --card: #211d16;
+    --card-foreground: #ede7da;
 
-    --popover: #111a2c;
-    --popover-foreground: #e7ecf3;
+    --popover: #211d16;
+    --popover-foreground: #ede7da;
 
-    --primary: #3fa79d;
-    --primary-foreground: #04211f;
+    --primary: #7fa187;
+    --primary-foreground: #16211a;
 
-    --secondary: #16233a;
-    --secondary-foreground: #9fd8d1;
+    --secondary: #2a2620;
+    --secondary-foreground: #c9e0cc;
 
-    --accent: #f5a623;
-    --accent-foreground: #2a1a00;
+    --accent: #e08a5f;
+    --accent-foreground: #2e1508;
 
-    --muted: #16213340;
-    --muted-foreground: #93a1b5;
+    --muted: #241f17;
+    --muted-foreground: #a79e8e;
 
-    --destructive: #e2695f;
-    --destructive-foreground: #1a0000;
+    --destructive: #e2776a;
+    --destructive-foreground: #2b0d08;
 
-    --success: #48c07f;
-    --success-foreground: #04210f;
+    --success: #7fba85;
+    --success-foreground: #0e2011;
 
-    --border: #223049;
-    --input: #223049;
-    --ring: #3fa79d;
+    --border: #322c22;
+    --input: #322c22;
+    --ring: #8cae8f;
 
-    --sidebar: #08151a;
-    --sidebar-foreground: #dceeeb;
-    --sidebar-accent: #0f2427;
-    --sidebar-border: #14302f;
+    --sidebar: #120f0a;
+    --sidebar-foreground: #e7e1d3;
+    --sidebar-accent: #221d15;
+    --sidebar-border: #2b251c;
 
-    --canvas-grid: #1c2942;
+    --canvas-grid: #2c271d;
   }
 }
 
@@ -119,12 +126,17 @@
   --radius-xl: calc(var(--radius) + 0.35rem);
 
   --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 .canvas-surface {
@@ -134,4 +146,41 @@ body {
 
 * {
   border-color: var(--border);
+}
+
+/* Slow-drifting ambient gradient used behind the marketing hero. */
+@keyframes drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -4%) scale(1.05);
+  }
+  66% {
+    transform: translate(-3%, 3%) scale(0.98);
+  }
+}
+
+.animate-drift {
+  animation: drift 22s ease-in-out infinite;
+}
+
+@keyframes float-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-soft {
+  animation: float-soft 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drift,
+  .animate-float-soft {
+    animation: none;
+  }
 }

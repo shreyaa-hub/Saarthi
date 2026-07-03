@@ -27,7 +27,7 @@ export default async function PatientDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-semibold">Hi {profile.full_name.split(" ")[0]}, ready to practice?</h2>
+        <h2 className="font-display text-2xl font-semibold">Hi {profile.full_name.split(" ")[0]}, ready to practice?</h2>
         {clinician?.profiles ? (
           <p className="text-sm text-muted-foreground">
             Working with {clinician.profiles.full_name}

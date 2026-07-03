@@ -3,7 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatDate } from "@/lib/utils";
 
-const LINE_COLOR = "#1e6f6a";
+const LINE_COLOR = "#3b5544";
 
 type Attempt = {
   id: string;

@@ -5,8 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { EMPTY_CANVAS, type TemplateCanvas, type TemplateMedium } from "@/lib/types/canvas";
 import { getBlueprint } from "@/lib/canvas/blueprints";
-
-const THUMBNAIL_COLORS = ["#1e6f6a", "#f5a623", "#5b6bd6", "#d64545", "#2f9e5b", "#a05bd6"];
+import { randomThumbnailColor } from "@/lib/canvas/colors";
 
 export type WizardSource =
   | { type: "blank" }
@@ -58,7 +57,7 @@ export async function createTemplateFromWizard(input: {
       medium: input.medium,
       description,
       canvas,
-      thumbnail_color: THUMBNAIL_COLORS[Math.floor(Math.random() * THUMBNAIL_COLORS.length)],
+      thumbnail_color: randomThumbnailColor(),
     })
     .select("id")
     .single();

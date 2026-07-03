@@ -75,7 +75,7 @@ export function worksheetToCanvas(draft: WorksheetDraft): TemplateCanvas {
       content: draft.title,
       fontSize: 28,
       fontWeight: "bold",
-      color: "#16233a",
+      color: "#2a2420",
       align: "left",
     },
   ];
@@ -92,7 +92,7 @@ export function worksheetToCanvas(draft: WorksheetDraft): TemplateCanvas {
       content: `${i + 1}. ${item}`,
       fontSize: 17,
       fontWeight: "medium",
-      color: "#16233a",
+      color: "#2a2420",
       align: "left",
     });
     elements.push({
@@ -103,7 +103,7 @@ export function worksheetToCanvas(draft: WorksheetDraft): TemplateCanvas {
       w: CONTENT_W,
       h: 2,
       shape: "rectangle",
-      fill: "#c7cdd6",
+      fill: "#d8d0c0",
       stroke: "transparent",
       strokeWidth: 0,
     });

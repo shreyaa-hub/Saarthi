@@ -26,7 +26,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Articulation",
     medium: "interactive",
     description: "Pick the picture that matches the target sound.",
-    thumbnailColor: "#1e6f6a",
+    thumbnailColor: "#3b5544",
     canvas: base({
       elements: [
         {
@@ -39,7 +39,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "Which word starts with the /s/ sound?",
           fontSize: 26,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -78,7 +78,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Social / Pragmatics",
     medium: "interactive",
     description: "A quick emotional check-in to open a session.",
-    thumbnailColor: "#f5a623",
+    thumbnailColor: "#a85a39",
     canvas: base({
       elements: [
         {
@@ -91,7 +91,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "How are you feeling today?",
           fontSize: 26,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -131,7 +131,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Cognitive",
     medium: "interactive",
     description: "Put the steps of a morning routine in order.",
-    thumbnailColor: "#5b6bd6",
+    thumbnailColor: "#8b5f72",
     canvas: base({
       elements: [
         {
@@ -144,7 +144,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "Put the morning routine in order",
           fontSize: 26,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -183,7 +183,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Language",
     medium: "interactive",
     description: "Complete the sentence with the correct preposition.",
-    thumbnailColor: "#2f9e5b",
+    thumbnailColor: "#4c7a52",
     canvas: base({
       elements: [
         {
@@ -196,7 +196,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "Complete the sentence",
           fontSize: 26,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -230,7 +230,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Language",
     medium: "interactive",
     description: "Match each word to its meaning.",
-    thumbnailColor: "#a05bd6",
+    thumbnailColor: "#6b7fa0",
     canvas: base({
       elements: [
         {
@@ -243,7 +243,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "Match the word to its meaning",
           fontSize: 26,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -280,7 +280,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "General",
     medium: "print",
     description: "A printable worksheet with space for written responses.",
-    thumbnailColor: "#d64545",
+    thumbnailColor: "#b8923f",
     canvas: base({
       elements: [
         {
@@ -293,7 +293,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "Session Worksheet",
           fontSize: 28,
           fontWeight: "bold",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -306,7 +306,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "1. What did we practice today?",
           fontSize: 18,
           fontWeight: "medium",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -317,7 +317,7 @@ export const BLUEPRINTS: Blueprint[] = [
           w: 780,
           h: 2,
           shape: "rectangle",
-          fill: "#c7cdd6",
+          fill: "#d8d0c0",
           stroke: "transparent",
           strokeWidth: 0,
         },
@@ -329,7 +329,7 @@ export const BLUEPRINTS: Blueprint[] = [
           w: 780,
           h: 2,
           shape: "rectangle",
-          fill: "#c7cdd6",
+          fill: "#d8d0c0",
           stroke: "transparent",
           strokeWidth: 0,
         },
@@ -343,7 +343,7 @@ export const BLUEPRINTS: Blueprint[] = [
           content: "2. One thing that felt easy, one thing that felt hard",
           fontSize: 18,
           fontWeight: "medium",
-          color: "#16233a",
+          color: "#2a2420",
           align: "left",
         },
         {
@@ -354,7 +354,7 @@ export const BLUEPRINTS: Blueprint[] = [
           w: 780,
           h: 2,
           shape: "rectangle",
-          fill: "#c7cdd6",
+          fill: "#d8d0c0",
           stroke: "transparent",
           strokeWidth: 0,
         },
@@ -366,7 +366,7 @@ export const BLUEPRINTS: Blueprint[] = [
           w: 780,
           h: 2,
           shape: "rectangle",
-          fill: "#c7cdd6",
+          fill: "#d8d0c0",
           stroke: "transparent",
           strokeWidth: 0,
         },

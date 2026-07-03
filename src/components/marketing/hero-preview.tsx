@@ -9,7 +9,7 @@ export function HeroPreview() {
         aria-hidden
         className="absolute -inset-6 -z-10 rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,_var(--secondary),_transparent_55%)] blur-2xl"
       />
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="animate-float-soft overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         {/* fake browser chrome */}
         <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-2.5">
           <span className="size-2.5 rounded-full bg-destructive/60" />
@@ -46,8 +46,11 @@ export function HeroPreview() {
 
               <div className="flex min-w-40 flex-1 flex-col gap-1.5 rounded-lg border border-border bg-card p-2.5 shadow-sm sm:p-3">
                 <div className="h-2.5 w-24 rounded bg-foreground/15" />
-                <div className="flex items-center gap-1.5 rounded-md border border-success/40 bg-success/10 px-2 py-1.5">
-                  <span className="size-3 shrink-0 rounded-full bg-success" />
+                <div className="relative flex items-center gap-1.5 rounded-md border border-success/40 bg-success/10 px-2 py-1.5">
+                  <span className="relative flex size-3 shrink-0">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/60" />
+                    <span className="relative inline-flex size-3 rounded-full bg-success" />
+                  </span>
                   <span className="h-2 w-16 rounded bg-success/40" />
                 </div>
                 <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1.5">
