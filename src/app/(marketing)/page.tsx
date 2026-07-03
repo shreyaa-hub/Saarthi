@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { HeroPreview } from "@/components/marketing/hero-preview";
 
 const features = [
   {
@@ -80,6 +81,8 @@ export default function HomePage() {
               <Link href="/workflow">See how it works</Link>
             </Button>
           </div>
+
+          <HeroPreview />
         </div>
       </section>
 

@@ -4,10 +4,10 @@ import { getCaseload } from "@/lib/data/clinician";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { initials, formatDate } from "@/lib/utils";
+import { initials, formatDate, cn } from "@/lib/utils";
 import { InvitePatientDialog } from "@/components/clinician/invite-patient-dialog";
 import { PatientRowActions } from "@/components/clinician/patient-row-actions";
-import { Users } from "lucide-react";
+import { Users, ChevronRight } from "lucide-react";
 
 const statusStyles: Record<string, "success" | "secondary" | "outline"> = {
   active: "success",
@@ -50,16 +50,22 @@ export default async function CaseloadPage() {
             const name = row.profiles?.full_name ?? row.display_name;
             const linked = Boolean(row.patient_id);
             return (
-              <Card key={row.id}>
+              <Card
+                key={row.id}
+                className={cn(
+                  "relative transition-all",
+                  linked && "hover:border-primary/40 hover:shadow-md",
+                )}
+              >
                 <CardContent className="flex items-center gap-4 py-4">
-                  <Avatar className="size-11">
+                  <Avatar className="size-11 shrink-0">
                     <AvatarFallback>{initials(name)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     {linked ? (
                       <Link
                         href={`/clinician/caseload/${row.id}`}
-                        className="truncate font-medium hover:underline"
+                        className="truncate font-medium after:absolute after:inset-0 after:content-['']"
                       >
                         {name}
                       </Link>
@@ -71,7 +77,12 @@ export default async function CaseloadPage() {
                     </p>
                   </div>
                   <Badge variant={statusStyles[row.status]}>{row.status}</Badge>
-                  <PatientRowActions id={row.id} status={row.status} inviteCode={row.invite_code} />
+                  {linked && (
+                    <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+                  )}
+                  <div className="relative z-10">
+                    <PatientRowActions id={row.id} status={row.status} inviteCode={row.invite_code} />
+                  </div>
                 </CardContent>
               </Card>
             );

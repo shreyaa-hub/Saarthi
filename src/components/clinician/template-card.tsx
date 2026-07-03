@@ -29,18 +29,22 @@ export function TemplateCard({ template }: { template: Template }) {
   const [, startTransition] = useTransition();
 
   return (
-    <Card className="group overflow-hidden">
-      <Link href={`/clinician/studio/${template.id}`}>
-        <div
-          className="flex h-28 items-center justify-center"
-          style={{ backgroundColor: `${template.thumbnail_color}22` }}
-        >
-          <LayoutTemplate className="size-8" style={{ color: template.thumbnail_color ?? undefined }} />
-        </div>
-      </Link>
+    <Card className="group relative overflow-hidden transition-all hover:border-primary/40 hover:shadow-md">
+      <div
+        className="flex h-28 items-center justify-center transition-colors"
+        style={{ backgroundColor: `${template.thumbnail_color}22` }}
+      >
+        <LayoutTemplate
+          className="size-8 transition-transform group-hover:scale-110"
+          style={{ color: template.thumbnail_color ?? undefined }}
+        />
+      </div>
       <CardContent className="flex items-start justify-between gap-2 pt-4">
         <div className="min-w-0">
-          <Link href={`/clinician/studio/${template.id}`} className="truncate font-medium hover:underline">
+          <Link
+            href={`/clinician/studio/${template.id}`}
+            className="truncate font-medium after:absolute after:inset-0 after:content-['']"
+          >
             {template.title}
           </Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -51,7 +55,7 @@ export function TemplateCard({ template }: { template: Template }) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="shrink-0">
+            <Button variant="ghost" size="icon" className="relative z-10 shrink-0">
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>

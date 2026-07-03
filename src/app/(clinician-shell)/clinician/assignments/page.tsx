@@ -3,8 +3,8 @@ import { requireProfile } from "@/lib/auth/session";
 import { getAssignments, getCaseload } from "@/lib/data/clinician";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
-import { Send } from "lucide-react";
+import { formatDate, cn } from "@/lib/utils";
+import { Send, ChevronRight } from "lucide-react";
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
   completed: "success",
@@ -41,9 +41,15 @@ export default async function AssignmentsPage() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {assignments.map((a) => (
-            <Link key={a.id} href={`/clinician/caseload/${patientToLink.get(a.patient_id) ?? ""}`}>
-              <Card className="transition-shadow hover:shadow-md">
+          {assignments.map((a) => {
+            const linkTarget = patientToLink.get(a.patient_id);
+            const card = (
+              <Card
+                className={cn(
+                  "transition-all",
+                  linkTarget && "hover:border-primary/40 hover:shadow-md",
+                )}
+              >
                 <CardContent className="flex items-center justify-between gap-3 py-4">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{a.title}</p>
@@ -52,11 +58,25 @@ export default async function AssignmentsPage() {
                       {a.due_date ? ` · Due ${formatDate(a.due_date)}` : ""}
                     </p>
                   </div>
-                  <Badge variant={statusVariant[a.status] ?? "outline"}>{a.status.replace("_", " ")}</Badge>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={statusVariant[a.status] ?? "outline"}>
+                      {a.status.replace("_", " ")}
+                    </Badge>
+                    {linkTarget && (
+                      <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+                    )}
+                  </div>
                 </CardContent>
               </Card>
-            </Link>
-          ))}
+            );
+            return linkTarget ? (
+              <Link key={a.id} href={`/clinician/caseload/${linkTarget}`}>
+                {card}
+              </Link>
+            ) : (
+              <div key={a.id}>{card}</div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -15,10 +15,34 @@ export default async function ClinicianDashboardPage() {
   ]);
 
   const statCards = [
-    { label: "Active patients", value: stats.activePatients, icon: Users, href: "/clinician/caseload" },
-    { label: "Published templates", value: stats.publishedTemplates, icon: LayoutTemplate, href: "/clinician/studio" },
-    { label: "Open assignments", value: stats.openAssignments, icon: Send, href: "/clinician/assignments" },
-    { label: "Total attempts logged", value: stats.totalAttempts, icon: ClipboardList, href: "/clinician/assignments" },
+    {
+      label: "Active patients",
+      value: stats.activePatients,
+      icon: Users,
+      href: "/clinician/caseload",
+      tint: "bg-primary/10 text-primary",
+    },
+    {
+      label: "Published templates",
+      value: stats.publishedTemplates,
+      icon: LayoutTemplate,
+      href: "/clinician/studio",
+      tint: "bg-accent/15 text-accent",
+    },
+    {
+      label: "Open assignments",
+      value: stats.openAssignments,
+      icon: Send,
+      href: "/clinician/assignments",
+      tint: "bg-blue-500/10 text-blue-600",
+    },
+    {
+      label: "Total attempts logged",
+      value: stats.totalAttempts,
+      icon: ClipboardList,
+      href: "/clinician/assignments",
+      tint: "bg-violet-500/10 text-violet-600",
+    },
   ];
 
   return (
@@ -45,13 +69,13 @@ export default async function ClinicianDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((s) => (
           <Link key={s.label} href={s.href}>
-            <Card className="transition-shadow hover:shadow-md">
+            <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
               <CardContent className="flex items-center justify-between pt-6">
                 <div>
-                  <p className="text-2xl font-bold">{s.value}</p>
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                 </div>
-                <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
+                <span className={`flex size-10 items-center justify-center rounded-xl ${s.tint}`}>
                   <s.icon className="size-5" />
                 </span>
               </CardContent>
@@ -84,7 +108,10 @@ export default async function ClinicianDashboardPage() {
                   (a as unknown as { assignments?: { title?: string } }).assignments?.title ??
                   "Activity";
                 return (
-                  <div key={a.id} className="flex items-center gap-3 py-3">
+                  <div
+                    key={a.id}
+                    className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-muted/60"
+                  >
                     <Avatar>
                       <AvatarFallback>{initials(patientName)}</AvatarFallback>
                     </Avatar>
@@ -95,7 +122,7 @@ export default async function ClinicianDashboardPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">
+                      <p className="text-sm font-semibold tabular-nums">
                         {a.correct_count}/{a.total_count || 0}
                       </p>
                       <p className="text-xs text-muted-foreground">{formatDate(a.completed_at)}</p>
