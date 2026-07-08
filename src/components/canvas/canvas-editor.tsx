@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 import { useCanvasStore, useCanvasStoreInstance } from "@/lib/canvas/store";
 import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } from "@/lib/types/canvas";
@@ -13,6 +13,7 @@ import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib
 import { Palette } from "./palette";
 import { CanvasSurface } from "./canvas-surface";
 import { PropertiesPanel } from "./properties-panel";
+import { ShortcutsDialog } from "./shortcuts-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ type TemplateRow = {
   medium: TemplateMedium;
   status: "draft" | "published" | "archived";
   canvas: TemplateCanvas;
+  updated_at: string;
 };
 
 export function CanvasEditor({ template }: { template: TemplateRow }) {
@@ -40,31 +42,69 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
   const [title, setTitle] = useState(template.title);
   const [domain, setDomain] = useState(template.domain);
   const [status, setStatus] = useState(template.status);
-  const [saveState, setSaveState] = useState<"saved" | "saving" | "idle">("saved");
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "idle" | "conflict">("saved");
   const [, startTransition] = useTransition();
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboard = useRef<CanvasElement[]>([]);
+  const lastKnownUpdatedAt = useRef(template.updated_at);
+  const conflictNoticeShown = useRef(false);
   const canUndo = useCanvasStore(store, (s) => s.past.length > 0);
   const canRedo = useCanvasStore(store, (s) => s.future.length > 0);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  const attemptSave = async (force: boolean) => {
+    setSaveState("saving");
+    const canvas = store.getState().toCanvas();
+    let result: Awaited<ReturnType<typeof saveTemplateCanvas>>;
+    try {
+      result = await saveTemplateCanvas(template.id, canvas, lastKnownUpdatedAt.current, force);
+    } catch {
+      // A thrown (not returned) error still needs to surface — otherwise
+      // it's an unhandled rejection and the clinician has no idea their
+      // work silently failed to save.
+      toast.error("Couldn't save: unexpected error. Your changes are still on this page.");
+      setSaveState("idle");
+      return;
+    }
+    const { error, conflict, updatedAt } = result;
+    if (error) {
+      toast.error(`Couldn't save: ${error}`);
+      setSaveState("idle");
+    } else if (conflict) {
+      setSaveState("conflict");
+      if (!conflictNoticeShown.current) {
+        conflictNoticeShown.current = true;
+        toast.warning("This template changed elsewhere", {
+          description:
+            "Someone (or another tab) saved a newer version. Reload to see it, or overwrite it with what's on your screen now.",
+          duration: 20000,
+          action: { label: "Reload", onClick: () => window.location.reload() },
+          cancel: {
+            label: "Overwrite",
+            onClick: () => {
+              conflictNoticeShown.current = false;
+              attemptSave(true);
+            },
+          },
+        });
+      }
+    } else {
+      if (updatedAt) lastKnownUpdatedAt.current = updatedAt;
+      conflictNoticeShown.current = false;
+      store.getState().markSaved();
+      setSaveState("saved");
+    }
+  };
 
   useEffect(() => {
     const unsub = store.subscribe((state) => {
       if (!state.dirty) return;
       setSaveState("idle");
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
-      saveTimeout.current = setTimeout(async () => {
-        setSaveState("saving");
-        const canvas = store.getState().toCanvas();
-        const { error } = await saveTemplateCanvas(template.id, canvas);
-        if (error) {
-          toast.error(`Couldn't save: ${error}`);
-        } else {
-          store.getState().markSaved();
-          setSaveState("saved");
-        }
-      }, 900);
+      saveTimeout.current = setTimeout(() => attemptSave(false), 900);
     });
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, template.id]);
 
   useEffect(() => {
@@ -74,6 +114,12 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
       const mod = e.metaKey || e.ctrlKey;
       const { selectedIds, elements, removeSelected, updateElement, undo, redo, duplicateSelected, addElement, selectMany } =
         store.getState();
+
+      if (e.key === "?" && !mod) {
+        e.preventDefault();
+        setShortcutsOpen((o) => !o);
+        return;
+      }
 
       if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length > 0) {
         e.preventDefault();
@@ -221,6 +267,10 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
               <>
                 <Check className="size-3.5" /> All changes saved
               </>
+            ) : saveState === "conflict" ? (
+              <span className="flex items-center gap-1.5 text-destructive">
+                <Cloud className="size-3.5" /> Save conflict — see notice
+              </span>
             ) : (
               <>
                 <Cloud className="size-3.5" /> Unsaved changes
@@ -228,6 +278,14 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
             )}
           </span>
           <Badge variant={status === "published" ? "success" : "outline"}>{status}</Badge>
+          <button
+            type="button"
+            onClick={() => setShortcutsOpen(true)}
+            className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted cursor-pointer"
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard className="size-4" />
+          </button>
           <Button size="sm" variant={status === "published" ? "outline" : "default"} onClick={togglePublish}>
             {status === "published" ? "Unpublish" : "Publish"}
           </Button>
@@ -236,6 +294,8 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
           </Button>
         </div>
       </header>
+
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       <motion.div
         className="flex flex-1 overflow-hidden"

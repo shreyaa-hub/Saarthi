@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette } from "@/components/command-palette/command-palette";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 
@@ -44,12 +46,14 @@ export function PatientTopbar({ fullName, streak }: { fullName: string; streak: 
         <h1 className="font-semibold">{current?.label ?? "My Missions"}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         {streak > 0 && (
-          <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-sm font-semibold text-accent">
+          <span className="mr-2 flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-sm font-semibold text-accent">
             <Flame className="size-4" /> {streak} day{streak === 1 ? "" : "s"}
           </span>
         )}
+        <CommandPalette role="patient" />
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none cursor-pointer">
             <Avatar>

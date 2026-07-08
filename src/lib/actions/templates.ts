@@ -68,14 +68,38 @@ export async function createTemplateFromWizard(input: {
   redirect(`/clinician/studio/${data.id}`);
 }
 
-export async function saveTemplateCanvas(templateId: string, canvas: TemplateCanvas) {
+export async function saveTemplateCanvas(
+  templateId: string,
+  canvas: TemplateCanvas,
+  lastKnownUpdatedAt: string,
+  force = false,
+): Promise<{ error: string | null; conflict?: boolean; updatedAt?: string }> {
   const supabase = await createClient();
-  const { error } = await supabase
+
+  // Optimistic-concurrency check: if the row changed server-side since this
+  // editor last loaded/saved it (another tab, another device), don't
+  // silently clobber that work — surface a conflict instead. `force` skips
+  // this after the clinician has explicitly chosen to overwrite.
+  if (!force) {
+    const { data: current } = await supabase
+      .from("templates")
+      .select("updated_at")
+      .eq("id", templateId)
+      .single();
+
+    if (current && current.updated_at !== lastKnownUpdatedAt) {
+      return { error: null, conflict: true, updatedAt: current.updated_at };
+    }
+  }
+
+  const { data, error } = await supabase
     .from("templates")
     .update({ canvas })
-    .eq("id", templateId);
+    .eq("id", templateId)
+    .select("updated_at")
+    .single();
 
-  return { error: error?.message ?? null };
+  return { error: error?.message ?? null, updatedAt: data?.updated_at };
 }
 
 export async function updateTemplateMeta(
@@ -129,9 +153,35 @@ export async function duplicateTemplate(templateId: string) {
   return { error: error?.message ?? null };
 }
 
+// Soft delete — moves the template to the Trash instead of destroying it
+// outright, so an accidental click (or a change of mind) is recoverable.
 export async function deleteTemplate(templateId: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("templates").delete().eq("id", templateId);
+  const { error } = await supabase
+    .from("templates")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", templateId);
   revalidatePath("/clinician/studio");
+  revalidatePath("/clinician/studio/trash");
+  return { error: error?.message ?? null };
+}
+
+export async function restoreTemplate(templateId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("templates")
+    .update({ deleted_at: null })
+    .eq("id", templateId);
+  revalidatePath("/clinician/studio");
+  revalidatePath("/clinician/studio/trash");
+  return { error: error?.message ?? null };
+}
+
+// Permanent delete — only reachable from the Trash view, behind its own
+// confirmation, since this one can't be undone.
+export async function purgeTemplate(templateId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("templates").delete().eq("id", templateId);
+  revalidatePath("/clinician/studio/trash");
   return { error: error?.message ?? null };
 }

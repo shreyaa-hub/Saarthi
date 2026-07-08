@@ -12,9 +12,10 @@ export default async function TemplateEditorPage({
 
   const { data: template } = await supabase
     .from("templates")
-    .select("id, title, domain, medium, status, canvas")
+    .select("id, title, domain, medium, status, canvas, updated_at")
     .eq("id", templateId)
     .eq("owner_id", user.id)
+    .is("deleted_at", null)
     .single();
 
   if (!template) notFound();

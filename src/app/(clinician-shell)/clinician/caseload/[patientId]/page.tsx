@@ -8,15 +8,22 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { initials, formatDate } from "@/lib/utils";
 import { AssignTemplateDialog } from "@/components/clinician/assign-template-dialog";
 import { PatientInsightsPanel } from "@/components/clinician/patient-insights-panel";
+import { AttemptNotes } from "@/components/clinician/attempt-notes";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { getTemplates } from "@/lib/data/clinician";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, "success" | "secondary" | "outline"> = {
   completed: "success",
   in_progress: "secondary",
   assigned: "outline",
 };
+
+function isOverdue(dueDate: string | null, status: string) {
+  if (!dueDate || status === "completed") return false;
+  return new Date(dueDate) < new Date(new Date().toDateString());
+}
 
 export default async function PatientDetailPage({
   params,
@@ -35,6 +42,7 @@ export default async function PatientDetailPage({
   const { link, assignments, attempts, latestInsight } = detail;
   const name = link.profiles?.full_name ?? link.display_name;
   const publishedTemplates = templates.filter((t) => t.status === "published");
+  const titleByAssignment = Object.fromEntries(assignments.map((a) => [a.id, a.title]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,21 +105,44 @@ export default async function PatientDetailPage({
                 </p>
               ) : (
                 <div className="flex flex-col divide-y divide-border">
-                  {assignments.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{a.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
-                        </p>
+                  {assignments.map((a) => {
+                    const overdue = isOverdue(a.due_date, a.status);
+                    return (
+                      <div key={a.id} className="flex items-center justify-between gap-3 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{a.title}</p>
+                          <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
+                            {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {overdue && (
+                            <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
+                              <AlertTriangle className="size-3" /> Overdue
+                            </Badge>
+                          )}
+                          <Badge variant={statusStyles[a.status] ?? "outline"}>
+                            {a.status.replace("_", " ")}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge variant={statusStyles[a.status] ?? "outline"}>
-                        {a.status.replace("_", " ")}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Completed attempts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AttemptNotes
+                attempts={attempts}
+                titleByAssignment={titleByAssignment}
+                clinicianPatientId={link.id}
+              />
             </CardContent>
           </Card>
         </div>

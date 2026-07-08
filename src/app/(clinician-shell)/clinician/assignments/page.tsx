@@ -4,13 +4,18 @@ import { getAssignments, getCaseload } from "@/lib/data/clinician";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, cn } from "@/lib/utils";
-import { Send, ChevronRight } from "lucide-react";
+import { Send, ChevronRight, AlertTriangle } from "lucide-react";
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
   completed: "success",
   in_progress: "secondary",
   assigned: "outline",
 };
+
+function isOverdue(dueDate: string | null, status: string) {
+  if (!dueDate || status === "completed") return false;
+  return new Date(dueDate) < new Date(new Date().toDateString());
+}
 
 export default async function AssignmentsPage() {
   const { supabase, user } = await requireProfile("clinician");
@@ -43,22 +48,34 @@ export default async function AssignmentsPage() {
         <div className="grid gap-3">
           {assignments.map((a) => {
             const linkTarget = patientToLink.get(a.patient_id);
+            const overdue = isOverdue(a.due_date, a.status);
             const card = (
               <Card
                 className={cn(
                   "transition-all",
                   linkTarget && "hover:border-primary/40 hover:shadow-md",
+                  overdue && "border-destructive/40",
                 )}
               >
                 <CardContent className="flex items-center justify-between gap-3 py-4">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{a.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p
+                      className={cn(
+                        "truncate text-xs",
+                        overdue ? "font-medium text-destructive" : "text-muted-foreground",
+                      )}
+                    >
                       {a.profiles?.full_name ?? "Patient"} · Assigned {formatDate(a.created_at)}
                       {a.due_date ? ` · Due ${formatDate(a.due_date)}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
+                    {overdue && (
+                      <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
+                        <AlertTriangle className="size-3" /> Overdue
+                      </Badge>
+                    )}
                     <Badge variant={statusVariant[a.status] ?? "outline"}>
                       {a.status.replace("_", " ")}
                     </Badge>

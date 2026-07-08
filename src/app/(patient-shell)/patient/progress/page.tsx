@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react";
 import { requireProfile } from "@/lib/auth/session";
 import { getMyAttempts } from "@/lib/data/patient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,16 +37,24 @@ export default async function PatientProgressPage() {
           ) : (
             <div className="flex flex-col divide-y divide-border">
               {attempts.map((a) => (
-                <div key={a.id} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {(a as unknown as { assignments?: { title?: string } }).assignments?.title ?? "Activity"}
+                <div key={a.id} className="flex flex-col gap-2 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {(a as unknown as { assignments?: { title?: string } }).assignments?.title ?? "Activity"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDate(a.completed_at)}</p>
+                    </div>
+                    <p className="text-sm font-semibold">
+                      {a.correct_count}/{a.total_count} ({a.score ?? 0}%)
                     </p>
-                    <p className="text-xs text-muted-foreground">{formatDate(a.completed_at)}</p>
                   </div>
-                  <p className="text-sm font-semibold">
-                    {a.correct_count}/{a.total_count} ({a.score ?? 0}%)
-                  </p>
+                  {a.clinician_note && (
+                    <p className="flex items-start gap-1.5 rounded-md bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+                      <MessageSquare className="mt-0.5 size-3.5 shrink-0" />
+                      {a.clinician_note}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

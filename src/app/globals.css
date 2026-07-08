@@ -51,7 +51,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --background: #18150f;
     --foreground: #ede7da;
 
@@ -90,6 +90,49 @@
 
     --canvas-grid: #2c271d;
   }
+}
+
+/* Explicit manual theme choice (persisted via ThemeToggle), independent of
+   OS preference — takes priority over the prefers-color-scheme block above
+   because .dark is a class selector applied directly to <html>. */
+:root.dark {
+  --background: #18150f;
+  --foreground: #ede7da;
+
+  --card: #211d16;
+  --card-foreground: #ede7da;
+
+  --popover: #211d16;
+  --popover-foreground: #ede7da;
+
+  --primary: #7fa187;
+  --primary-foreground: #16211a;
+
+  --secondary: #2a2620;
+  --secondary-foreground: #c9e0cc;
+
+  --accent: #e08a5f;
+  --accent-foreground: #2e1508;
+
+  --muted: #241f17;
+  --muted-foreground: #a79e8e;
+
+  --destructive: #e2776a;
+  --destructive-foreground: #2b0d08;
+
+  --success: #7fba85;
+  --success-foreground: #0e2011;
+
+  --border: #322c22;
+  --input: #322c22;
+  --ring: #8cae8f;
+
+  --sidebar: #120f0a;
+  --sidebar-foreground: #e7e1d3;
+  --sidebar-accent: #221d15;
+  --sidebar-border: #2b251c;
+
+  --canvas-grid: #2c271d;
 }
 
 @theme inline {

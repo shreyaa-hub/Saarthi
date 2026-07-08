@@ -102,6 +102,11 @@ create table if not exists public.templates (
   updated_at timestamptz not null default now()
 );
 
+-- Added after the initial table create — "alter ... add column if not
+-- exists" so re-running this file against an already-live project (not
+-- just a fresh one) still picks it up.
+alter table public.templates add column if not exists deleted_at timestamptz;
+
 alter table public.templates enable row level security;
 
 create index if not exists templates_owner_idx on public.templates (owner_id);
@@ -158,6 +163,8 @@ create table if not exists public.activity_attempts (
   duration_seconds int,
   completed_at timestamptz not null default now()
 );
+
+alter table public.activity_attempts add column if not exists clinician_note text;
 
 alter table public.activity_attempts enable row level security;
 
@@ -306,6 +313,21 @@ create policy "activity_attempts_patient_all" on public.activity_attempts
 drop policy if exists "activity_attempts_clinician_select" on public.activity_attempts;
 create policy "activity_attempts_clinician_select" on public.activity_attempts
   for select using (
+    exists (
+      select 1 from public.assignments a
+      where a.id = activity_attempts.assignment_id
+        and a.clinician_id = auth.uid()
+    )
+  );
+
+-- Lets the treating clinician attach a note to an attempt (e.g. "great
+-- articulation today, revisit blends next session"). The app only ever
+-- sends clinician_note in this update, but RLS here is row-scoped, not
+-- column-scoped — same trust boundary as every other clinician policy
+-- in this file.
+drop policy if exists "activity_attempts_clinician_update_note" on public.activity_attempts;
+create policy "activity_attempts_clinician_update_note" on public.activity_attempts
+  for update using (
     exists (
       select 1 from public.assignments a
       where a.id = activity_attempts.assignment_id

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { MoreHorizontal, Copy, Trash2, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,8 +12,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { duplicateTemplate, deleteTemplate } from "@/lib/actions/templates";
+import { duplicateTemplate, deleteTemplate, restoreTemplate } from "@/lib/actions/templates";
 import { formatDate } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
@@ -27,6 +37,30 @@ const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
 
 export function TemplateCard({ template }: { template: Template }) {
   const [, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleDelete = () => {
+    setConfirmOpen(false);
+    startTransition(async () => {
+      const { error } = await deleteTemplate(template.id);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      toast("Template moved to trash", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            startTransition(async () => {
+              const res = await restoreTemplate(template.id);
+              if (res.error) toast.error(res.error);
+              else toast.success("Restored");
+            });
+          },
+        },
+      });
+    });
+  };
 
   return (
     <Card className="group relative overflow-hidden transition-all hover:border-primary/40 hover:shadow-md">
@@ -73,18 +107,30 @@ export function TemplateCard({ template }: { template: Template }) {
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
-              onSelect={() =>
-                startTransition(async () => {
-                  const { error } = await deleteTemplate(template.id);
-                  if (error) toast.error(error);
-                })
-              }
+              onSelect={() => setConfirmOpen(true)}
             >
               <Trash2 className="size-4" /> Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move &ldquo;{template.title}&rdquo; to trash?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It&apos;ll be moved to Trash and can be restored later, or permanently deleted from there.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">
+              Move to trash
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

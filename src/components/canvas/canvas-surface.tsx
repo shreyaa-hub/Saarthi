@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { ZoomIn, ZoomOut, Maximize2, Magnet } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
+import { computeSnap } from "@/lib/canvas/alignment";
 import { ElementBox } from "./element-box";
+import { cn } from "@/lib/utils";
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.15;
+const GRID_SIZE = 8;
 
 export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const width = useCanvasStore(store, (s) => s.width);
@@ -22,6 +25,34 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const [fitScale, setFitScale] = useState(1);
   const [zoom, setZoom] = useState(1);
   const scale = fitScale * zoom;
+
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // Pure derivation from the current drag position — no state needed, this
+  // just recomputes on every render while dragging.
+  const snapResult = useMemo(() => {
+    if (!draggingId || !snapEnabled) return null;
+    const dragged = elements.find((e) => e.id === draggingId);
+    if (!dragged) return null;
+    const others = elements.filter((e) => e.id !== draggingId);
+    return { dragged, ...computeSnap(dragged, others, { width, height }) };
+  }, [elements, draggingId, snapEnabled, width, height]);
+  const guides = snapResult?.guides ?? [];
+
+  // The corrective snap itself does need an effect: it writes into the
+  // canvas store (an external system), not React state, while an element is
+  // being dragged (moved, not resized).
+  useEffect(() => {
+    if (!snapResult || !draggingId) return;
+    if (snapResult.dx !== 0 || snapResult.dy !== 0) {
+      updateElement(draggingId, {
+        x: snapResult.dragged.x + snapResult.dx,
+        y: snapResult.dragged.y + snapResult.dy,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapResult, draggingId]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -126,10 +157,13 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
                 selected={selectedIds.includes(el.id)}
                 soleSelected={selectedIds.length === 1 && selectedIds[0] === el.id}
                 scale={scale}
+                gridSize={snapEnabled ? GRID_SIZE : 0}
                 onSelect={(additive) => select(el.id, { additive })}
                 onChange={(patch) => updateElement(el.id, patch)}
                 onDelete={() => removeElement(el.id)}
                 onDuplicate={() => duplicateElement(el.id)}
+                onDragStart={() => setDraggingId(el.id)}
+                onDragEnd={() => setDraggingId(null)}
               />
             ))}
 
@@ -144,11 +178,35 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
                 }}
               />
             )}
+
+            {draggingId && guides.map((g, i) => (
+              <div
+                key={i}
+                className="pointer-events-none absolute bg-accent"
+                style={
+                  g.axis === "vertical"
+                    ? { left: g.position, top: 0, width: 1, height }
+                    : { top: g.position, left: 0, height: 1, width }
+                }
+              />
+            ))}
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-center gap-1 border-t border-border bg-card py-1.5">
+        <button
+          type="button"
+          onClick={() => setSnapEnabled((s) => !s)}
+          className={cn(
+            "flex size-7 items-center justify-center rounded-md hover:bg-muted cursor-pointer",
+            snapEnabled ? "text-primary" : "text-muted-foreground",
+          )}
+          title={snapEnabled ? "Snapping on (grid + alignment guides)" : "Snapping off"}
+        >
+          <Magnet className="size-3.5" />
+        </button>
+        <div className="mx-1 h-4 w-px bg-border" />
         <button
           type="button"
           onClick={() => zoomBy(-ZOOM_STEP)}

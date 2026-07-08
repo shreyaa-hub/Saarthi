@@ -133,9 +133,22 @@ export async function getTemplates(supabase: Client, ownerId: string) {
     .from("templates")
     .select("*")
     .eq("owner_id", ownerId)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
 
   logIfError("getTemplates", error);
+  return data ?? [];
+}
+
+export async function getTrashedTemplates(supabase: Client, ownerId: string) {
+  const { data, error } = await supabase
+    .from("templates")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  logIfError("getTrashedTemplates", error);
   return data ?? [];
 }
 

@@ -79,6 +79,7 @@ export type Database = {
           status: TemplateStatus;
           canvas: TemplateCanvas;
           thumbnail_color: string | null;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -150,6 +151,7 @@ export type Database = {
           correct_count: number;
           total_count: number;
           duration_seconds: number | null;
+          clinician_note: string | null;
           completed_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["activity_attempts"]["Row"]> & {

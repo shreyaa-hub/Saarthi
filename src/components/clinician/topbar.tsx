@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette } from "@/components/command-palette/command-palette";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 
@@ -54,27 +56,31 @@ export function ClinicianTopbar({
         <h1 className="font-semibold">{current?.label ?? "Dashboard"}</h1>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none cursor-pointer">
-          <Avatar>
-            <AvatarFallback>{initials(fullName)}</AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>
-            <p className="font-medium">{fullName}</p>
-            {headline && <p className="text-xs font-normal text-muted-foreground">{headline}</p>}
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <form action={signOut} className="w-full">
-              <button type="submit" className="flex w-full items-center gap-2 cursor-pointer">
-                <LogOut className="size-4" /> Sign out
-              </button>
-            </form>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-2">
+        <CommandPalette role="clinician" />
+        <ThemeToggle />
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none cursor-pointer">
+            <Avatar>
+              <AvatarFallback>{initials(fullName)}</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <p className="font-medium">{fullName}</p>
+              {headline && <p className="text-xs font-normal text-muted-foreground">{headline}</p>}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <form action={signOut} className="w-full">
+                <button type="submit" className="flex w-full items-center gap-2 cursor-pointer">
+                  <LogOut className="size-4" /> Sign out
+                </button>
+              </form>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

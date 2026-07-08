@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono, Fraunces } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const fontSans = Plus_Jakarta_Sans({
@@ -35,6 +36,9 @@ export default function RootLayout({
       lang="en"
       className={`${fontSans.variable} ${fontMono.variable} ${fontDisplay.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />

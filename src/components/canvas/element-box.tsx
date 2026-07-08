@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import { Trash2, Copy } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
+import { snapToGridValue } from "@/lib/canvas/alignment";
 import { ElementPreview } from "./element-preview";
 import { cn } from "@/lib/utils";
 
@@ -16,20 +17,26 @@ export function ElementBox({
   soleSelected = selected,
   scale,
   readOnly = false,
+  gridSize = 0,
   onSelect,
   onChange,
   onDelete,
   onDuplicate,
+  onDragStart,
+  onDragEnd,
 }: {
   element: CanvasElement;
   selected: boolean;
   soleSelected?: boolean;
   scale: number;
   readOnly?: boolean;
+  gridSize?: number;
   onSelect: (additive: boolean) => void;
   onChange: (patch: Partial<CanvasElement>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const dragState = useRef<{ startX: number; startY: number; elX: number; elY: number } | null>(null);
   const resizeState = useRef<{
@@ -49,8 +56,9 @@ export function ElementBox({
       onSelect(e.shiftKey);
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       dragState.current = { startX: e.clientX, startY: e.clientY, elX: element.x, elY: element.y };
+      onDragStart?.();
     },
-    [element.x, element.y, element.locked, onSelect, readOnly],
+    [element.x, element.y, element.locked, onSelect, readOnly, onDragStart],
   );
 
   const handleMoveMove = useCallback(
@@ -58,14 +66,17 @@ export function ElementBox({
       if (!dragState.current) return;
       const dx = (e.clientX - dragState.current.startX) / scale;
       const dy = (e.clientY - dragState.current.startY) / scale;
-      onChange({ x: Math.round(dragState.current.elX + dx), y: Math.round(dragState.current.elY + dy) });
+      const x = snapToGridValue(Math.round(dragState.current.elX + dx), gridSize);
+      const y = snapToGridValue(Math.round(dragState.current.elY + dy), gridSize);
+      onChange({ x, y });
     },
-    [onChange, scale],
+    [onChange, scale, gridSize],
   );
 
   const handleMoveUp = useCallback(() => {
     dragState.current = null;
-  }, []);
+    onDragEnd?.();
+  }, [onDragEnd]);
 
   const handleResizeDown = useCallback(
     (handle: Handle) => (e: React.PointerEvent) => {
@@ -92,30 +103,32 @@ export function ElementBox({
       const dy = (e.clientY - rs.startY) / scale;
       const patch: Partial<CanvasElement> = {};
 
+      const snap = (v: number) => snapToGridValue(v, gridSize);
+
       if (rs.handle === "se") {
-        patch.w = Math.max(MIN_SIZE, Math.round(rs.elW + dx));
-        patch.h = Math.max(MIN_SIZE, Math.round(rs.elH + dy));
+        patch.w = snap(Math.max(MIN_SIZE, Math.round(rs.elW + dx)));
+        patch.h = snap(Math.max(MIN_SIZE, Math.round(rs.elH + dy)));
       } else if (rs.handle === "ne") {
-        patch.w = Math.max(MIN_SIZE, Math.round(rs.elW + dx));
+        patch.w = snap(Math.max(MIN_SIZE, Math.round(rs.elW + dx)));
         const h = Math.max(MIN_SIZE, Math.round(rs.elH - dy));
-        patch.h = h;
-        patch.y = Math.round(rs.elY + (rs.elH - h));
+        patch.h = snap(h);
+        patch.y = snap(Math.round(rs.elY + (rs.elH - h)));
       } else if (rs.handle === "sw") {
         const w = Math.max(MIN_SIZE, Math.round(rs.elW - dx));
-        patch.w = w;
-        patch.x = Math.round(rs.elX + (rs.elW - w));
-        patch.h = Math.max(MIN_SIZE, Math.round(rs.elH + dy));
+        patch.w = snap(w);
+        patch.x = snap(Math.round(rs.elX + (rs.elW - w)));
+        patch.h = snap(Math.max(MIN_SIZE, Math.round(rs.elH + dy)));
       } else if (rs.handle === "nw") {
         const w = Math.max(MIN_SIZE, Math.round(rs.elW - dx));
         const h = Math.max(MIN_SIZE, Math.round(rs.elH - dy));
-        patch.x = Math.round(rs.elX + (rs.elW - w));
-        patch.y = Math.round(rs.elY + (rs.elH - h));
-        patch.w = w;
-        patch.h = h;
+        patch.x = snap(Math.round(rs.elX + (rs.elW - w)));
+        patch.y = snap(Math.round(rs.elY + (rs.elH - h)));
+        patch.w = snap(w);
+        patch.h = snap(h);
       }
       onChange(patch);
     },
-    [onChange, scale],
+    [onChange, scale, gridSize],
   );
 
   const handleResizeUp = useCallback(() => {

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { requireProfile } from "@/lib/auth/session";
 import { getTemplates } from "@/lib/data/clinician";
 import { StudioEntryCards } from "@/components/clinician/studio-entry-cards";
@@ -22,12 +24,20 @@ export default async function StudioPage() {
       </Reveal>
 
       <Reveal delay={0.16}>
-        <h3 className="mb-3 text-lg font-semibold">
-          Your templates
-          <span className="ml-2 text-sm font-normal text-muted-foreground">
-            ({templates.length})
-          </span>
-        </h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">
+            Your templates
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              ({templates.length})
+            </span>
+          </h3>
+          <Link
+            href="/clinician/studio/trash"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <Trash2 className="size-3.5" /> Trash
+          </Link>
+        </div>
 
         {templates.length === 0 ? (
           <Card>
