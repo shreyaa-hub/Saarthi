@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,22 +14,33 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette/command-palette";
+import { NotificationBell } from "@/components/notification-bell";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import type { Database } from "@/lib/types/database";
+
+type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
 const links = [
   { href: "/clinician", label: "Dashboard", icon: LayoutDashboard },
   { href: "/clinician/caseload", label: "Caseload", icon: Users },
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
+  { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
 ];
 
 export function ClinicianTopbar({
   fullName,
   headline,
+  userId,
+  notifications,
+  unreadCount,
 }: {
   fullName: string;
   headline?: string | null;
+  userId: string;
+  notifications: NotificationRow[];
+  unreadCount: number;
 }) {
   const pathname = usePathname();
   const current = links.find((l) =>
@@ -58,6 +69,7 @@ export function ClinicianTopbar({
 
       <div className="flex items-center gap-2">
         <CommandPalette role="clinician" />
+        <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none cursor-pointer">

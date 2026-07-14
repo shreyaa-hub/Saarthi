@@ -14,15 +14,31 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette/command-palette";
+import { NotificationBell } from "@/components/notification-bell";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import type { Database } from "@/lib/types/database";
+
+type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
 const links = [
   { href: "/patient", label: "My Missions", icon: LayoutDashboard },
   { href: "/patient/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export function PatientTopbar({ fullName, streak }: { fullName: string; streak: number }) {
+export function PatientTopbar({
+  fullName,
+  streak,
+  userId,
+  notifications,
+  unreadCount,
+}: {
+  fullName: string;
+  streak: number;
+  userId: string;
+  notifications: NotificationRow[];
+  unreadCount: number;
+}) {
   const pathname = usePathname();
   const current = links.find((l) => (l.href === "/patient" ? pathname === l.href : pathname.startsWith(l.href)));
 
@@ -53,6 +69,7 @@ export function PatientTopbar({ fullName, streak }: { fullName: string; streak: 
           </span>
         )}
         <CommandPalette role="patient" />
+        <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none cursor-pointer">

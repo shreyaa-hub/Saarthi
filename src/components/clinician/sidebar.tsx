@@ -9,6 +9,7 @@ import {
   Users,
   LayoutTemplate,
   Send,
+  CalendarDays,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const links = [
   { href: "/clinician/caseload", label: "Caseload", icon: Users },
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
+  { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
 ];
 
 export function ClinicianSidebar() {

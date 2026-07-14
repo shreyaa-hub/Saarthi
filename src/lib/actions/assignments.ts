@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/actions/auth";
+import { notify } from "@/lib/actions/notifications";
 
 export async function createAssignment(
   _prevState: ActionState,
@@ -45,6 +46,15 @@ export async function createAssignment(
   });
 
   if (error) return { error: error.message };
+
+  await notify(
+    supabase,
+    patientId,
+    "new_assignment",
+    "New activity assigned",
+    template.title,
+    "/patient",
+  );
 
   revalidatePath(`/clinician/caseload/${clinicianPatientId}`);
   revalidatePath("/clinician/assignments");

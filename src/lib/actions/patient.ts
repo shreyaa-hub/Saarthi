@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/actions/auth";
 import type { Json } from "@/lib/types/database";
+import { notify } from "@/lib/actions/notifications";
 
 export async function claimInviteCode(
   _prevState: ActionState,
@@ -50,7 +51,26 @@ export async function submitAttempt(
 
   if (attemptError) return { error: attemptError.message };
 
-  await supabase.from("assignments").update({ status: "completed" }).eq("id", assignmentId);
+  const [{ data: assignment }, { data: profile }] = await Promise.all([
+    supabase
+      .from("assignments")
+      .update({ status: "completed" })
+      .eq("id", assignmentId)
+      .select("clinician_id, title")
+      .single(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+  ]);
+
+  if (assignment) {
+    await notify(
+      supabase,
+      assignment.clinician_id,
+      "attempt_completed",
+      `${profile?.full_name ?? "A patient"} completed an activity`,
+      `${assignment.title} — ${score}%`,
+      "/clinician/assignments",
+    );
+  }
 
   revalidatePath("/patient");
   revalidatePath(`/patient/activity/${assignmentId}`);

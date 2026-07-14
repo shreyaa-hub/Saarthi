@@ -211,11 +211,48 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          link: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notifications"]["Row"]> & {
+          user_id: string;
+          type: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
       claim_invite: {
         Args: { p_invite_code: string };
         Returns: Database["public"]["Tables"]["clinician_patients"]["Row"];
+      };
+      create_notification: {
+        Args: {
+          p_recipient_id: string;
+          p_type: string;
+          p_title: string;
+          p_body: string | null;
+          p_link: string | null;
+        };
+        Returns: Database["public"]["Tables"]["notifications"]["Row"];
       };
     };
   };

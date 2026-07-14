@@ -192,6 +192,26 @@ alter table public.ai_insights enable row level security;
 create index if not exists ai_insights_patient_idx on public.ai_insights (patient_id);
 
 -- ---------------------------------------------------------------------------
+-- notifications — the Alert Hub. A recipient-owned inbox row created by
+-- create_notification() below, never inserted directly (see that function's
+-- comment for why).
+-- ---------------------------------------------------------------------------
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text,
+  link text,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notifications enable row level security;
+
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
+
+-- ---------------------------------------------------------------------------
 -- Base table grants
 --
 -- RLS policies decide WHICH ROWS a role can see; Postgres separately
@@ -210,7 +230,8 @@ grant select, insert, update, delete on
   public.templates,
   public.assignments,
   public.activity_attempts,
-  public.ai_insights
+  public.ai_insights,
+  public.notifications
 to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -339,6 +360,57 @@ create policy "activity_attempts_clinician_update_note" on public.activity_attem
 drop policy if exists "ai_insights_clinician_all" on public.ai_insights;
 create policy "ai_insights_clinician_all" on public.ai_insights
   for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
+
+-- notifications — recipient-owned inbox. No INSERT policy here on purpose:
+-- a clinician notifying a patient (or vice versa) is writing a row owned by
+-- someone ELSE, which a simple "user_id = auth.uid()" check can't allow.
+-- create_notification() below is the only sanctioned way to insert a row,
+-- and it verifies the caller and recipient are actually linked before doing
+-- so — same security-definer pattern as claim_invite() above.
+drop policy if exists "notifications_owner_select" on public.notifications;
+create policy "notifications_owner_select" on public.notifications
+  for select using (user_id = auth.uid());
+
+drop policy if exists "notifications_owner_update" on public.notifications;
+create policy "notifications_owner_update" on public.notifications
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create or replace function public.create_notification(
+  p_recipient_id uuid,
+  p_type text,
+  p_title text,
+  p_body text,
+  p_link text
+)
+returns public.notifications
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_row public.notifications;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if auth.uid() <> p_recipient_id and not exists (
+    select 1 from public.clinician_patients cp
+    where cp.status = 'active'
+      and ((cp.clinician_id = auth.uid() and cp.patient_id = p_recipient_id)
+        or (cp.patient_id = auth.uid() and cp.clinician_id = p_recipient_id))
+  ) then
+    raise exception 'Not authorized to notify this user';
+  end if;
+
+  insert into public.notifications (user_id, type, title, body, link)
+  values (p_recipient_id, p_type, p_title, p_body, p_link)
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+grant execute on function public.create_notification(uuid, text, text, text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- storage — "template-assets" bucket for images uploaded into the canvas
