@@ -7,6 +7,10 @@ export type ProfileRole = "clinician" | "patient";
 export type ClinicianPatientStatus = "invited" | "active" | "archived";
 export type TemplateStatus = "draft" | "published" | "archived";
 export type AssignmentStatus = "assigned" | "in_progress" | "completed";
+// Presentation-only — how a client renders a row. Event-specific behaviour
+// belongs in messages.metadata, never in this type; new event types extend
+// metadata's shape, not this union.
+export type MessageType = "TEXT" | "IMAGE" | "FILE" | "SYSTEM";
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
@@ -262,6 +266,100 @@ export type Database = {
           },
         ];
       };
+      conversations: {
+        Row: {
+          id: string;
+          clinician_patient_id: string | null;
+          created_by: string | null;
+          last_message_at: string | null;
+          last_message_preview: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "conversations_clinician_patient_id_fkey";
+            columns: ["clinician_patient_id"];
+            isOneToOne: true;
+            referencedRelation: "clinician_patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversation_participants: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          user_id: string;
+          joined_at: string;
+          last_read_at: string | null;
+          archived_at: string | null;
+          pinned_at: string | null;
+          muted_until: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["conversation_participants"]["Row"]> & {
+          conversation_id: string;
+          user_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["conversation_participants"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          sender_id: string | null;
+          message_type: MessageType;
+          body: string | null;
+          metadata: Json | null;
+          edited_at: string | null;
+          deleted_at: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["messages"]["Row"]> & {
+          conversation_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["messages"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
       claim_invite: {
@@ -277,6 +375,18 @@ export type Database = {
           p_link: string | null;
         };
         Returns: Database["public"]["Tables"]["notifications"]["Row"];
+      };
+      start_conversation: {
+        Args: { p_clinician_patient_id: string };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"];
+      };
+      create_system_message: {
+        Args: {
+          p_conversation_id: string;
+          p_body: string | null;
+          p_metadata: Json | null;
+        };
+        Returns: Database["public"]["Tables"]["messages"]["Row"];
       };
     };
   };

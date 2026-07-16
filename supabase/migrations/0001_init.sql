@@ -238,6 +238,115 @@ alter table public.assets enable row level security;
 create index if not exists assets_owner_idx on public.assets (owner_id);
 
 -- ---------------------------------------------------------------------------
+-- conversations — Messenger. Deliberately decoupled from clinician_patients
+-- (nullable, unique FK) rather than keyed directly off it: a conversation
+-- isn't structurally required to be a clinician-patient pair, which leaves
+-- room for clinician-clinician or group conversations later without
+-- redesigning this table. clinician_patient_id stays the fast, unique path
+-- for today's only real case (get-or-create via start_conversation() below).
+-- last_message_at / last_message_preview are denormalized from messages
+-- (kept correct by the messages_touch_conversation trigger below) purely so
+-- a future inbox view can sort/preview without aggregating messages on
+-- every render.
+-- ---------------------------------------------------------------------------
+create table if not exists public.conversations (
+  id uuid primary key default gen_random_uuid(),
+  clinician_patient_id uuid references public.clinician_patients (id) on delete set null,
+  created_by uuid references public.profiles (id) on delete set null,
+  last_message_at timestamptz,
+  last_message_preview text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.conversations enable row level security;
+
+create unique index if not exists conversations_clinician_patient_uidx
+  on public.conversations (clinician_patient_id)
+  where clinician_patient_id is not null;
+create index if not exists conversations_last_message_idx
+  on public.conversations (last_message_at desc);
+
+-- ---------------------------------------------------------------------------
+-- conversation_participants — who's in a conversation, plus each
+-- participant's own state (read position, archive/pin/mute). Deliberately
+-- role-agnostic — no is_clinician-style flag — so it works identically for
+-- clinician-patient, clinician-clinician, or group conversations. This is
+-- the table that makes conversations N-ary instead of hard-coding "exactly
+-- one clinician + one patient."
+-- ---------------------------------------------------------------------------
+create table if not exists public.conversation_participants (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  last_read_at timestamptz,
+  archived_at timestamptz,
+  pinned_at timestamptz,
+  muted_until timestamptz,
+  unique (conversation_id, user_id)
+);
+
+alter table public.conversation_participants enable row level security;
+
+create index if not exists conversation_participants_user_idx
+  on public.conversation_participants (user_id);
+
+-- ---------------------------------------------------------------------------
+-- messages. message_type is presentation-only — it tells the client HOW to
+-- render a row (plain text bubble, image, file chip, system/audit line). It
+-- must never carry business logic; event-specific behaviour belongs in
+-- metadata (e.g. {"event":"assignment_submitted","assignment_id":"..."}),
+-- so new event types extend metadata's shape, not this column's constraint.
+-- body is nullable: required content for TEXT, an optional caption for
+-- IMAGE/FILE (message_attachments lands in a later phase), and the
+-- human-readable line for SYSTEM. sender_id is nullable and ON DELETE SET
+-- NULL (not cascade, unlike this file's usual convention) so a deleted
+-- account doesn't erase the other participant's message history.
+-- ---------------------------------------------------------------------------
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  sender_id uuid references public.profiles (id) on delete set null,
+  message_type text not null default 'TEXT'
+    check (message_type in ('TEXT', 'IMAGE', 'FILE', 'SYSTEM')),
+  body text,
+  metadata jsonb,
+  edited_at timestamptz,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.messages enable row level security;
+
+-- The one index every thread render depends on: "messages for conversation
+-- X, ordered/paginated by time."
+create index if not exists messages_conversation_created_idx
+  on public.messages (conversation_id, created_at);
+
+-- Keeps conversations.last_message_at / last_message_preview correct for
+-- every message type uniformly (including SYSTEM), in one place, so
+-- Phase 1's sendMessage() and this file's create_system_message() RPC don't
+-- each need to remember to update it separately.
+create or replace function public.touch_conversation_on_message()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.conversations
+  set last_message_at = new.created_at,
+      last_message_preview = left(coalesce(new.body, ''), 140)
+  where id = new.conversation_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_touch_conversation on public.messages;
+create trigger messages_touch_conversation
+  after insert on public.messages
+  for each row execute procedure public.touch_conversation_on_message();
+
+-- ---------------------------------------------------------------------------
 -- Base table grants
 --
 -- RLS policies decide WHICH ROWS a role can see; Postgres separately
@@ -258,7 +367,10 @@ grant select, insert, update, delete on
   public.activity_attempts,
   public.ai_insights,
   public.notifications,
-  public.assets
+  public.assets,
+  public.conversations,
+  public.conversation_participants,
+  public.messages
 to authenticated;
 
 -- The Global Library (Template/Worksheet/Asset Library) pages are public
@@ -463,6 +575,188 @@ end;
 $$;
 
 grant execute on function public.create_notification(uuid, text, text, text, text) to authenticated;
+
+-- conversations / conversation_participants / messages (Messenger)
+--
+-- Security model: a user may see a conversation, its participant list, and
+-- its messages only if a conversation_participants row exists for them.
+--
+-- conversation_participants' own SELECT policy needs to answer "is the
+-- caller a participant of this row's conversation", which means querying
+-- conversation_participants from within its own policy. A raw self-join
+-- subquery there makes Postgres re-apply the same policy to the inner
+-- query and it reports "infinite recursion detected in policy" (confirmed
+-- locally) rather than actually looping forever. The fix is the standard
+-- one: push the self-lookup into a small security-definer function. A
+-- security-definer function runs as its owner, and a table's owner
+-- bypasses RLS on that table (this project never sets FORCE ROW LEVEL
+-- SECURITY), so the query inside is_conversation_participant() below reads
+-- conversation_participants directly with no policy re-entry — the
+-- recursion never starts.
+--
+-- Nothing here lets a client INSERT into conversations or
+-- conversation_participants directly — both are only ever written by the
+-- security-definer RPCs below, same pattern as claim_invite()/
+-- create_notification() above: any authenticated user may call them, but
+-- the RPC's own checks (an active clinician_patients link; existing
+-- participant membership) are what enforce the real boundary.
+create or replace function public.is_conversation_participant(p_conversation_id uuid)
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.conversation_participants
+    where conversation_id = p_conversation_id
+      and user_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_conversation_participant(uuid) to authenticated;
+
+drop policy if exists "conversations_participant_select" on public.conversations;
+create policy "conversations_participant_select" on public.conversations
+  for select using (public.is_conversation_participant(conversations.id));
+
+drop policy if exists "conversation_participants_self_select" on public.conversation_participants;
+create policy "conversation_participants_self_select" on public.conversation_participants
+  for select using (
+    user_id = auth.uid()
+    or public.is_conversation_participant(conversation_participants.conversation_id)
+  );
+
+drop policy if exists "conversation_participants_self_update" on public.conversation_participants;
+create policy "conversation_participants_self_update" on public.conversation_participants
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "messages_participant_select" on public.messages;
+create policy "messages_participant_select" on public.messages
+  for select using (
+    exists (
+      select 1 from public.conversation_participants cp
+      where cp.conversation_id = messages.conversation_id
+        and cp.user_id = auth.uid()
+    )
+  );
+
+-- message_type <> 'SYSTEM' here means a raw client insert can never create
+-- a SYSTEM row, full stop — the only path to one is create_system_message()
+-- below. sender_id = auth.uid() blocks impersonating another sender; the
+-- exists() clause blocks posting into a conversation the caller isn't in.
+drop policy if exists "messages_sender_insert" on public.messages;
+create policy "messages_sender_insert" on public.messages
+  for insert with check (
+    sender_id = auth.uid()
+    and message_type <> 'SYSTEM'
+    and exists (
+      select 1 from public.conversation_participants cp
+      where cp.conversation_id = messages.conversation_id
+        and cp.user_id = auth.uid()
+    )
+  );
+
+-- Covers both "edit" (body + edited_at) and "soft delete" (deleted_at) —
+-- both are UPDATEs from the client's perspective. SYSTEM messages are
+-- excluded here too: no one "owns" an audit-trail row to edit or delete.
+-- No DELETE policy at all — this table follows the same soft-delete-only
+-- convention as templates.deleted_at elsewhere in this file.
+drop policy if exists "messages_sender_update" on public.messages;
+create policy "messages_sender_update" on public.messages
+  for update using (sender_id = auth.uid() and message_type <> 'SYSTEM')
+  with check (sender_id = auth.uid() and message_type <> 'SYSTEM');
+
+-- Get-or-create a conversation for a clinician_patients relationship.
+-- Race-safe: two near-simultaneous calls can both reach the insert: the
+-- unique partial index on clinician_patient_id makes the loser's insert a
+-- no-op (ON CONFLICT DO NOTHING) instead of an error, and both callers then
+-- converge on the same row via the select that follows.
+create or replace function public.start_conversation(p_clinician_patient_id uuid)
+returns public.conversations
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_clinician_id uuid;
+  v_patient_id uuid;
+  v_conversation public.conversations;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select clinician_id, patient_id
+    into v_clinician_id, v_patient_id
+    from public.clinician_patients
+   where id = p_clinician_patient_id
+     and status = 'active';
+
+  if v_clinician_id is null or v_patient_id is null then
+    raise exception 'No active, claimed clinician-patient relationship for that id';
+  end if;
+
+  if auth.uid() <> v_clinician_id and auth.uid() <> v_patient_id then
+    raise exception 'Not authorized to start this conversation';
+  end if;
+
+  insert into public.conversations (clinician_patient_id, created_by)
+  values (p_clinician_patient_id, auth.uid())
+  on conflict (clinician_patient_id) where clinician_patient_id is not null
+  do nothing;
+
+  select * into v_conversation
+    from public.conversations
+   where clinician_patient_id = p_clinician_patient_id;
+
+  insert into public.conversation_participants (conversation_id, user_id)
+  values (v_conversation.id, v_clinician_id), (v_conversation.id, v_patient_id)
+  on conflict (conversation_id, user_id) do nothing;
+
+  return v_conversation;
+end;
+$$;
+
+grant execute on function public.start_conversation(uuid) to authenticated;
+
+-- The only sanctioned way to create a SYSTEM message (see the RLS policy
+-- above, which blocks direct client inserts of this type entirely).
+-- Requires the caller to already be a participant of the target
+-- conversation — same defense-in-depth stance as create_notification()
+-- rather than blind trust, even though nothing in this phase's scope
+-- exposes this RPC to end users yet.
+create or replace function public.create_system_message(
+  p_conversation_id uuid,
+  p_body text,
+  p_metadata jsonb
+)
+returns public.messages
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_message public.messages;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not exists (
+    select 1 from public.conversation_participants
+    where conversation_id = p_conversation_id
+      and user_id = auth.uid()
+  ) then
+    raise exception 'Not a participant of this conversation';
+  end if;
+
+  insert into public.messages (conversation_id, sender_id, message_type, body, metadata)
+  values (p_conversation_id, null, 'SYSTEM', p_body, p_metadata)
+  returning * into v_message;
+
+  return v_message;
+end;
+$$;
+
+grant execute on function public.create_system_message(uuid, text, jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- storage — "template-assets" bucket for images uploaded into the canvas
