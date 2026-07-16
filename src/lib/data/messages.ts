@@ -166,22 +166,30 @@ export async function getConversation(
   };
 }
 
+// created_at alone isn't a unique ordering key — two messages can share a
+// timestamp (down to the same microsecond, e.g. under load or a burst
+// insert). Pairing it with id (unique, and stable within an equal-
+// timestamp group) makes the ordering — and therefore the cursor — fully
+// deterministic, so a page boundary landing mid-timestamp can't skip or
+// repeat a row.
+export type MessageCursor = { createdAt: string; id: string };
+
 export type MessagePage = {
   messages: MessageRow[];
   /** Pass as `before` to fetch the next (older) page; null when there's no more. */
-  nextCursor: string | null;
+  nextCursor: MessageCursor | null;
 };
 
 // Cursor-paginated message history for a conversation, oldest-to-newest
-// within the returned page (ready to render top-to-bottom). The cursor is
-// the created_at of the oldest message in a page — pass it back as `before`
-// to walk further into the past. Includes soft-deleted rows; whether to
-// show a "message deleted" placeholder for them is a rendering decision for
-// a later phase, not this one.
+// within the returned page (ready to render top-to-bottom). The cursor
+// identifies the oldest message in a page — pass it back as `before` to
+// walk further into the past. Includes soft-deleted rows; whether to show a
+// "message deleted" placeholder for them is a rendering decision for a
+// later phase, not this one.
 export async function getMessages(
   supabase: Client,
   conversationId: string,
-  opts: { before?: string; limit?: number } = {},
+  opts: { before?: MessageCursor; limit?: number } = {},
 ): Promise<MessagePage> {
   const limit = opts.limit ?? 30;
 
@@ -190,10 +198,15 @@ export async function getMessages(
     .select("*")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
 
   if (opts.before) {
-    query = query.lt("created_at", opts.before);
+    // Strictly older than the cursor under (created_at desc, id desc):
+    // either an earlier timestamp, or the same timestamp with a smaller id.
+    query = query.or(
+      `created_at.lt.${opts.before.createdAt},and(created_at.eq.${opts.before.createdAt},id.lt.${opts.before.id})`,
+    );
   }
 
   const { data, error } = await query;
@@ -206,6 +219,6 @@ export async function getMessages(
 
   return {
     messages: page,
-    nextCursor: hasMore ? page[0].created_at : null,
+    nextCursor: hasMore ? { createdAt: page[0].created_at, id: page[0].id } : null,
   };
 }
