@@ -17,6 +17,8 @@ import {
   Search,
   Trash2,
   CalendarDays,
+  BookOpen,
+  Map,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,11 +45,15 @@ const CLINICIAN_ITEMS: StaticItem[] = [
   { id: "new-template", label: "New template", icon: FilePlus2, action: (r) => r.push("/clinician/studio/initialize?entry=blank") },
   { id: "new-worksheet", label: "Generate a worksheet", icon: Wand2, action: (r) => r.push("/clinician/studio/worksheet-generator") },
   { id: "invite-patient", label: "Invite a patient", icon: UserPlus, action: (r) => r.push("/clinician/caseload") },
+  { id: "nav-library", label: "Go to Global Library", icon: BookOpen, action: (r) => r.push("/library/templates") },
+  { id: "nav-map", label: "Go to System Map", icon: Map, action: (r) => r.push("/clinician/system-map") },
 ];
 
 const PATIENT_ITEMS: StaticItem[] = [
   { id: "nav-missions", label: "Go to My Missions", icon: LayoutDashboard, action: (r) => r.push("/patient") },
   { id: "nav-progress", label: "Go to Progress", icon: TrendingUp, action: (r) => r.push("/patient/progress") },
+  { id: "nav-library", label: "Go to Global Library", icon: BookOpen, action: (r) => r.push("/library/templates") },
+  { id: "nav-map", label: "Go to System Map", icon: Map, action: (r) => r.push("/patient/system-map") },
 ];
 
 export function CommandPalette({ role }: { role: "clinician" | "patient" }) {

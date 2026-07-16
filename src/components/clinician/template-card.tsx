@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { MoreHorizontal, Copy, Trash2, LayoutTemplate } from "lucide-react";
+import { MoreHorizontal, Copy, Trash2, LayoutTemplate, Globe2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { duplicateTemplate, deleteTemplate, restoreTemplate } from "@/lib/actions/templates";
+import { setTemplatePublic } from "@/lib/actions/library";
 import { formatDate } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
@@ -38,6 +39,21 @@ const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
 export function TemplateCard({ template }: { template: Template }) {
   const [, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isPublic, setIsPublic] = useState(template.is_public);
+
+  const toggleShare = () => {
+    const next = !isPublic;
+    setIsPublic(next);
+    startTransition(async () => {
+      const { error } = await setTemplatePublic(template.id, next);
+      if (error) {
+        toast.error(error);
+        setIsPublic(!next);
+      } else {
+        toast.success(next ? "Shared to the Global Library" : "Removed from the Global Library");
+      }
+    });
+  };
 
   const handleDelete = () => {
     setConfirmOpen(false);
@@ -84,6 +100,11 @@ export function TemplateCard({ template }: { template: Template }) {
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge variant={statusVariant[template.status]}>{template.status}</Badge>
             <Badge variant="outline">{template.domain}</Badge>
+            {isPublic && (
+              <Badge variant="secondary" className="gap-1">
+                <Globe2 className="size-3" /> Library
+              </Badge>
+            )}
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">Updated {formatDate(template.updated_at)}</p>
         </div>
@@ -104,6 +125,9 @@ export function TemplateCard({ template }: { template: Template }) {
               }
             >
               <Copy className="size-4" /> Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={toggleShare}>
+              <Globe2 className="size-4" /> {isPublic ? "Remove from Library" : "Share to Library"}
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"

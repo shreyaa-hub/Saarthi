@@ -80,6 +80,7 @@ export type Database = {
           canvas: TemplateCanvas;
           thumbnail_color: string | null;
           deleted_at: string | null;
+          is_public: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -232,6 +233,29 @@ export type Database = {
           {
             foreignKeyName: "notifications_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assets: {
+        Row: {
+          id: string;
+          owner_id: string;
+          url: string;
+          alt: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["assets"]["Row"]> & {
+          owner_id: string;
+          url: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["assets"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "assets_owner_id_fkey";
+            columns: ["owner_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

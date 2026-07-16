@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, Map, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,6 +82,12 @@ export function ClinicianTopbar({
               <p className="font-medium">{fullName}</p>
               {headline && <p className="text-xs font-normal text-muted-foreground">{headline}</p>}
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/clinician/system-map">
+                <Map className="size-4" /> System map
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <form action={signOut} className="w-full">

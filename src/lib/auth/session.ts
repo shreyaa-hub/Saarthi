@@ -29,3 +29,17 @@ export async function requireProfile(role?: Profile["role"]) {
 
   return { supabase, user, profile };
 }
+
+// Non-redirecting variant for public pages (the Global Library) that render
+// differently for a signed-in clinician but must still work for logged-out
+// visitors — unlike requireProfile(), this never redirects.
+export async function getOptionalClinician() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase, clinicianId: null };
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  return { supabase, clinicianId: profile?.role === "clinician" ? user.id : null };
+}

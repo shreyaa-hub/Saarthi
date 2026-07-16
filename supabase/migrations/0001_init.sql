@@ -107,9 +107,17 @@ create table if not exists public.templates (
 -- just a fresh one) still picks it up.
 alter table public.templates add column if not exists deleted_at timestamptz;
 
+-- is_public is distinct from status='published': "published" means the
+-- clinician's own patients can be assigned this template; is_public means
+-- the clinician has chosen to share it in the cross-role Global Library,
+-- visible to anyone (including logged-out visitors browsing the public
+-- Template/Worksheet Library pages).
+alter table public.templates add column if not exists is_public boolean not null default false;
+
 alter table public.templates enable row level security;
 
 create index if not exists templates_owner_idx on public.templates (owner_id);
+create index if not exists templates_public_idx on public.templates (is_public) where is_public = true;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -212,6 +220,24 @@ alter table public.notifications enable row level security;
 create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
 -- ---------------------------------------------------------------------------
+-- assets — standalone images a clinician publishes to the Global Library's
+-- Asset Library (distinct from images uploaded straight into a canvas via
+-- the "template-assets" storage bucket — those stay private to the
+-- template they're used in unless explicitly published here).
+-- ---------------------------------------------------------------------------
+create table if not exists public.assets (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles (id) on delete cascade,
+  url text not null,
+  alt text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.assets enable row level security;
+
+create index if not exists assets_owner_idx on public.assets (owner_id);
+
+-- ---------------------------------------------------------------------------
 -- Base table grants
 --
 -- RLS policies decide WHICH ROWS a role can see; Postgres separately
@@ -231,8 +257,15 @@ grant select, insert, update, delete on
   public.assignments,
   public.activity_attempts,
   public.ai_insights,
-  public.notifications
+  public.notifications,
+  public.assets
 to authenticated;
+
+-- The Global Library (Template/Worksheet/Asset Library) pages are public
+-- marketing pages, browsable while logged out — anon needs read access too.
+-- RLS below still restricts this to is_public = true rows only.
+grant usage on schema public to anon;
+grant select on public.templates, public.assets to anon;
 
 -- ---------------------------------------------------------------------------
 -- RLS policies
@@ -311,6 +344,25 @@ grant execute on function public.claim_invite(text) to authenticated;
 -- templates (clinician-owned only)
 drop policy if exists "templates_owner_all" on public.templates;
 create policy "templates_owner_all" on public.templates
+  for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+-- Global Library — anyone (including logged-out visitors) can read a
+-- template its owner has explicitly published to the library. Separate
+-- from templates_owner_all so an owner doesn't need is_public to manage
+-- their own rows, and a stranger only ever sees the public subset.
+drop policy if exists "templates_public_select" on public.templates;
+create policy "templates_public_select" on public.templates
+  for select using (is_public = true and deleted_at is null);
+
+-- assets — Global Library's Asset Library. The whole table is
+-- library-published content by construction (see comment on the table
+-- above), so read access is unconditionally public; writes are owner-only.
+drop policy if exists "assets_public_select" on public.assets;
+create policy "assets_public_select" on public.assets
+  for select using (true);
+
+drop policy if exists "assets_owner_write" on public.assets;
+create policy "assets_owner_write" on public.assets
   for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 -- assignments
