@@ -3,10 +3,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/actions/notifications";
+import { getMessages, type MessageCursor, type MessagePage } from "@/lib/data/messages";
 import type { Database } from "@/lib/types/database";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type ConversationRow = Database["public"]["Tables"]["conversations"]["Row"];
+
+// Client Components have no server-side Supabase client of their own, so
+// "load older messages" needs a callable server entry point. This is a pure
+// pass-through to Phase 1's getMessages() — no pagination or authorization
+// logic is duplicated here.
+export async function loadOlderMessages(
+  conversationId: string,
+  before: MessageCursor,
+  limit?: number,
+): Promise<MessagePage> {
+  const supabase = await createClient();
+  return getMessages(supabase, conversationId, { before, limit });
+}
 
 // Notifies every other participant of a new message via the existing
 // notify() helper, exactly as every other feature in this app already

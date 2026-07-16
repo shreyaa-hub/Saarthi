@@ -5,12 +5,16 @@ import { getPatientDetail } from "@/lib/data/clinician";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials, formatDate } from "@/lib/utils";
 import { AssignTemplateDialog } from "@/components/clinician/assign-template-dialog";
 import { PatientInsightsPanel } from "@/components/clinician/patient-insights-panel";
 import { AttemptNotes } from "@/components/clinician/attempt-notes";
+import { MessageThread } from "@/components/clinician/message-thread";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { getTemplates } from "@/lib/data/clinician";
+import { startConversation } from "@/lib/actions/messages";
+import { getMessages } from "@/lib/data/messages";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +47,27 @@ export default async function PatientDetailPage({
   const name = link.profiles?.full_name ?? link.display_name;
   const publishedTemplates = templates.filter((t) => t.status === "published");
   const titleByAssignment = Object.fromEntries(assignments.map((a) => [a.id, a.title]));
+
+  // Get-or-create the conversation and load its first page of history. Only
+  // possible once the patient has claimed their invite (start_conversation
+  // requires an active clinician_patients link on both sides).
+  let messagesTab: {
+    conversationId: string;
+    initialMessages: Awaited<ReturnType<typeof getMessages>>["messages"];
+    initialCursor: Awaited<ReturnType<typeof getMessages>>["nextCursor"];
+  } | null = null;
+
+  if (link.patient_id) {
+    const { conversation } = await startConversation(link.id);
+    if (conversation) {
+      const page = await getMessages(supabase, conversation.id);
+      messagesTab = {
+        conversationId: conversation.id,
+        initialMessages: page.messages,
+        initialCursor: page.nextCursor,
+      };
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,79 +108,109 @@ export default async function PatientDetailPage({
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Accuracy over time</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProgressChart attempts={attempts} />
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
+        </TabsList>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Assignments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {assignments.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  No activities assigned yet.
-                </p>
-              ) : (
-                <div className="flex flex-col divide-y divide-border">
-                  {assignments.map((a) => {
-                    const overdue = isOverdue(a.due_date, a.status);
-                    return (
-                      <div key={a.id} className="flex items-center justify-between gap-3 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{a.title}</p>
-                          <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
-                            {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {overdue && (
-                            <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
-                              <AlertTriangle className="size-3" /> Overdue
-                            </Badge>
-                          )}
-                          <Badge variant={statusStyles[a.status] ?? "outline"}>
-                            {a.status.replace("_", " ")}
-                          </Badge>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="overview">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="flex flex-col gap-6 lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Accuracy over time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ProgressChart attempts={attempts} />
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Completed attempts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AttemptNotes
-                attempts={attempts}
-                titleByAssignment={titleByAssignment}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Assignments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {assignments.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No activities assigned yet.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-border">
+                      {assignments.map((a) => {
+                        const overdue = isOverdue(a.due_date, a.status);
+                        return (
+                          <div key={a.id} className="flex items-center justify-between gap-3 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{a.title}</p>
+                              <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
+                                {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {overdue && (
+                                <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
+                                  <AlertTriangle className="size-3" /> Overdue
+                                </Badge>
+                              )}
+                              <Badge variant={statusStyles[a.status] ?? "outline"}>
+                                {a.status.replace("_", " ")}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Completed attempts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AttemptNotes
+                    attempts={attempts}
+                    titleByAssignment={titleByAssignment}
+                    clinicianPatientId={link.id}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <PatientInsightsPanel
                 clinicianPatientId={link.id}
+                patientId={link.patient_id}
+                initialInsight={latestInsight}
+                attemptCount={attempts.length}
               />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        </TabsContent>
 
-        <div className="flex flex-col gap-6">
-          <PatientInsightsPanel
-            clinicianPatientId={link.id}
-            patientId={link.patient_id}
-            initialInsight={latestInsight}
-            attemptCount={attempts.length}
-          />
-        </div>
-      </div>
+        <TabsContent value="messages">
+          {messagesTab ? (
+            <Card className="flex h-[32rem] flex-col overflow-hidden p-0">
+              <MessageThread
+                conversationId={messagesTab.conversationId}
+                currentUserId={user.id}
+                otherParticipantName={name}
+                initialMessages={messagesTab.initialMessages}
+                initialCursor={messagesTab.initialCursor}
+              />
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Messaging will be available once {name} claims their invite code (
+                <span className="font-mono font-medium text-foreground">{link.invite_code}</span>).
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
