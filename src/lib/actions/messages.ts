@@ -3,12 +3,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { notify } from "@/lib/actions/notifications";
 import { getMessages, type MessageCursor, type MessagePage } from "@/lib/data/messages";
-import type { Database } from "@/lib/types/database";
+import type { Database, ProfileRole } from "@/lib/types/database";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type ConversationRow = Database["public"]["Tables"]["conversations"]["Row"];
+
+// Single source of truth for where a "new message" notification should
+// point, shared by notifyRecipients() (the recipient's own link, written
+// at notify time) and markConversationRead() (the reader's own link,
+// recomputed to find the matching notification to clear) — kept in one
+// place so the two can't silently drift apart into different formats.
+function messageNotificationLink(viewerRole: ProfileRole, clinicianPatientId: string): string {
+  return viewerRole === "clinician"
+    ? `/clinician/messages/${clinicianPatientId}`
+    : `/patient/messages?with=${clinicianPatientId}`;
+}
 
 // IMPORTANT: this is a server-side cache invalidation, not a live push.
 // revalidatePath() only marks /clinician and /patient's cached renders
@@ -39,40 +49,54 @@ export async function loadOlderMessages(
   return getMessages(supabase, conversationId, { before, limit });
 }
 
-// Notifies every other participant of a new message via the existing
-// notify() helper, exactly as every other feature in this app already
-// notifies — one notification per message, no deduplication.
-//
-// KNOWN LIMITATION (Phase 1): this can spam a participant with one
-// notification per message during a fast back-and-forth. A real fix needs
-// either a dedicated notification-aggregation RPC (notifications' RLS is
-// owner-only for both select and update, so a sender's session can't read
-// or coalesce another user's existing notification row without one — see
-// the Phase 1 architecture discussion) or a presence/"actively viewing"
-// signal from Realtime. Both are explicitly deferred to when Realtime and
-// presence are implemented, per direction from that discussion.
+// Notifies every other participant of a new message via notify_new_message()
+// (Step 4) — while unread, a later message on the same conversation
+// coalesces into the same notification instead of stacking a new one; see
+// that RPC's definition in the migration for the full dedup reasoning.
+// Requires the conversation's clinician_patient_id to build each
+// recipient's link (clinician and patient recipients get different route
+// shapes); a conversation with none (none exist yet — every conversation
+// today is created via start_conversation(), which always sets it) has
+// nothing valid to link to, so that recipient is skipped rather than
+// notified with a broken link.
 async function notifyRecipients(
   supabase: SupabaseClient<Database>,
   conversationId: string,
   senderId: string,
   preview: string,
 ) {
-  const { data: recipients, error } = await supabase
-    .from("conversation_participants")
-    .select("user_id")
-    .eq("conversation_id", conversationId)
-    .neq("user_id", senderId);
+  const [{ data: conversation }, { data: recipients, error: recipientsError }] = await Promise.all([
+    supabase.from("conversations").select("clinician_patient_id").eq("id", conversationId).maybeSingle(),
+    supabase
+      .from("conversation_participants")
+      .select("user_id, profiles(role)")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", senderId),
+  ]);
 
-  if (error) {
-    console.error("[actions/messages] notifyRecipients: lookup failed:", error.message, error.details);
+  if (recipientsError) {
+    console.error("[actions/messages] notifyRecipients: lookup failed:", recipientsError.message, recipientsError.details);
     return;
   }
 
-  // link is left null: no messaging routes exist yet in this phase (backend
-  // stays UI-independent), so there's nothing real to point at. Wiring a
-  // real thread link is a Phase 2 dependency.
+  const clinicianPatientId = conversation?.clinician_patient_id;
+  if (!clinicianPatientId) return;
+
   await Promise.all(
-    (recipients ?? []).map((r) => notify(supabase, r.user_id, "new_message", "New message", preview, null)),
+    (recipients ?? []).map(async (r) => {
+      if (!r.profiles) return;
+      const link = messageNotificationLink(r.profiles.role, clinicianPatientId);
+      const { error } = await supabase.rpc("notify_new_message", {
+        p_recipient_id: r.user_id,
+        p_reference_id: conversationId,
+        p_link: link,
+        p_title: "New message",
+        p_body: preview,
+      });
+      if (error) {
+        console.error("[actions/messages] notifyRecipients: notify_new_message failed:", error.message);
+      }
+    }),
   );
 }
 
@@ -136,6 +160,18 @@ export async function sendMessage(
 // user_id = the caller both here and by the conversation_participants_
 // self_update RLS policy — belt-and-suspenders on the same condition, not
 // duplicated authorization logic (RLS is still what actually enforces it).
+//
+// Also clears the caller's own unread "new message" notification for this
+// conversation, if any — otherwise the bell would show it as unread
+// forever for anyone who opens a thread directly (sidebar, inbox) instead
+// of clicking through the notification itself. This is an RLS-scoped
+// update on the caller's own row (notifications_owner_update), not a
+// third party reaching into someone else's notifications, so it needs no
+// RPC — unlike creating/coalescing one, which does (see
+// notify_new_message()). Matches by reference_id = conversationId, the
+// same value notify_new_message() stored it under, so a patient with
+// multiple active clinicians only ever clears the one conversation they
+// actually opened.
 export async function markConversationRead(conversationId: string): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const {
@@ -149,8 +185,25 @@ export async function markConversationRead(conversationId: string): Promise<{ er
     .eq("conversation_id", conversationId)
     .eq("user_id", user.id);
 
-  if (!error) revalidateMessagingRoutes();
-  return { error: error?.message ?? null };
+  if (error) return { error: error.message };
+
+  const { error: notificationError } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("type", "new_message")
+    .eq("reference_id", conversationId)
+    .is("read_at", null);
+
+  if (notificationError) {
+    console.error(
+      "[actions/messages] markConversationRead: clearing notification failed:",
+      notificationError.message,
+    );
+  }
+
+  revalidateMessagingRoutes();
+  return { error: null };
 }
 
 // Edits a message's body. Only the sender may edit, and never a SYSTEM
