@@ -67,3 +67,24 @@ export async function getMyClinician(supabase: Client, patientId: string) {
   logIfError("getMyClinician", error);
   return data;
 }
+
+// Unlike getMyClinician() above, returns every active relationship rather
+// than assuming exactly one. clinician_patients.patient_id has no
+// uniqueness constraint, so a patient can have more than one active
+// clinician — Messenger needs to know that explicitly (to offer a
+// conversation switcher) rather than risk .maybeSingle() erroring out on
+// 2+ rows. Ordered most-recently-active first so callers have a sensible
+// default when none is explicitly selected. Includes the
+// clinician_patients row id, which start_conversation() requires and
+// getMyClinician() doesn't currently select.
+export async function getMyActiveClinicians(supabase: Client, patientId: string) {
+  const { data, error } = await supabase
+    .from("clinician_patients")
+    .select("id, clinician_id, profiles!clinician_patients_clinician_id_fkey(full_name, headline)")
+    .eq("patient_id", patientId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+
+  logIfError("getMyActiveClinicians", error);
+  return data ?? [];
+}
