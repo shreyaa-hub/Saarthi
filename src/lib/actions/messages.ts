@@ -1,6 +1,7 @@
 "use server";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/actions/notifications";
 import { getMessages, type MessageCursor, type MessagePage } from "@/lib/data/messages";
@@ -8,6 +9,19 @@ import type { Database } from "@/lib/types/database";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type ConversationRow = Database["public"]["Tables"]["conversations"]["Row"];
+
+// Both shells' sidebars show an unread-message badge (fetched in their
+// respective root layouts), and the clinician inbox shows a list of
+// conversation previews — none of that is re-derived from a message
+// mutation automatically. Revalidating both shells' layouts (not just
+// "page") after every send/edit/delete/read keeps every one of those
+// views correct without needing the sender to know which side they're on
+// or which specific conversation/patient route the other party might be
+// looking at.
+function revalidateMessagingRoutes() {
+  revalidatePath("/clinician", "layout");
+  revalidatePath("/patient", "layout");
+}
 
 // Client Components have no server-side Supabase client of their own, so
 // "load older messages" needs a callable server entry point. This is a pure
@@ -110,6 +124,7 @@ export async function sendMessage(
   }
 
   await notifyRecipients(supabase, conversationId, user.id, trimmed);
+  revalidateMessagingRoutes();
 
   return { error: null, message };
 }
@@ -131,6 +146,7 @@ export async function markConversationRead(conversationId: string): Promise<{ er
     .eq("conversation_id", conversationId)
     .eq("user_id", user.id);
 
+  if (!error) revalidateMessagingRoutes();
   return { error: error?.message ?? null };
 }
 
@@ -154,6 +170,7 @@ export async function editMessage(messageId: string, body: string): Promise<{ er
   if (error) return { error: error.message };
   if (!data) return { error: "Message not found, or you don't have permission to edit it." };
 
+  revalidateMessagingRoutes();
   return { error: null };
 }
 
@@ -172,5 +189,6 @@ export async function deleteMessage(messageId: string): Promise<{ error: string 
   if (error) return { error: error.message };
   if (!data) return { error: "Message not found, or you don't have permission to delete it." };
 
+  revalidateMessagingRoutes();
   return { error: null };
 }
