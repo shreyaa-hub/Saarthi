@@ -224,6 +224,9 @@ export type Database = {
           title: string;
           body: string | null;
           link: string | null;
+          // Generic, polymorphic — meaning depends on type. For
+          // type === "new_message" this is messages.conversation_id.
+          reference_id: string | null;
           read_at: string | null;
           created_at: string;
         };
@@ -387,6 +390,16 @@ export type Database = {
           p_metadata: Json | null;
         };
         Returns: Database["public"]["Tables"]["messages"]["Row"];
+      };
+      notify_new_message: {
+        Args: {
+          p_recipient_id: string;
+          p_reference_id: string;
+          p_link: string;
+          p_title: string;
+          p_body: string;
+        };
+        Returns: Database["public"]["Tables"]["notifications"]["Row"];
       };
     };
   };
