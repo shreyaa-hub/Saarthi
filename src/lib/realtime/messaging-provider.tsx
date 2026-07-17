@@ -53,55 +53,91 @@ export function MessagingRealtimeProvider({
   const channelsRef = useRef<RealtimeChannel[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
 
-    const messagesChannel = supabase
-      .channel(`messaging-messages-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload: RealtimePostgresInsertPayload<MessageRow>) => {
-          messagesInserted.emit(payload.new);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages" },
-        (payload: RealtimePostgresUpdatePayload<MessageRow>) => {
-          messagesUpdated.emit(payload.new);
-        },
-      )
-      .subscribe((status) => {
-        console.log("[realtime:messages:status]", status);
-      });
+    async function setup() {
+      // DIAGNOSTIC (temporary — investigating reported zero-delivery bug):
+      // supabase-js's own automatic wiring only pushes a fresh token to the
+      // Realtime socket on 'TOKEN_REFRESHED'/'SIGNED_IN' auth events (see
+      // node_modules/@supabase/supabase-js SupabaseClient._handleTokenChanged),
+      // NOT on 'INITIAL_SESSION' — the event that actually fires for a user
+      // who was already signed in before this component ever mounted, which
+      // is the overwhelmingly common case here. There is a separate,
+      // connect-time auth path in realtime-js, but its timing relative to
+      // this channel's subscribe() call is not something to assume works
+      // without checking — so this sets auth explicitly and unconditionally
+      // before creating either channel, rather than relying on either
+      // automatic path.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      console.log("[realtime:DEBUG] session present before subscribing:", !!session, "expires_at:", session?.expires_at);
 
-    // Unlike the messages channel, this filter is kept explicitly rather
-    // than relying on RLS alone — user_id is a static value that never
-    // needs to grow/change for this user's session, so there's no reason
-    // to drop it the way the messages channel's filter was dropped.
-    const notificationsChannel = supabase
-      .channel(`messaging-notifications-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload: RealtimePostgresInsertPayload<NotificationRow>) => {
-          notificationsInserted.emit(payload.new);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload: RealtimePostgresUpdatePayload<NotificationRow>) => {
-          notificationsUpdated.emit(payload.new);
-        },
-      )
-      .subscribe((status) => {
-        console.log("[realtime:notifications:status]", status);
-      });
+      if (session) {
+        await supabase.realtime.setAuth(session.access_token);
+        console.log("[realtime:DEBUG] realtime.setAuth() completed");
+      } else {
+        console.warn("[realtime:DEBUG] no session found — channels will subscribe unauthenticated");
+      }
 
-    channelsRef.current = [messagesChannel, notificationsChannel];
+      if (cancelled) return;
+
+      const messagesChannel = supabase
+        .channel(`messaging-messages-${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload: RealtimePostgresInsertPayload<MessageRow>) => {
+            console.log("[realtime:DEBUG] messages INSERT callback fired", payload.new.id, payload.new.conversation_id);
+            messagesInserted.emit(payload.new);
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "messages" },
+          (payload: RealtimePostgresUpdatePayload<MessageRow>) => {
+            console.log("[realtime:DEBUG] messages UPDATE callback fired", payload.new.id, payload.new.conversation_id);
+            messagesUpdated.emit(payload.new);
+          },
+        )
+        .subscribe((status, err) => {
+          console.log("[realtime:messages:status]", status, err ?? "");
+        });
+
+      // Unlike the messages channel, this filter is kept explicitly rather
+      // than relying on RLS alone — user_id is a static value that never
+      // needs to grow/change for this user's session, so there's no reason
+      // to drop it the way the messages channel's filter was dropped.
+      const notificationsChannel = supabase
+        .channel(`messaging-notifications-${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+          (payload: RealtimePostgresInsertPayload<NotificationRow>) => {
+            console.log("[realtime:DEBUG] notifications INSERT callback fired", payload.new.id);
+            notificationsInserted.emit(payload.new);
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+          (payload: RealtimePostgresUpdatePayload<NotificationRow>) => {
+            console.log("[realtime:DEBUG] notifications UPDATE callback fired", payload.new.id);
+            notificationsUpdated.emit(payload.new);
+          },
+        )
+        .subscribe((status, err) => {
+          console.log("[realtime:notifications:status]", status, err ?? "");
+        });
+
+      channelsRef.current = [messagesChannel, notificationsChannel];
+    }
+
+    void setup();
 
     return () => {
+      cancelled = true;
       channelsRef.current.forEach((channel) => supabase.removeChannel(channel));
       channelsRef.current = [];
     };
