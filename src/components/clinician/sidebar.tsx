@@ -10,20 +10,23 @@ import {
   LayoutTemplate,
   Send,
   CalendarDays,
+  MessageSquare,
   LogOut,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 
 const links = [
   { href: "/clinician", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/clinician/caseload", label: "Caseload", icon: Users },
+  { href: "/clinician/messages", label: "Messages", icon: MessageSquare },
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
   { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
 ];
 
-export function ClinicianSidebar() {
+export function ClinicianSidebar({ unreadMessageCount = 0 }: { unreadMessageCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -55,6 +58,12 @@ export function ClinicianSidebar() {
               )}
               <l.icon className="relative z-10 size-4" />
               <span className="relative z-10">{l.label}</span>
+              {l.href === "/clinician/messages" && unreadMessageCount > 0 && (
+                <Badge variant="accent" className="relative z-10 ml-auto px-1.5 py-0">
+                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+                  <span className="sr-only"> unread</span>
+                </Badge>
+              )}
             </Link>
           );
         })}

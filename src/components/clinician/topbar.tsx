@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, Map, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, MessageSquare, Map, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 const links = [
   { href: "/clinician", label: "Dashboard", icon: LayoutDashboard },
   { href: "/clinician/caseload", label: "Caseload", icon: Users },
+  { href: "/clinician/messages", label: "Messages", icon: MessageSquare },
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
   { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },

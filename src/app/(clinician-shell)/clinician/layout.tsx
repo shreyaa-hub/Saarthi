@@ -1,18 +1,21 @@
 import { requireProfile } from "@/lib/auth/session";
 import { getMyNotifications, getUnreadNotificationCount } from "@/lib/data/notifications";
+import { getUnreadCounts } from "@/lib/data/messages";
 import { ClinicianSidebar } from "@/components/clinician/sidebar";
 import { ClinicianTopbar } from "@/components/clinician/topbar";
 
 export default async function ClinicianLayout({ children }: { children: React.ReactNode }) {
   const { supabase, profile, user } = await requireProfile("clinician");
-  const [notifications, unreadCount] = await Promise.all([
+  const [notifications, unreadCount, unreadMessageCounts] = await Promise.all([
     getMyNotifications(supabase, user.id),
     getUnreadNotificationCount(supabase, user.id),
+    getUnreadCounts(supabase, user.id),
   ]);
+  const unreadMessageCount = Object.values(unreadMessageCounts).reduce((sum, n) => sum + n, 0);
 
   return (
     <div className="flex min-h-screen bg-background">
-      <ClinicianSidebar />
+      <ClinicianSidebar unreadMessageCount={unreadMessageCount} />
       <div className="flex min-h-screen flex-1 flex-col">
         <ClinicianTopbar
           fullName={profile.full_name}
