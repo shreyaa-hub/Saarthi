@@ -10,14 +10,17 @@ import type { Database } from "@/lib/types/database";
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type ConversationRow = Database["public"]["Tables"]["conversations"]["Row"];
 
-// Both shells' sidebars show an unread-message badge (fetched in their
-// respective root layouts), and the clinician inbox shows a list of
-// conversation previews — none of that is re-derived from a message
-// mutation automatically. Revalidating both shells' layouts (not just
-// "page") after every send/edit/delete/read keeps every one of those
-// views correct without needing the sender to know which side they're on
-// or which specific conversation/patient route the other party might be
-// looking at.
+// IMPORTANT: this is a server-side cache invalidation, not a live push.
+// revalidatePath() only marks /clinician and /patient's cached renders
+// stale on the server — it does nothing to any already-open browser tab.
+// What it actually buys: the *next* fresh navigation into either shell (by
+// either party, in either party's own session) re-fetches real data
+// instead of a stale cached render, so the sidebar unread badge and the
+// clinician inbox list are correct once someone actually navigates there.
+// It does NOT make a counterpart's already-open tab update on its own —
+// an open clinician tab will not show a patient's new message or read
+// receipt appearing live. That's what Step 5 (Realtime) is for; nothing
+// here provides it.
 function revalidateMessagingRoutes() {
   revalidatePath("/clinician", "layout");
   revalidatePath("/patient", "layout");
