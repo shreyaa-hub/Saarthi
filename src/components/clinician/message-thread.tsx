@@ -48,6 +48,19 @@ function compareMessages(a: MessageRow, b: MessageRow): number {
   return a.id < b.id ? -1 : 1;
 }
 
+// Single reconciliation path for "a message belongs in this array" — used
+// by BOTH handleSend's direct sendMessage() response and the Realtime
+// INSERT handler below, specifically so the two can never drift into two
+// different dedup/ordering implementations (that gap is exactly what
+// caused the duplicate-outgoing-message bug: handleSend used to append
+// unconditionally, with no id check, while only the Realtime path had
+// one — whichever of the two arrived second had no way of knowing the
+// other had already added the row). Idempotent regardless of call order.
+function insertMessage(prev: MessageRow[], row: MessageRow): MessageRow[] {
+  if (prev.some((m) => m.id === row.id)) return prev;
+  return [...prev, row].sort(compareMessages);
+}
+
 export function MessageThread({
   conversationId,
   currentUserId,
@@ -123,21 +136,9 @@ export function MessageThread({
       const wasNearBottom = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (wasNearBottom) shouldScrollToBottomRef.current = true;
 
-      // Id-dedup, then insert at its correct (created_at, id) position —
-      // NOT a blind append. Realtime delivery order is not guaranteed to
-      // match commit order (two near-simultaneous sends, a brief
-      // reconnect gap, etc.), so this must not assume the two coincide;
-      // re-sorting the small in-memory array on every insert is cheap and
-      // keeps it byte-for-byte consistent with getMessages()'s own order
-      // regardless of arrival order. The dedup check also covers the
-      // sender's own optimistic append (handleSend's direct sendMessage()
-      // response) racing this same event for their own just-sent message
-      // — whichever arrives second is a no-op here, not a duplicate
-      // bubble or a resort no-op.
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === row.id)) return prev;
-        return [...prev, row].sort(compareMessages);
-      });
+      // Shared with handleSend's direct-response path — see insertMessage's
+      // own comment for why using one function for both matters here.
+      setMessages((prev) => insertMessage(prev, row));
     });
 
     const unsubscribeUpdate = messagesUpdated.subscribe((row) => {
@@ -227,7 +228,13 @@ export function MessageThread({
         return;
       }
       shouldScrollToBottomRef.current = true;
-      setMessages((prev) => [...prev, message]);
+      // Was an unconditional append — the actual bug. If the Realtime
+      // echo of this exact send had already arrived first (a real,
+      // observed race, not hypothetical — see sendMessage()'s await
+      // ordering discussed during the design review), this would append
+      // a second, duplicate bubble instead of recognizing the row was
+      // already there.
+      setMessages((prev) => insertMessage(prev, message));
     });
   };
 
