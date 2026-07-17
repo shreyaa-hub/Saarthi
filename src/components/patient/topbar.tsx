@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, TrendingUp, Map, LogOut, Flame } from "lucide-react";
+import { Menu, LayoutDashboard, MessageSquare, TrendingUp, Map, LogOut, Flame } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
 const links = [
   { href: "/patient", label: "My Missions", icon: LayoutDashboard },
+  { href: "/patient/messages", label: "Messages", icon: MessageSquare },
   { href: "/patient/progress", label: "Progress", icon: TrendingUp },
 ];
 

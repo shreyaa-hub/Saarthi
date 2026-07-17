@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Compass, LayoutDashboard, TrendingUp, LogOut } from "lucide-react";
+import { Compass, LayoutDashboard, MessageSquare, TrendingUp, LogOut } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 
 const links = [
   { href: "/patient", label: "My Missions", icon: LayoutDashboard, exact: true },
+  { href: "/patient/messages", label: "Messages", icon: MessageSquare },
   { href: "/patient/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export function PatientSidebar() {
+export function PatientSidebar({ unreadMessageCount = 0 }: { unreadMessageCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -44,6 +46,12 @@ export function PatientSidebar() {
               )}
               <l.icon className="relative z-10 size-4" />
               <span className="relative z-10">{l.label}</span>
+              {l.href === "/patient/messages" && unreadMessageCount > 0 && (
+                <Badge variant="accent" className="relative z-10 ml-auto px-1.5 py-0">
+                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+                  <span className="sr-only"> unread</span>
+                </Badge>
+              )}
             </Link>
           );
         })}
