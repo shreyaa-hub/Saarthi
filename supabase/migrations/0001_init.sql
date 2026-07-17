@@ -841,6 +841,54 @@ $$;
 grant execute on function public.create_system_message(uuid, text, jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Realtime (Step 5, Phase 0) — makes messages/notifications changes stream
+-- to subscribed clients at all. This is separate from, and in addition to,
+-- RLS: RLS (messages_participant_select, notifications_owner_select above)
+-- governs which rows a given client is ALLOWED to receive once Realtime is
+-- broadcasting; publication membership governs whether a table broadcasts
+-- to Realtime in the first place. Every Supabase project ships a
+-- `supabase_realtime` publication by default (empty of tables), so this
+-- only adds membership, never creates the publication itself.
+--
+-- `alter publication ... add table` is not naturally idempotent (errors on
+-- a table already in the publication), so each addition is guarded by a
+-- pg_publication_tables existence check, matching this file's "if not
+-- exists" convention elsewhere.
+--
+-- conversation_participants is deliberately NOT added here — it's scoped
+-- to a later phase of Step 5 (live read-state propagation), with its own
+-- verification gate, not part of this initial infrastructure step.
+--
+-- SAFETY NOTE FOR ANY FUTURE TABLE ADDED HERE: Realtime does not enforce
+-- RLS for DELETE statements (Postgres has no way to check authorization
+-- against a row that no longer exists) — a table relying on RLS-scoped
+-- Realtime delivery must stay soft-delete-only (UPDATE, never DELETE) for
+-- that delivery scoping to hold. messages and notifications both already
+-- follow this convention (messages.deleted_at, no notifications delete
+-- path) — do not add real DELETE support to either without revisiting this.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- storage — "template-assets" bucket for images uploaded into the canvas
 -- editor. Public bucket (activities render images to patients who aren't
 -- the uploading clinician), but writes are restricted to the uploader's own
