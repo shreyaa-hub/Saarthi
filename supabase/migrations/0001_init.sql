@@ -219,6 +219,37 @@ alter table public.notifications enable row level security;
 
 create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
+-- Generic, polymorphic reference into whatever entity a notification is
+-- about — meaning depends on type, matching the same soft, type-driven
+-- contract type/link already have on this table. No FK: the referenced
+-- table differs per type, and this table already tolerates soft/stale
+-- references (link can already point at a deleted assignment today).
+--
+-- For type = 'new_message' this stores messages.conversation_id, NOT
+-- clinician_patients.id. conversations.clinician_patient_id is nullable
+-- by design (deliberately left room above for clinician-clinician or
+-- group conversations with no clinician_patients row at all), so it can't
+-- reliably identify every conversation; conversation_id always can, and
+-- stays correct even if a future schema change ever allows more than one
+-- conversation per clinician_patients relationship (today's
+-- conversations_clinician_patient_uidx assumes exactly one).
+alter table public.notifications add column if not exists reference_id uuid;
+
+-- Backs notify_new_message()'s upsert below. Unique, not just a plain
+-- index: guarantees at most one unread notification per (user, type,
+-- reference) at the database level, which is what makes that upsert
+-- race-free (a single INSERT ... ON CONFLICT ... DO UPDATE) rather than a
+-- separate check-then-branch that two near-simultaneous messages could
+-- both slip through. Partial on read_at is null: once a notification is
+-- read, a later message on the same reference_id starts a fresh row
+-- instead of merging into history the recipient already saw. Rows with
+-- reference_id null (new_assignment, attempt_completed — neither sets it)
+-- are unaffected: Postgres never treats two nulls as conflicting under a
+-- unique constraint.
+create unique index if not exists notifications_dedup_idx
+  on public.notifications (user_id, type, reference_id)
+  where read_at is null;
+
 -- ---------------------------------------------------------------------------
 -- assets — standalone images a clinician publishes to the Global Library's
 -- Asset Library (distinct from images uploaded straight into a canvas via
@@ -575,6 +606,57 @@ end;
 $$;
 
 grant execute on function public.create_notification(uuid, text, text, text, text) to authenticated;
+
+-- Dedicated rather than a generic upsert_notification(): the authorization
+-- check below is specific to the clinician_patients relationship model,
+-- same as create_notification() above, so a generic name would overstate
+-- what this actually covers. If a second dedup'd notification type with
+-- matching authorization needs ever shows up, that's the point to factor
+-- out a shared helper — not before, for a caller that doesn't exist yet.
+--
+-- Exists at all because notifications' RLS (see notifications_owner_select
+-- / _update above) is owner-only for both select and update, so a
+-- sender's own session can never read or coalesce a recipient's existing
+-- notification row without a security-definer function — same reasoning
+-- as create_notification() and create_system_message().
+create or replace function public.notify_new_message(
+  p_recipient_id uuid,
+  p_reference_id uuid,
+  p_link text,
+  p_title text,
+  p_body text
+)
+returns public.notifications
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_row public.notifications;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if auth.uid() <> p_recipient_id and not exists (
+    select 1 from public.clinician_patients cp
+    where cp.status = 'active'
+      and ((cp.clinician_id = auth.uid() and cp.patient_id = p_recipient_id)
+        or (cp.patient_id = auth.uid() and cp.clinician_id = p_recipient_id))
+  ) then
+    raise exception 'Not authorized to notify this user';
+  end if;
+
+  insert into public.notifications (user_id, type, reference_id, link, title, body)
+  values (p_recipient_id, 'new_message', p_reference_id, p_link, p_title, p_body)
+  on conflict (user_id, type, reference_id) where read_at is null
+  do update set title = excluded.title, body = excluded.body, link = excluded.link, created_at = now()
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+grant execute on function public.notify_new_message(uuid, uuid, text, text, text) to authenticated;
 
 -- conversations / conversation_participants / messages (Messenger)
 --
