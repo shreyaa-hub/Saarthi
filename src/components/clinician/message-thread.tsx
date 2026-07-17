@@ -23,6 +23,7 @@ import {
   markConversationRead,
   loadOlderMessages,
 } from "@/lib/actions/messages";
+import { messagesInserted, messagesUpdated } from "@/lib/realtime/messaging-dispatcher";
 import type { MessageCursor } from "@/lib/data/messages";
 import { cn, formatRelativeTime, initials } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
@@ -73,6 +74,57 @@ export function MessageThread({
   // failed read receipt shouldn't block or error the thread view.
   useEffect(() => {
     markConversationRead(conversationId).catch(() => {});
+  }, [conversationId]);
+
+  // Live updates (Step 5, Phase 2) — subscribes to the shared dispatcher
+  // (see messaging-dispatcher.ts / MessagingRealtimeProvider), not its own
+  // Realtime channel; the provider already owns the one messages channel
+  // per tab. Each subscribe() call returns an unsubscribe function, wired
+  // as this effect's cleanup, which removes the callback before this
+  // component unmounts or conversationId changes — see the Phase 1 review
+  // for why that's sufficient to prevent dispatch to a stale registration.
+  //
+  // The dispatcher's messages channel has no conversation_id filter (RLS
+  // scopes delivery instead — see messaging-provider.tsx), so it emits
+  // events for every conversation this user is in, not just this one;
+  // every handler below filters to `conversationId` itself.
+  useEffect(() => {
+    const unsubscribeInsert = messagesInserted.subscribe((row) => {
+      if (row.conversation_id !== conversationId) return;
+
+      // Only auto-scroll if the viewport was already at (or very near)
+      // the bottom right before this arrived — same rule the edit/delete
+      // path already follows (see the effect below): never yank the view
+      // for someone scrolled up reading history, extended here to a
+      // genuinely new message from the other participant. Checked before
+      // the state update, since scrollHeight won't reflect the new
+      // message until after React re-renders.
+      const el = scrollRef.current;
+      const wasNearBottom = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (wasNearBottom) shouldScrollToBottomRef.current = true;
+
+      // Id-dedup: this also covers the sender's own optimistic append
+      // (handleSend's direct sendMessage() response) racing this same
+      // event for their own just-sent message — whichever arrives second
+      // is a no-op here, not a duplicate bubble.
+      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+    });
+
+    const unsubscribeUpdate = messagesUpdated.subscribe((row) => {
+      if (row.conversation_id !== conversationId) return;
+      // payload.new is the complete post-update row, so replacing the
+      // whole entry is both simpler and more correct than patching
+      // individual fields — this also incidentally corrects
+      // handleSaveEdit's client-fabricated edited_at guess below (a
+      // pre-Step-5 limitation, not fixed by design, just naturally
+      // overwritten once the server's real row arrives here).
+      setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
+    });
+
+    return () => {
+      unsubscribeInsert();
+      unsubscribeUpdate();
+    };
   }, [conversationId]);
 
   // Reacts to `messages` changing, which only runs after React has actually
@@ -159,6 +211,11 @@ export function MessageThread({
         toast.error(error);
         return;
       }
+      // Pre-Step-5 limitation, left as-is by design: editMessage() only
+      // returns {error}, not the updated row, so edited_at here is this
+      // browser's own clock, not the server's real value — briefly wrong
+      // until the messagesUpdated dispatcher event (see the effect above)
+      // replaces this whole row with the server's actual one.
       const editedAt = new Date().toISOString();
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, body, edited_at: editedAt } : m)));
     });

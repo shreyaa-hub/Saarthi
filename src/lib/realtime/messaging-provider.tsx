@@ -2,18 +2,23 @@
 
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { messagesInserted, messagesUpdated, notificationsInserted, notificationsUpdated } from "@/lib/realtime/messaging-dispatcher";
 import type { Database } from "@/lib/types/database";
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
-// Step 5, Phase 1 — infrastructure scaffolding only. Opens the two
-// feature-scoped Realtime channels the design calls for and logs every
-// event to the console; nothing here fans events out to MessageThread,
-// the conversation list, or NotificationBell yet — none of them consume
-// this provider's output. That wiring is Phase 2+, added once there's a
-// real consumer, rather than building an unused dispatcher API now.
+// Step 5. Opens the two feature-scoped Realtime channels and emits every
+// event into the plain pub/sub topics in messaging-dispatcher.ts — this
+// component owns channel lifecycle only, never the events' meaning.
+// Phase 1 shipped this scaffolding with the emit target being
+// console.log; Phase 2 (current) wires the four handlers below to the
+// real dispatcher, whose topics MessageThread is now the first
+// subscriber of (later phases: the conversation list, NotificationBell).
+// Connection-status logging (the .subscribe((status) => ...) calls below)
+// stays as plain console.log — low-noise diagnostic info, not a
+// per-message event any consumer needs.
 //
 // Mounted once per shell layout (clinician/layout.tsx, patient/layout.tsx),
 // not per page and not per component — see the Step 5 design review for
@@ -55,15 +60,15 @@ export function MessagingRealtimeProvider({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
-          console.log("[realtime:messages:insert]", payload.new);
+        (payload: RealtimePostgresInsertPayload<MessageRow>) => {
+          messagesInserted.emit(payload.new);
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "messages" },
-        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
-          console.log("[realtime:messages:update]", payload.new);
+        (payload: RealtimePostgresUpdatePayload<MessageRow>) => {
+          messagesUpdated.emit(payload.new);
         },
       )
       .subscribe((status) => {
@@ -79,15 +84,15 @@ export function MessagingRealtimeProvider({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload: RealtimePostgresChangesPayload<NotificationRow>) => {
-          console.log("[realtime:notifications:insert]", payload.new);
+        (payload: RealtimePostgresInsertPayload<NotificationRow>) => {
+          notificationsInserted.emit(payload.new);
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload: RealtimePostgresChangesPayload<NotificationRow>) => {
-          console.log("[realtime:notifications:update]", payload.new);
+        (payload: RealtimePostgresUpdatePayload<NotificationRow>) => {
+          notificationsUpdated.emit(payload.new);
         },
       )
       .subscribe((status) => {
