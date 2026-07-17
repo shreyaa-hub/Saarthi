@@ -32,6 +32,22 @@ type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 
 const PAGE_SIZE = 30;
 
+// Canonical ascending order, matching getMessages() exactly: the server
+// fetches (created_at desc, id desc) for pagination and .reverse()s the
+// page before returning it, so the true ascending tie-break is
+// (created_at asc, id asc) — same as here. String comparison of the id
+// column is safe specifically because Supabase always returns uuid
+// columns as canonically-formatted lowercase hyphenated text: every
+// value has hyphens at identical positions, so comparing the strings
+// character-by-character agrees with Postgres's own uuid ordering (the
+// same property the composite pagination cursor already relies on when
+// it sends `id.lt.${cursor.id}` back to Postgres).
+function compareMessages(a: MessageRow, b: MessageRow): number {
+  if (a.created_at !== b.created_at) return a.created_at < b.created_at ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
 export function MessageThread({
   conversationId,
   currentUserId,
@@ -103,11 +119,21 @@ export function MessageThread({
       const wasNearBottom = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (wasNearBottom) shouldScrollToBottomRef.current = true;
 
-      // Id-dedup: this also covers the sender's own optimistic append
-      // (handleSend's direct sendMessage() response) racing this same
-      // event for their own just-sent message — whichever arrives second
-      // is a no-op here, not a duplicate bubble.
-      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+      // Id-dedup, then insert at its correct (created_at, id) position —
+      // NOT a blind append. Realtime delivery order is not guaranteed to
+      // match commit order (two near-simultaneous sends, a brief
+      // reconnect gap, etc.), so this must not assume the two coincide;
+      // re-sorting the small in-memory array on every insert is cheap and
+      // keeps it byte-for-byte consistent with getMessages()'s own order
+      // regardless of arrival order. The dedup check also covers the
+      // sender's own optimistic append (handleSend's direct sendMessage()
+      // response) racing this same event for their own just-sent message
+      // — whichever arrives second is a no-op here, not a duplicate
+      // bubble or a resort no-op.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === row.id)) return prev;
+        return [...prev, row].sort(compareMessages);
+      });
     });
 
     const unsubscribeUpdate = messagesUpdated.subscribe((row) => {
