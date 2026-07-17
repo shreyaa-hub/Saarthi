@@ -4,6 +4,7 @@ import { getMyNotifications, getUnreadNotificationCount } from "@/lib/data/notif
 import { getUnreadCounts } from "@/lib/data/messages";
 import { PatientSidebar } from "@/components/patient/sidebar";
 import { PatientTopbar } from "@/components/patient/topbar";
+import { MessagingRealtimeProvider } from "@/lib/realtime/messaging-provider";
 
 export default async function PatientLayout({ children }: { children: React.ReactNode }) {
   const { supabase, profile, user } = await requireProfile("patient");
@@ -17,18 +18,20 @@ export default async function PatientLayout({ children }: { children: React.Reac
   const unreadMessageCount = Object.values(unreadMessageCounts).reduce((sum, n) => sum + n, 0);
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <PatientSidebar unreadMessageCount={unreadMessageCount} />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <PatientTopbar
-          fullName={profile.full_name}
-          streak={streak}
-          userId={user.id}
-          notifications={notifications}
-          unreadCount={unreadCount}
-        />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+    <MessagingRealtimeProvider userId={user.id}>
+      <div className="flex min-h-screen bg-background">
+        <PatientSidebar unreadMessageCount={unreadMessageCount} />
+        <div className="flex min-h-screen flex-1 flex-col">
+          <PatientTopbar
+            fullName={profile.full_name}
+            streak={streak}
+            userId={user.id}
+            notifications={notifications}
+            unreadCount={unreadCount}
+          />
+          <main className="flex-1 p-4 md:p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </MessagingRealtimeProvider>
   );
 }
