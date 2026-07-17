@@ -119,10 +119,6 @@ export function MessageThread({
   // every handler below filters to `conversationId` itself.
   useEffect(() => {
     const unsubscribeInsert = messagesInserted.subscribe((row) => {
-      // DIAGNOSTIC (temporary): confirms the dispatcher is actually
-      // reaching this component at all, before the conversationId filter
-      // below decides whether to act on it.
-      console.log("[realtime:DEBUG] MessageThread received insert", row.id, "for conv", row.conversation_id, "watching", conversationId);
       if (row.conversation_id !== conversationId) return;
 
       // Only auto-scroll if the viewport was already at (or very near)

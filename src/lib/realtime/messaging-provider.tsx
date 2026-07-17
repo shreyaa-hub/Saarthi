@@ -57,28 +57,25 @@ export function MessagingRealtimeProvider({
     const supabase = createClient();
 
     async function setup() {
-      // DIAGNOSTIC (temporary — investigating reported zero-delivery bug):
-      // supabase-js's own automatic wiring only pushes a fresh token to the
-      // Realtime socket on 'TOKEN_REFRESHED'/'SIGNED_IN' auth events (see
+      // Explicitly sets Realtime's auth before subscribing, rather than
+      // relying on supabase-js's automatic wiring: SupabaseClient only
+      // pushes a fresh token to the Realtime socket on
+      // 'TOKEN_REFRESHED'/'SIGNED_IN' auth events (see
       // node_modules/@supabase/supabase-js SupabaseClient._handleTokenChanged),
-      // NOT on 'INITIAL_SESSION' — the event that actually fires for a user
-      // who was already signed in before this component ever mounted, which
-      // is the overwhelmingly common case here. There is a separate,
-      // connect-time auth path in realtime-js, but its timing relative to
-      // this channel's subscribe() call is not something to assume works
-      // without checking — so this sets auth explicitly and unconditionally
-      // before creating either channel, rather than relying on either
-      // automatic path.
+      // never on 'INITIAL_SESSION' — the event that fires for a user who
+      // was already signed in before this component mounted, which is the
+      // common case here. Without this, channels can reach SUBSCRIBED
+      // while still evaluating RLS as unauthenticated (auth.uid() null),
+      // silently delivering nothing — confirmed as the root cause of an
+      // earlier zero-delivery bug in this phase.
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      console.log("[realtime:DEBUG] session present before subscribing:", !!session, "expires_at:", session?.expires_at);
 
       if (session) {
         await supabase.realtime.setAuth(session.access_token);
-        console.log("[realtime:DEBUG] realtime.setAuth() completed");
       } else {
-        console.warn("[realtime:DEBUG] no session found — channels will subscribe unauthenticated");
+        console.warn("[realtime] no auth session found — channels will subscribe unauthenticated");
       }
 
       if (cancelled) return;
@@ -89,7 +86,6 @@ export function MessagingRealtimeProvider({
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages" },
           (payload: RealtimePostgresInsertPayload<MessageRow>) => {
-            console.log("[realtime:DEBUG] messages INSERT callback fired", payload.new.id, payload.new.conversation_id);
             messagesInserted.emit(payload.new);
           },
         )
@@ -97,7 +93,6 @@ export function MessagingRealtimeProvider({
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "messages" },
           (payload: RealtimePostgresUpdatePayload<MessageRow>) => {
-            console.log("[realtime:DEBUG] messages UPDATE callback fired", payload.new.id, payload.new.conversation_id);
             messagesUpdated.emit(payload.new);
           },
         )
@@ -115,7 +110,6 @@ export function MessagingRealtimeProvider({
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
           (payload: RealtimePostgresInsertPayload<NotificationRow>) => {
-            console.log("[realtime:DEBUG] notifications INSERT callback fired", payload.new.id);
             notificationsInserted.emit(payload.new);
           },
         )
@@ -123,7 +117,6 @@ export function MessagingRealtimeProvider({
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
           (payload: RealtimePostgresUpdatePayload<NotificationRow>) => {
-            console.log("[realtime:DEBUG] notifications UPDATE callback fired", payload.new.id);
             notificationsUpdated.emit(payload.new);
           },
         )
