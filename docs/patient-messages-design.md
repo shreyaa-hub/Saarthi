@@ -11,9 +11,30 @@ page layout.
 A new top-level route, `/patient/messages` — a peer of "My Missions" and
 "Progress," not nested under anything.
 
-**Layout mechanism: flex, not `calc(100vh-...)`.** Evaluated per your
-request — flex works cleanly here with no real downside, and is strictly
-better than viewport-height arithmetic:
+**Errata (post-implementation):** this section originally proposed a pure
+`flex h-full flex-col` layout and claimed it had "no downside" versus
+`calc(100vh-...)`. That claim was wrong, and was corrected during Step 2
+after live testing surfaced a real bug (header scrolling away, panel
+growing unbounded as messages were sent). Root cause: `h-full` cannot
+resolve to a bounded size here because `patient/layout.tsx`'s `<main>`
+sits in a `min-h-screen` chain — a *floor*, not a *ceiling* — so nothing
+stops content from growing past the viewport; confirmed by measuring
+actual rendered heights, which grew past 3000px against a 900px viewport.
+The clinician's Messages tab avoids this because its `Card` uses an
+absolute fixed height (`h-[32rem]`) + `overflow-hidden`, an independent
+ceiling that never depended on the shell's height model. The implemented
+fix, scoped to this page only (no shared layout changes):
+`h-[calc(100vh-6rem)] md:h-[calc(100vh-7rem)]` plus `min-h-0` (overriding
+the flex default of `min-height: auto`, which independently also lets a
+flex item grow to fit content instead of clamping). See the "Fix patient
+Messages panel growing unbounded instead of clamping" commit for the full
+before/after measurements. The reasoning below is kept for historical
+context but its conclusion (flex-only, no calc) is superseded.
+
+**Layout mechanism (original proposal, superseded — see errata above):**
+flex, not `calc(100vh-...)`. Evaluated per your request — flex works
+cleanly here with no real downside, and is strictly better than
+viewport-height arithmetic:
 
 - The patient shell's `<main className="flex-1 p-4 md:p-6">` is already a
   flex item inside `<div className="flex min-h-screen flex-1 flex-col">`,
