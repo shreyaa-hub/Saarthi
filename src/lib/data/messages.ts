@@ -72,6 +72,7 @@ export async function getUnreadCounts(supabase: Client, userId: string): Promise
 
 export type ConversationSummary = {
   id: string;
+  clinicianPatientId: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
@@ -94,7 +95,7 @@ export async function getMyConversations(supabase: Client, userId: string): Prom
   const [conversationsRes, othersRes, unreadCounts] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, last_message_at, last_message_preview")
+      .select("id, clinician_patient_id, last_message_at, last_message_preview")
       .in("id", conversationIds)
       .order("last_message_at", { ascending: false }),
     supabase
@@ -118,11 +119,97 @@ export async function getMyConversations(supabase: Client, userId: string): Prom
 
   return (conversationsRes.data ?? []).map((conversation) => ({
     id: conversation.id,
+    clinicianPatientId: conversation.clinician_patient_id,
     lastMessageAt: conversation.last_message_at,
     lastMessagePreview: conversation.last_message_preview,
     unreadCount: unreadCounts[conversation.id] ?? 0,
     otherParticipants: othersByConversation.get(conversation.id) ?? [],
   }));
+}
+
+export type InboxRow = {
+  clinicianPatientId: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string | null;
+  conversationId: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  /** null for no messages yet, or for a SYSTEM message (sender_id is null by design). */
+  lastMessageSenderId: string | null;
+  unreadCount: number;
+};
+
+// The clinician inbox's primary data source: every active patient, not
+// just ones with an existing conversation — selecting a patient with none
+// yet is expected to transparently create one via start_conversation().
+// Existing conversations carry their real activity; patients with no
+// conversation yet get null activity fields and sort after all of them.
+export async function getClinicianInbox(supabase: Client, clinicianId: string): Promise<InboxRow[]> {
+  const [{ data: activePatients, error: patientsError }, conversations] = await Promise.all([
+    supabase
+      .from("clinician_patients")
+      .select("id, patient_id, display_name, profiles!clinician_patients_patient_id_fkey(full_name, email)")
+      .eq("clinician_id", clinicianId)
+      .eq("status", "active")
+      .not("patient_id", "is", null)
+      .order("created_at", { ascending: false }),
+    getMyConversations(supabase, clinicianId),
+  ]);
+
+  logIfError("getClinicianInbox:activePatients", patientsError);
+
+  const conversationByClinicianPatientId = new Map(
+    conversations
+      .filter((c): c is typeof c & { clinicianPatientId: string } => c.clinicianPatientId !== null)
+      .map((c) => [c.clinicianPatientId, c]),
+  );
+
+  // Who sent the most recent message per conversation, for the "You:" /
+  // "Patient:" preview prefix. Not folded into getMyConversations() itself
+  // (which stays general-purpose) since only this inbox preview needs it.
+  const conversationIds = conversations.map((c) => c.id);
+  const lastSenderByConversation = new Map<string, string | null>();
+  if (conversationIds.length > 0) {
+    const { data: recentMessages, error: recentError } = await supabase
+      .from("messages")
+      .select("conversation_id, sender_id, created_at")
+      .in("conversation_id", conversationIds)
+      .order("created_at", { ascending: false });
+
+    logIfError("getClinicianInbox:recentMessages", recentError);
+    for (const m of recentMessages ?? []) {
+      if (!lastSenderByConversation.has(m.conversation_id)) {
+        lastSenderByConversation.set(m.conversation_id, m.sender_id);
+      }
+    }
+  }
+
+  const rows: InboxRow[] = (activePatients ?? []).map((p) => {
+    const conversation = conversationByClinicianPatientId.get(p.id);
+    return {
+      clinicianPatientId: p.id,
+      patientId: p.patient_id as string,
+      patientName: p.profiles?.full_name ?? p.display_name,
+      patientEmail: p.profiles?.email ?? null,
+      conversationId: conversation?.id ?? null,
+      lastMessageAt: conversation?.lastMessageAt ?? null,
+      lastMessagePreview: conversation?.lastMessagePreview ?? null,
+      lastMessageSenderId: conversation ? (lastSenderByConversation.get(conversation.id) ?? null) : null,
+      unreadCount: conversation?.unreadCount ?? 0,
+    };
+  });
+
+  // Existing conversations first ordered by most recent activity, then
+  // patients with no conversation yet (already ordered most-recently-added
+  // first by the query above — returning 0 preserves that relative order,
+  // since Array#sort is stable). Never reordered by unread status.
+  return rows.sort((a, b) => {
+    if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt.localeCompare(a.lastMessageAt);
+    if (a.lastMessageAt) return -1;
+    if (b.lastMessageAt) return 1;
+    return 0;
+  });
 }
 
 export type ConversationDetail = Database["public"]["Tables"]["conversations"]["Row"] & {
