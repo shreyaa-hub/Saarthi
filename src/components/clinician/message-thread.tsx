@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Send, Pencil, Trash2, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,7 +31,10 @@ import {
 } from "@/lib/realtime/messaging-dispatcher";
 import { useConversationVisible } from "@/lib/realtime/conversation-visibility-context";
 import type { MessageCursor } from "@/lib/data/messages";
-import { cn, formatRelativeTime, initials } from "@/lib/utils";
+import { formatBubbleTimestamp, isSameLocalDay } from "@/lib/time/format";
+import { useLiveDateSeparator } from "@/lib/time/use-live-timestamp";
+import { TimeLabel } from "@/components/time-label";
+import { cn, initials } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
@@ -139,6 +142,30 @@ function markPendingMutation(pending: ReadonlyMap<string, number>, id: string): 
   return next;
 }
 
+type ThreadItem =
+  | { kind: "separator"; id: string; date: string }
+  | { kind: "message"; message: MessageRow };
+
+// Groups `messages` (already in ascending order, see compareMessages) into
+// a flat render list with a date-separator item inserted wherever the
+// local calendar day changes between consecutive messages — including
+// before the very first message, so every thread opens with a separator.
+// Pure and cheap enough to run on every `messages` change; memoized at the
+// call site anyway since it's an O(n) scan over what can be a long list.
+function buildThreadItems(messages: MessageRow[]): ThreadItem[] {
+  const items: ThreadItem[] = [];
+  let prevDate: Date | null = null;
+  for (const message of messages) {
+    const created = new Date(message.created_at);
+    if (!prevDate || !isSameLocalDay(created, prevDate)) {
+      items.push({ kind: "separator", id: `separator-${message.id}`, date: message.created_at });
+    }
+    items.push({ kind: "message", message });
+    prevDate = created;
+  }
+  return items;
+}
+
 export function MessageThread({
   conversationId,
   currentUserId,
@@ -186,6 +213,11 @@ export function MessageThread({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Recomputed only when `messages` itself changes (not on every render,
+  // e.g. composer keystrokes) — see buildThreadItems for what this scan
+  // does and why it's worth memoizing for a long thread.
+  const threadItems = useMemo(() => buildThreadItems(messages), [messages]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -447,24 +479,28 @@ export function MessageThread({
             </p>
           ) : (
             <div className="flex flex-col gap-3">
-              {messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  isOwn={message.sender_id === currentUserId}
-                  otherParticipantName={otherParticipantName}
-                  isEditing={editingId === message.id}
-                  editValue={editValue}
-                  onStartEdit={() => {
-                    setEditingId(message.id);
-                    setEditValue(message.body ?? "");
-                  }}
-                  onChangeEdit={setEditValue}
-                  onSaveEdit={() => handleSaveEdit(message.id)}
-                  onCancelEdit={() => setEditingId(null)}
-                  onRequestDelete={() => setDeleteTargetId(message.id)}
-                />
-              ))}
+              {threadItems.map((item) =>
+                item.kind === "separator" ? (
+                  <DateSeparator key={item.id} date={item.date} />
+                ) : (
+                  <MessageBubble
+                    key={item.message.id}
+                    message={item.message}
+                    isOwn={item.message.sender_id === currentUserId}
+                    otherParticipantName={otherParticipantName}
+                    isEditing={editingId === item.message.id}
+                    editValue={editValue}
+                    onStartEdit={() => {
+                      setEditingId(item.message.id);
+                      setEditValue(item.message.body ?? "");
+                    }}
+                    onChangeEdit={setEditValue}
+                    onSaveEdit={() => handleSaveEdit(item.message.id)}
+                    onCancelEdit={() => setEditingId(null)}
+                    onRequestDelete={() => setDeleteTargetId(item.message.id)}
+                  />
+                ),
+              )}
             </div>
           )}
         </div>
@@ -522,6 +558,24 @@ export function MessageThread({
   );
 }
 
+// Today/Yesterday/weekday/date — the date-only ladder (see
+// useLiveDateSeparator), live-updated only on local-midnight crossings
+// and tab refocus, never on a timer, since a separator never needs a
+// "Just now" state. No full-precision tooltip here deliberately: unlike a
+// point-in-time bubble/list timestamp, a separator already names an
+// entire, unambiguous calendar day in context — there's no additional
+// clock-time precision to disclose.
+function DateSeparator({ date }: { date: string }) {
+  const timestamp = useLiveDateSeparator(date);
+  return (
+    <div className="flex justify-center py-1" role="separator" aria-label={timestamp.label}>
+      <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+        {timestamp.label}
+      </span>
+    </div>
+  );
+}
+
 function MessageBubble({
   message,
   isOwn,
@@ -555,6 +609,10 @@ function MessageBubble({
   }
 
   const isDeleted = message.deleted_at !== null;
+  // Static — always absolute clock time, never depends on the current
+  // time, so no live hook is needed here (see format.ts's comment on
+  // formatBubbleTimestamp for why bubbles don't need a "Just now" state).
+  const timestamp = formatBubbleTimestamp(message.created_at);
 
   return (
     <div className={cn("group flex items-end gap-2", isOwn && "flex-row-reverse")}>
@@ -594,7 +652,7 @@ function MessageBubble({
         )}
 
         <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-          <span>{formatRelativeTime(message.created_at)}</span>
+          <TimeLabel timestamp={timestamp} />
           {message.edited_at && !isDeleted && <span>· edited</span>}
           {isOwn && !isDeleted && !isEditing && (
             // Visible on hover *and* keyboard focus (group-focus-within) —

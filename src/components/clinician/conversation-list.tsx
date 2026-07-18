@@ -7,13 +7,15 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatRelativeTime, initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import {
   messagesInserted,
   conversationUnreadIncremented,
   conversationUnreadCleared,
 } from "@/lib/realtime/messaging-dispatcher";
 import { compareInboxRows, type InboxRow } from "@/lib/data/messages";
+import { useLiveTimestamp } from "@/lib/time/use-live-timestamp";
+import { TimeLabel } from "@/components/time-label";
 
 // message_type/sender_id distinctions belong to MessageThread's rendering
 // only — here this is purely a label prefix for scanning a list, not a
@@ -156,45 +158,71 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
         ) : (
           filtered.map((row) => {
             const href = `/clinician/messages/${row.clinicianPatientId}`;
-            const active = pathname === href;
             return (
-              <Link
+              <ConversationListRow
                 key={row.clinicianPatientId}
+                row={row}
                 href={href}
-                className={cn(
-                  "flex items-start gap-3 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted",
-                  active && "bg-secondary",
-                )}
-              >
-                <Avatar className="size-9 shrink-0">
-                  <AvatarFallback>{initials(row.patientName)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">{row.patientName}</p>
-                    {row.lastMessageAt && (
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {formatRelativeTime(row.lastMessageAt)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs text-muted-foreground">
-                      {previewText(row, currentUserId)}
-                    </p>
-                    {row.unreadCount > 0 && (
-                      <Badge variant="accent" className="shrink-0 px-1.5 py-0">
-                        {row.unreadCount > 9 ? "9+" : row.unreadCount}
-                        <span className="sr-only"> unread</span>
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </Link>
+                active={pathname === href}
+                currentUserId={currentUserId}
+              />
             );
           })
         )}
       </div>
     </div>
   );
+}
+
+// Extracted so useLiveTimestamp (inside ConversationLastMessageTime below)
+// can be called per row — hooks can't be called inside the .map() callback
+// above directly.
+function ConversationListRow({
+  row,
+  href,
+  active,
+  currentUserId,
+}: {
+  row: InboxRow;
+  href: string;
+  active: boolean;
+  currentUserId: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-start gap-3 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted",
+        active && "bg-secondary",
+      )}
+    >
+      <Avatar className="size-9 shrink-0">
+        <AvatarFallback>{initials(row.patientName)}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-medium">{row.patientName}</p>
+          {row.lastMessageAt && <ConversationLastMessageTime lastMessageAt={row.lastMessageAt} />}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-xs text-muted-foreground">{previewText(row, currentUserId)}</p>
+          {row.unreadCount > 0 && (
+            <Badge variant="accent" className="shrink-0 px-1.5 py-0">
+              {row.unreadCount > 9 ? "9+" : row.unreadCount}
+              <span className="sr-only"> unread</span>
+            </Badge>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// Its own component (rather than a hook call inline in ConversationListRow)
+// specifically so it's only ever mounted when row.lastMessageAt is truthy —
+// conditionally rendering a whole component is fine; conditionally calling
+// a hook inside one fixed component instance is not.
+function ConversationLastMessageTime({ lastMessageAt }: { lastMessageAt: string }) {
+  const timestamp = useLiveTimestamp(lastMessageAt);
+  return <TimeLabel timestamp={timestamp} className="shrink-0 text-[11px] text-muted-foreground" />;
 }

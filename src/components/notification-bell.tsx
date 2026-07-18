@@ -7,7 +7,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/actions/notifications";
 import { notificationsInserted, notificationsUpdated } from "@/lib/realtime/messaging-dispatcher";
-import { formatRelativeTime, cn } from "@/lib/utils";
+import { useLiveTimestamp } from "@/lib/time/use-live-timestamp";
+import { TimeLabel } from "@/components/time-label";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
@@ -179,26 +181,34 @@ export function NotificationBell({
             </div>
           ) : (
             notifications.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => openNotification(n)}
-                className={cn(
-                  "flex w-full flex-col gap-0.5 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted cursor-pointer",
-                  !n.read_at && "bg-secondary/60",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {!n.read_at && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
-                  <p className="truncate text-sm font-medium">{n.title}</p>
-                </div>
-                {n.body && <p className="truncate text-xs text-muted-foreground">{n.body}</p>}
-                <p className="text-[11px] text-muted-foreground">{formatRelativeTime(n.created_at)}</p>
-              </button>
+              <NotificationListItem key={n.id} notification={n} onOpen={() => openNotification(n)} />
             ))
           )}
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// Extracted so useLiveTimestamp (a hook) can be called once per row —
+// hooks can't be called inside the .map() callback above directly.
+function NotificationListItem({ notification: n, onOpen }: { notification: NotificationRow; onOpen: () => void }) {
+  const timestamp = useLiveTimestamp(n.created_at);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        "flex w-full flex-col gap-0.5 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted cursor-pointer",
+        !n.read_at && "bg-secondary/60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {!n.read_at && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
+        <p className="truncate text-sm font-medium">{n.title}</p>
+      </div>
+      {n.body && <p className="truncate text-xs text-muted-foreground">{n.body}</p>}
+      <TimeLabel timestamp={timestamp} className="text-[11px] text-muted-foreground" />
+    </button>
   );
 }

@@ -4,9 +4,10 @@ import { getConversation, getMessages } from "@/lib/data/messages";
 import { startConversation } from "@/lib/actions/messages";
 import { MessageThread } from "@/components/clinician/message-thread";
 import { ConversationSelector } from "@/components/patient/conversation-selector";
+import { LastActiveLabel } from "@/components/last-active-label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { initials, formatRelativeTime } from "@/lib/utils";
+import { initials } from "@/lib/utils";
 import { MessageSquare } from "lucide-react";
 
 export default async function PatientMessagesPage({
@@ -104,9 +105,11 @@ export default async function PatientMessagesPage({
         <div>
           <p className="font-semibold">{clinicianName}</p>
           <p className="text-xs text-muted-foreground">
-            {clinicianLastReadAt
-              ? `Active ${formatRelativeTime(clinicianLastReadAt)}`
-              : "Hasn't opened this conversation yet"}
+            {clinicianLastReadAt ? (
+              <LastActiveLabel lastReadAt={clinicianLastReadAt} />
+            ) : (
+              "Hasn't opened this conversation yet"
+            )}
           </p>
         </div>
       </div>

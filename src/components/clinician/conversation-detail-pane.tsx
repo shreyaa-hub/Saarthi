@@ -3,9 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import { getConversation, getMessages } from "@/lib/data/messages";
 import { startConversation } from "@/lib/actions/messages";
 import { MessageThread } from "@/components/clinician/message-thread";
+import { LastActiveLabel } from "@/components/last-active-label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { initials, formatRelativeTime } from "@/lib/utils";
+import { initials } from "@/lib/utils";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 
@@ -59,9 +60,11 @@ export async function ConversationDetailPane({
         <div>
           <p className="font-semibold">{patientName}</p>
           <p className="text-xs text-muted-foreground">
-            {patientParticipant?.lastReadAt
-              ? `Active ${formatRelativeTime(patientParticipant.lastReadAt)}`
-              : "Hasn't opened this conversation yet"}
+            {patientParticipant?.lastReadAt ? (
+              <LastActiveLabel lastReadAt={patientParticipant.lastReadAt} />
+            ) : (
+              "Hasn't opened this conversation yet"
+            )}
           </p>
         </div>
       </div>
