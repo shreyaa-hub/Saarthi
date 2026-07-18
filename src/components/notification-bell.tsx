@@ -1,15 +1,72 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, BellOff } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/actions/notifications";
+import { notificationsInserted, notificationsUpdated } from "@/lib/realtime/messaging-dispatcher";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
+
+// Single reconciliation path for "a notification row was inserted or
+// updated" — used by BOTH the user's own optimistic actions
+// (openNotification, markAllRead) AND the Realtime echoes of those same
+// actions, so neither can double-count against the other. This is the
+// exact same fix applied to MessageThread's duplicate-message bug in
+// Phase 2: two independently-written reconciliation paths (an optimistic
+// click vs. the Realtime echo of that same click) are exactly what
+// drifted apart there, and would drift the same way here if
+// unreadCount were decremented once at the click site and again when
+// the echo of that click arrives.
+//
+// New notification (id not already held): always unread —
+// notify_new_message()'s ON CONFLICT ... WHERE read_at IS NULL DO UPDATE
+// means a coalesced repeat reuses the same id; a genuinely new id only
+// ever appears when there was no existing unread match, so it's never
+// anything but unread on arrival. Evicts the oldest row past 20 to match
+// getMyNotifications()'s own limit.
+//
+// Existing notification: the unread delta is computed by comparing this
+// row's OLD locally-held read_at against the INCOMING read_at, not a
+// hardcoded +1/-1 at the call site — so whichever of "my own click" or
+// "the Realtime echo of that click" applies second sees the state its
+// own update already produced and correctly computes a zero delta,
+// instead of double-decrementing. This also means the incoming row
+// (always the server's real values) fully replaces the local one, which
+// incidentally corrects openNotification's client-fabricated read_at
+// guess below (a provisional value, same pattern as MessageThread's
+// pre-existing edited_at limitation from Phase 2) once the echo arrives.
+//
+// unreadCount is deliberately NOT derived from notifications.length here
+// (unlike, say, a simple filter().length) — this list is capped at the
+// most recent 20 (getMyNotifications()'s limit), while unreadCount's
+// baseline (getUnreadNotificationCount) is an unbounded COUNT() that can
+// legitimately exceed 20. Deriving from the visible list would silently
+// undercount for a user with more than 20 unread notifications; tracking
+// it as its own delta-adjusted value, seeded from the accurate server
+// count, avoids that.
+function upsertNotification(
+  prev: NotificationRow[],
+  incoming: NotificationRow,
+): { notifications: NotificationRow[]; unreadDelta: number } {
+  const idx = prev.findIndex((n) => n.id === incoming.id);
+
+  if (idx === -1) {
+    const next = [incoming, ...prev];
+    if (next.length > 20) next.pop();
+    return { notifications: next, unreadDelta: 1 };
+  }
+
+  const wasUnread = prev[idx].read_at === null;
+  const isUnread = incoming.read_at === null;
+  const next = [...prev];
+  next[idx] = incoming;
+  return { notifications: next, unreadDelta: wasUnread === isUnread ? 0 : isUnread ? 1 : -1 };
+}
 
 export function NotificationBell({
   userId,
@@ -25,10 +82,36 @@ export function NotificationBell({
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [, startTransition] = useTransition();
 
+  // Live updates (Step 5, Phase 4). The provider's notifications channel
+  // is already filtered server-side to user_id=eq.<this user> (Phase 1),
+  // so the row.user_id check below is belt-and-suspenders, not duplicated
+  // authorization logic.
+  useEffect(() => {
+    const applyLive = (row: NotificationRow) => {
+      if (row.user_id !== userId) return;
+      setNotifications((prev) => {
+        const { notifications: next, unreadDelta } = upsertNotification(prev, row);
+        if (unreadDelta !== 0) setUnreadCount((c) => Math.max(0, c + unreadDelta));
+        return next;
+      });
+    };
+
+    const unsubscribeInsert = notificationsInserted.subscribe(applyLive);
+    const unsubscribeUpdate = notificationsUpdated.subscribe(applyLive);
+    return () => {
+      unsubscribeInsert();
+      unsubscribeUpdate();
+    };
+  }, [userId]);
+
   const openNotification = (n: NotificationRow) => {
     if (!n.read_at) {
-      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-      setUnreadCount((c) => Math.max(0, c - 1));
+      const optimistic = { ...n, read_at: new Date().toISOString() };
+      setNotifications((prev) => {
+        const { notifications: next, unreadDelta } = upsertNotification(prev, optimistic);
+        if (unreadDelta !== 0) setUnreadCount((c) => Math.max(0, c + unreadDelta));
+        return next;
+      });
       startTransition(() => {
         void markNotificationRead(n.id);
       });
