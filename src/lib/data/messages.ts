@@ -200,16 +200,23 @@ export async function getClinicianInbox(supabase: Client, clinicianId: string): 
     };
   });
 
-  // Existing conversations first ordered by most recent activity, then
-  // patients with no conversation yet (already ordered most-recently-added
-  // first by the query above — returning 0 preserves that relative order,
-  // since Array#sort is stable). Never reordered by unread status.
-  return rows.sort((a, b) => {
-    if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt.localeCompare(a.lastMessageAt);
-    if (a.lastMessageAt) return -1;
-    if (b.lastMessageAt) return 1;
-    return 0;
-  });
+  return rows.sort(compareInboxRows);
+}
+
+// Existing conversations first ordered by most recent activity, then
+// patients with no conversation yet (already ordered most-recently-added
+// first by the query above — returning 0 preserves that relative order,
+// since Array#sort is stable). Never reordered by unread status.
+//
+// Exported so ConversationList (Step 5, Phase 3) can apply this exact
+// same ordering when live-patching a row's lastMessageAt from a Realtime
+// event, instead of a second, independently-maintained comparator that
+// could silently drift from this one.
+export function compareInboxRows(a: InboxRow, b: InboxRow): number {
+  if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt.localeCompare(a.lastMessageAt);
+  if (a.lastMessageAt) return -1;
+  if (b.lastMessageAt) return 1;
+  return 0;
 }
 
 export type ConversationDetail = Database["public"]["Tables"]["conversations"]["Row"] & {
