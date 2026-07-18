@@ -112,7 +112,17 @@ export default async function PatientMessagesPage({
       </div>
 
       <Card className="flex flex-1 flex-col overflow-hidden p-0">
+        {/* key is load-bearing here specifically: switching clinicians via
+            ConversationSelector changes only the `with` search param, not
+            the path — the least certain case for whether Next.js remounts
+            this subtree on its own (unlike a dynamic path segment change,
+            already independently guaranteed to remount). Without this,
+            switching clinicians risks leaving MessageThread's `messages`
+            state (a one-time useState(initialMessages) initializer)
+            showing the PREVIOUS clinician's conversation. key removes the
+            ambiguity entirely via React's own reconciliation contract. */}
         <MessageThread
+          key={conversation.id}
           conversationId={conversation.id}
           currentUserId={user.id}
           otherParticipantName={clinicianName}

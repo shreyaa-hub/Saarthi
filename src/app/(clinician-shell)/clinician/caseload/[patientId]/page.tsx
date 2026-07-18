@@ -193,7 +193,13 @@ export default async function PatientDetailPage({
         <TabsContent value="messages">
           {messagesTab ? (
             <Card className="flex h-[32rem] flex-col overflow-hidden p-0">
+              {/* key: same reasoning as the other two MessageThread call
+                  sites — guarantees a fresh instance on a conversation
+                  change via React's own contract, independent of whatever
+                  Next.js's routing layer does with this [patientId]
+                  segment (see the audit note in conversation-detail-pane.tsx). */}
               <MessageThread
+                key={messagesTab.conversationId}
                 conversationId={messagesTab.conversationId}
                 currentUserId={user.id}
                 otherParticipantName={name}
