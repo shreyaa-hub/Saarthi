@@ -29,6 +29,7 @@ import {
   conversationUnreadCleared,
   setActiveConversationId,
 } from "@/lib/realtime/messaging-dispatcher";
+import { useConversationVisible } from "@/lib/realtime/conversation-visibility-context";
 import type { MessageCursor } from "@/lib/data/messages";
 import { cn, formatRelativeTime, initials } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
@@ -103,28 +104,42 @@ export function MessageThread({
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
-  // Mark the thread read as soon as the clinician opens it. Fire-and-forget,
-  // same swallow-failures posture as notify() elsewhere in this app — a
-  // failed read receipt shouldn't block or error the thread view.
+  // Whether this MessageThread instance is actually visible right now, not
+  // just mounted — defaults to true everywhere except inside
+  // MessagesSplitPane's mobile-hidden subtree (see
+  // conversation-visibility-context.tsx). Found during the Step 5 final
+  // audit: MessagesSplitPane keeps the clinician inbox's auto-selected
+  // conversation mounted at all times, only CSS-hiding it on mobile — a
+  // mounted-but-hidden thread was being treated as "the user is reading
+  // this," both marking it read server-side and suppressing its unread
+  // badge, for a conversation the user had never actually looked at.
+  const isVisible = useConversationVisible();
+
+  // Mark the thread read as soon as the clinician opens it — but only if
+  // it's actually visible (see isVisible above). Fire-and-forget, same
+  // swallow-failures posture as notify() elsewhere in this app — a failed
+  // read receipt shouldn't block or error the thread view.
   //
   // Also (Step 5, Phase 5): marks this conversation "active" for as long
-  // as this effect's cleanup hasn't run, and emits an immediate, optimistic
+  // as it stays visible, and emits an immediate, optimistic
   // conversationUnreadCleared — both synchronous, client-side, not gated
   // on markConversationRead()'s server round-trip, matching "opening a
   // conversation marks it read immediately" from the Phase 5 acceptance
-  // criteria. setActiveConversationId(null) on cleanup (not just on
-  // markConversationRead's completion) is what lets
-  // MessagingRealtimeProvider suppress conversationUnreadIncremented for
-  // messages arriving while this thread is genuinely on screen — see
-  // isConversationActive in messaging-dispatcher.ts.
+  // criteria. setActiveConversationId(null) whenever this effect cleans up
+  // (unmount, conversationId change, OR isVisible flipping to false) is
+  // what lets MessagingRealtimeProvider suppress
+  // conversationUnreadIncremented for messages arriving while this thread
+  // is genuinely on screen — see isConversationActive in
+  // messaging-dispatcher.ts.
   useEffect(() => {
+    if (!isVisible) return;
     setActiveConversationId(conversationId);
     conversationUnreadCleared.emit(conversationId);
     markConversationRead(conversationId).catch(() => {});
     return () => {
       setActiveConversationId(null);
     };
-  }, [conversationId]);
+  }, [conversationId, isVisible]);
 
   // Live updates (Step 5, Phase 2) — subscribes to the shared dispatcher
   // (see messaging-dispatcher.ts / MessagingRealtimeProvider), not its own
