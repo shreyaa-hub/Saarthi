@@ -23,7 +23,12 @@ import {
   markConversationRead,
   loadOlderMessages,
 } from "@/lib/actions/messages";
-import { messagesInserted, messagesUpdated } from "@/lib/realtime/messaging-dispatcher";
+import {
+  messagesInserted,
+  messagesUpdated,
+  conversationUnreadCleared,
+  setActiveConversationId,
+} from "@/lib/realtime/messaging-dispatcher";
 import type { MessageCursor } from "@/lib/data/messages";
 import { cn, formatRelativeTime, initials } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
@@ -101,8 +106,24 @@ export function MessageThread({
   // Mark the thread read as soon as the clinician opens it. Fire-and-forget,
   // same swallow-failures posture as notify() elsewhere in this app — a
   // failed read receipt shouldn't block or error the thread view.
+  //
+  // Also (Step 5, Phase 5): marks this conversation "active" for as long
+  // as this effect's cleanup hasn't run, and emits an immediate, optimistic
+  // conversationUnreadCleared — both synchronous, client-side, not gated
+  // on markConversationRead()'s server round-trip, matching "opening a
+  // conversation marks it read immediately" from the Phase 5 acceptance
+  // criteria. setActiveConversationId(null) on cleanup (not just on
+  // markConversationRead's completion) is what lets
+  // MessagingRealtimeProvider suppress conversationUnreadIncremented for
+  // messages arriving while this thread is genuinely on screen — see
+  // isConversationActive in messaging-dispatcher.ts.
   useEffect(() => {
+    setActiveConversationId(conversationId);
+    conversationUnreadCleared.emit(conversationId);
     markConversationRead(conversationId).catch(() => {});
+    return () => {
+      setActiveConversationId(null);
+    };
   }, [conversationId]);
 
   // Live updates (Step 5, Phase 2) — subscribes to the shared dispatcher

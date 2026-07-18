@@ -8,7 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatRelativeTime, initials } from "@/lib/utils";
-import { messagesInserted } from "@/lib/realtime/messaging-dispatcher";
+import {
+  messagesInserted,
+  conversationUnreadIncremented,
+  conversationUnreadCleared,
+} from "@/lib/realtime/messaging-dispatcher";
 import { compareInboxRows, type InboxRow } from "@/lib/data/messages";
 
 // message_type/sender_id distinctions belong to MessageThread's rendering
@@ -86,6 +90,36 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
     });
 
     return unsubscribe;
+  }, []);
+
+  // Live per-row unread badge (Step 5, Phase 5). Never affects sort order
+  // (compareInboxRows is never called here) — unread status has never
+  // reordered this list, on the server or live, by design.
+  useEffect(() => {
+    const unsubscribeIncrement = conversationUnreadIncremented.subscribe((conversationId) => {
+      setLiveRows((prev) => {
+        const idx = prev.findIndex((r) => r.conversationId === conversationId);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], unreadCount: next[idx].unreadCount + 1 };
+        return next;
+      });
+    });
+
+    const unsubscribeCleared = conversationUnreadCleared.subscribe((conversationId) => {
+      setLiveRows((prev) => {
+        const idx = prev.findIndex((r) => r.conversationId === conversationId);
+        if (idx === -1 || prev[idx].unreadCount === 0) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], unreadCount: 0 };
+        return next;
+      });
+    });
+
+    return () => {
+      unsubscribeIncrement();
+      unsubscribeCleared();
+    };
   }, []);
 
   const filtered = useMemo(() => {

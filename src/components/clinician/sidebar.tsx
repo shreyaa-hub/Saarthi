@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -16,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import { conversationUnreadIncremented, conversationUnreadCleared } from "@/lib/realtime/messaging-dispatcher";
 
 const links = [
   { href: "/clinician", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -26,8 +28,55 @@ const links = [
   { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
 ];
 
-export function ClinicianSidebar({ unreadMessageCount = 0 }: { unreadMessageCount?: number }) {
+export function ClinicianSidebar({
+  initialUnreadCounts = {},
+}: {
+  initialUnreadCounts?: Record<string, number>;
+}) {
   const pathname = usePathname();
+  const [unreadCounts, setUnreadCounts] = useState(initialUnreadCounts);
+  const [prevInitialUnreadCounts, setPrevInitialUnreadCounts] = useState(initialUnreadCounts);
+
+  // Same reconciliation-to-server-truth pattern as ConversationList
+  // (Phase 3) and NotificationBell (Phase 4's fix) — a fresh
+  // initialUnreadCounts prop arrives on every one of this user's own
+  // actions that call revalidatePath (most message/notification actions
+  // do), and always fully replaces provisional client state rather than
+  // merging with it.
+  if (initialUnreadCounts !== prevInitialUnreadCounts) {
+    setPrevInitialUnreadCounts(initialUnreadCounts);
+    setUnreadCounts(initialUnreadCounts);
+  }
+
+  // Step 5, Phase 5: entirely event-driven — a message from someone else
+  // increments its conversation's count (unless that conversation is
+  // currently open, suppressed upstream in MessagingRealtimeProvider, so
+  // it never arrives here at all); opening a conversation zeroes it.
+  // Deliberately has no dependency on NotificationBell — nothing here
+  // reads or reacts to its open/closed state or its own notifications/
+  // unreadCount, so opening or closing the bell cannot affect this badge.
+  useEffect(() => {
+    const unsubscribeIncrement = conversationUnreadIncremented.subscribe((conversationId) => {
+      setUnreadCounts((prev) => ({ ...prev, [conversationId]: (prev[conversationId] ?? 0) + 1 }));
+    });
+
+    const unsubscribeCleared = conversationUnreadCleared.subscribe((conversationId) => {
+      setUnreadCounts((prev) => {
+        if ((prev[conversationId] ?? 0) === 0) return prev;
+        return { ...prev, [conversationId]: 0 };
+      });
+    });
+
+    return () => {
+      unsubscribeIncrement();
+      unsubscribeCleared();
+    };
+  }, []);
+
+  const unreadMessageCount = useMemo(
+    () => Object.values(unreadCounts).reduce((sum, n) => sum + n, 0),
+    [unreadCounts],
+  );
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">

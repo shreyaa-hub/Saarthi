@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -7,6 +8,7 @@ import { Compass, LayoutDashboard, MessageSquare, TrendingUp, LogOut } from "luc
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import { conversationUnreadIncremented, conversationUnreadCleared } from "@/lib/realtime/messaging-dispatcher";
 
 const links = [
   { href: "/patient", label: "My Missions", icon: LayoutDashboard, exact: true },
@@ -14,8 +16,50 @@ const links = [
   { href: "/patient/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export function PatientSidebar({ unreadMessageCount = 0 }: { unreadMessageCount?: number }) {
+export function PatientSidebar({
+  initialUnreadCounts = {},
+}: {
+  initialUnreadCounts?: Record<string, number>;
+}) {
   const pathname = usePathname();
+  const [unreadCounts, setUnreadCounts] = useState(initialUnreadCounts);
+  const [prevInitialUnreadCounts, setPrevInitialUnreadCounts] = useState(initialUnreadCounts);
+
+  // Same reconciliation-to-server-truth pattern as ConversationList
+  // (Phase 3) and NotificationBell (Phase 4's fix) — see
+  // ClinicianSidebar's identical comment for the full reasoning.
+  if (initialUnreadCounts !== prevInitialUnreadCounts) {
+    setPrevInitialUnreadCounts(initialUnreadCounts);
+    setUnreadCounts(initialUnreadCounts);
+  }
+
+  // Step 5, Phase 5: entirely event-driven, same rules as ClinicianSidebar
+  // — kept as two separate, identical implementations (clinician/patient
+  // sidebars were already two separate components before Step 5) rather
+  // than introducing a new shared component now, matching the scope of
+  // this change.
+  useEffect(() => {
+    const unsubscribeIncrement = conversationUnreadIncremented.subscribe((conversationId) => {
+      setUnreadCounts((prev) => ({ ...prev, [conversationId]: (prev[conversationId] ?? 0) + 1 }));
+    });
+
+    const unsubscribeCleared = conversationUnreadCleared.subscribe((conversationId) => {
+      setUnreadCounts((prev) => {
+        if ((prev[conversationId] ?? 0) === 0) return prev;
+        return { ...prev, [conversationId]: 0 };
+      });
+    });
+
+    return () => {
+      unsubscribeIncrement();
+      unsubscribeCleared();
+    };
+  }, []);
+
+  const unreadMessageCount = useMemo(
+    () => Object.values(unreadCounts).reduce((sum, n) => sum + n, 0),
+    [unreadCounts],
+  );
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">

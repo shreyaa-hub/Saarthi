@@ -15,12 +15,11 @@ export default async function PatientLayout({ children }: { children: React.Reac
     getUnreadCounts(supabase, user.id),
   ]);
   const streak = computeStreak(attempts.map((a) => a.completed_at));
-  const unreadMessageCount = Object.values(unreadMessageCounts).reduce((sum, n) => sum + n, 0);
 
   return (
     <MessagingRealtimeProvider userId={user.id}>
       <div className="flex min-h-screen bg-background">
-        <PatientSidebar unreadMessageCount={unreadMessageCount} />
+        <PatientSidebar initialUnreadCounts={unreadMessageCounts} />
         <div className="flex min-h-screen flex-1 flex-col">
           <PatientTopbar
             fullName={profile.full_name}

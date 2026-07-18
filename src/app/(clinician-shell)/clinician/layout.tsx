@@ -12,12 +12,11 @@ export default async function ClinicianLayout({ children }: { children: React.Re
     getUnreadNotificationCount(supabase, user.id),
     getUnreadCounts(supabase, user.id),
   ]);
-  const unreadMessageCount = Object.values(unreadMessageCounts).reduce((sum, n) => sum + n, 0);
 
   return (
     <MessagingRealtimeProvider userId={user.id}>
       <div className="flex min-h-screen bg-background">
-        <ClinicianSidebar unreadMessageCount={unreadMessageCount} />
+        <ClinicianSidebar initialUnreadCounts={unreadMessageCounts} />
         <div className="flex min-h-screen flex-1 flex-col">
           <ClinicianTopbar
             fullName={profile.full_name}

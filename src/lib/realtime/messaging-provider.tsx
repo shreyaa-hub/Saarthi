@@ -2,7 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { messagesInserted, messagesUpdated, notificationsInserted, notificationsUpdated } from "@/lib/realtime/messaging-dispatcher";
+import {
+  messagesInserted,
+  messagesUpdated,
+  notificationsInserted,
+  notificationsUpdated,
+  conversationUnreadIncremented,
+  isConversationActive,
+} from "@/lib/realtime/messaging-dispatcher";
 import type { Database } from "@/lib/types/database";
 import type { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 
@@ -87,6 +94,16 @@ export function MessagingRealtimeProvider({
           { event: "INSERT", schema: "public", table: "messages" },
           (payload: RealtimePostgresInsertPayload<MessageRow>) => {
             messagesInserted.emit(payload.new);
+            // Step 5, Phase 5: a message from someone else, for a
+            // conversation the current tab doesn't have open right now,
+            // is unread — increment. Own sends never count (matches
+            // computeUnreadCounts()'s existing sender_id exclusion); a
+            // conversation actively open in MessageThread is suppressed
+            // here rather than incremented-then-immediately-cleared, to
+            // avoid a visible flash of the badge.
+            if (payload.new.sender_id !== userId && !isConversationActive(payload.new.conversation_id)) {
+              conversationUnreadIncremented.emit(payload.new.conversation_id);
+            }
           },
         )
         .on(
