@@ -78,12 +78,65 @@ function insertMessage(prev: MessageRow[], row: MessageRow): MessageRow[] {
 // gap-recovery mechanism ran. Starts from `current` rather than `fresh` so
 // older paginated-in messages (outside the fresh batch's window, loaded via
 // loadOlderMessages) are preserved rather than dropped.
-function mergeMessages(current: MessageRow[], fresh: MessageRow[]): MessageRow[] {
+//
+// `protectedIds` exists because "fresh always wins" is only true when fresh
+// is actually newer than current — which isn't guaranteed. router.refresh()
+// fires a brand new getMessages() request with no ordering guarantee
+// relative to an in-flight handleSaveEdit/handleDelete Server Action: if
+// that fetch's snapshot is taken before the edit/delete's own UPDATE
+// commits, `fresh` carries the pre-edit row, and blindly overwriting current
+// would revert an edit/delete the user just confirmed as successful. Ids in
+// `protectedIds` are skipped so current's (more recent) optimistic copy
+// survives; see pendingLocalMutations in MessageThread for how that set is
+// populated and cleared.
+function mergeMessages(
+  current: MessageRow[],
+  fresh: MessageRow[],
+  protectedIds: ReadonlySet<string>,
+): MessageRow[] {
   const byId = new Map(current.map((m) => [m.id, m]));
   for (const row of fresh) {
+    if (protectedIds.has(row.id)) continue;
     byId.set(row.id, row);
   }
   return Array.from(byId.values()).sort(compareMessages);
+}
+
+// How long a local edit/delete stays protected from being overwritten by a
+// stale refresh if its own messagesUpdated confirmation never arrives (e.g.
+// that specific UPDATE broadcast was itself among the events lost in the
+// same disconnect gap the refresh is trying to recover from). Comfortably
+// longer than the reconnect debounce (2s) and any realistic Server Action
+// round trip; short enough that a genuinely stuck entry doesn't diverge
+// from the server forever.
+const PENDING_MUTATION_TTL_MS = 30_000;
+
+// Pure — deliberately does not mutate `pending`. This is read from
+// MessageThread's render body (the "adjust state during render" block
+// below), and React's rules forbid reading *or* writing a ref during
+// render; pendingLocalMutations is therefore plain useState, not a ref, and
+// this function must stay side-effect-free to be safely called from there.
+function activeProtectedIds(pending: ReadonlyMap<string, number>): Set<string> {
+  const now = Date.now();
+  const ids = new Set<string>();
+  for (const [id, startedAt] of pending) {
+    if (now - startedAt < PENDING_MUTATION_TTL_MS) ids.add(id);
+  }
+  return ids;
+}
+
+// Records a new pending mutation and, in the same pass, drops any entries
+// that have already expired — bounds the map's size over a long session
+// without needing a separate timer, since this runs every time a new
+// edit/delete is made.
+function markPendingMutation(pending: ReadonlyMap<string, number>, id: string): Map<string, number> {
+  const now = Date.now();
+  const next = new Map<string, number>();
+  for (const [existingId, startedAt] of pending) {
+    if (now - startedAt < PENDING_MUTATION_TTL_MS) next.set(existingId, startedAt);
+  }
+  next.set(id, now);
+  return next;
 }
 
 export function MessageThread({
@@ -103,6 +156,14 @@ export function MessageThread({
   const [prevInitialMessages, setPrevInitialMessages] = useState(initialMessages);
   const [cursor, setCursor] = useState(initialCursor);
 
+  // Ids (and when-marked timestamps) with a local optimistic edit/delete
+  // not yet confirmed by the authoritative messagesUpdated echo —
+  // populated in handleSaveEdit/handleDelete, cleared in the
+  // messagesUpdated subscriber below. Plain useState rather than a ref:
+  // the render-time merge below needs to read it, and React's rules
+  // forbid reading a ref during render (only state is safe there).
+  const [pendingLocalMutations, setPendingLocalMutations] = useState<Map<string, number>>(new Map());
+
   // Adjust state during render (React's documented alternative to a
   // useEffect-based prop mirror — same pattern already used by
   // ConversationList/NotificationBell/both Sidebars). Reference-equality
@@ -115,7 +176,8 @@ export function MessageThread({
   // this fresh batch) isn't discarded — see mergeMessages's own comment.
   if (initialMessages !== prevInitialMessages) {
     setPrevInitialMessages(initialMessages);
-    setMessages((prev) => mergeMessages(prev, initialMessages));
+    const protectedIds = activeProtectedIds(pendingLocalMutations);
+    setMessages((prev) => mergeMessages(prev, initialMessages, protectedIds));
   }
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [, startTransition] = useTransition();
@@ -217,6 +279,15 @@ export function MessageThread({
       // pre-Step-5 limitation, not fixed by design, just naturally
       // overwritten once the server's real row arrives here).
       setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
+      // This is the authoritative confirmation for any pending local edit/
+      // delete on this id — safe to let a future refresh's merge trust
+      // fresh data for it again. See pendingLocalMutations above.
+      setPendingLocalMutations((prev) => {
+        if (!prev.has(row.id)) return prev;
+        const next = new Map(prev);
+        next.delete(row.id);
+        return next;
+      });
     });
 
     return () => {
@@ -321,6 +392,10 @@ export function MessageThread({
       // until the messagesUpdated dispatcher event (see the effect above)
       // replaces this whole row with the server's actual one.
       const editedAt = new Date().toISOString();
+      // Marked pending BEFORE the optimistic setMessages so a reconnect
+      // refresh's merge (which can run concurrently, see mergeMessages)
+      // can't clobber this edit with a stale pre-edit snapshot.
+      setPendingLocalMutations((prev) => markPendingMutation(prev, id));
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, body, edited_at: editedAt } : m)));
     });
   };
@@ -334,6 +409,9 @@ export function MessageThread({
         return;
       }
       const deletedAt = new Date().toISOString();
+      // Same reasoning as handleSaveEdit above — protects this delete from
+      // being reverted by a stale concurrent refresh's merge.
+      setPendingLocalMutations((prev) => markPendingMutation(prev, id));
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, deleted_at: deletedAt } : m)));
     });
   };

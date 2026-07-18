@@ -82,33 +82,55 @@ export function MessagingRealtimeProvider({
     // user does afterward would surface it (see mergeMessages in
     // message-thread.tsx, the other half of this fix).
     //
-    // hasDisconnectedRef only turns true on a REAL disconnect (TIMED_OUT /
-    // CLOSED / CHANNEL_ERROR), not on the initial SUBSCRIBED — so a normal
-    // first connection never triggers a refresh. debounceRef collapses a
-    // flapping connection (repeated drop/reconnect cycles) into a single
-    // trailing router.refresh() instead of one per cycle.
+    // hasDisconnected only turns true on a REAL disconnect of an
+    // already-established channel (see hasEverSubscribed below for why
+    // "already-established" matters) — so an ordinary first connection
+    // never triggers a refresh. debounceTimer collapses a flapping
+    // connection (repeated drop/reconnect cycles) into a single trailing
+    // router.refresh() instead of one per cycle.
     let hasDisconnected = false;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    // Per-channel, not shared: verified against @supabase/realtime-js's
+    // RealtimeChannel.subscribe() source (node_modules/@supabase/
+    // realtime-js/dist/module/RealtimeChannel.js) that `_onClose`/`_onError`
+    // are raw socket-level listeners, registered unconditionally at
+    // subscribe() time — they fire CLOSED/CHANNEL_ERROR for a connection
+    // hiccup during the channel's very first join attempt just as readily
+    // as for losing an already-established connection. Without this guard,
+    // a transient failure before any SUBSCRIBED has ever been reached would
+    // still be treated as "recovered from a disconnect" once the retry
+    // succeeds, firing a router.refresh() on ordinary page-load network
+    // flakiness — there was never a live subscription for events to have
+    // been missed from, so nothing needs reconciling.
+    const hasEverSubscribed: Record<string, boolean> = { messages: false, notifications: false };
 
-    function handleStatus(channelLabel: string) {
+    function handleStatus(channelLabel: "messages" | "notifications") {
       return (status: string, err?: Error) => {
         console.log(`[realtime:${channelLabel}:status]`, status, err ?? "");
 
-        if (status === "TIMED_OUT" || status === "CLOSED" || status === "CHANNEL_ERROR") {
-          hasDisconnected = true;
+        if (status === "SUBSCRIBED") {
+          const isFirstJoin = !hasEverSubscribed[channelLabel];
+          hasEverSubscribed[channelLabel] = true;
+          if (isFirstJoin) return;
+
+          if (hasDisconnected) {
+            hasDisconnected = false;
+            if (debounceTimer) clearTimeout(debounceTimer);
+            // 2s debounce: both channels reconnecting around the same time
+            // (the common case — one network blip affects both sockets)
+            // should produce one refresh, not two.
+            debounceTimer = setTimeout(() => {
+              debounceTimer = null;
+              router.refresh();
+            }, 2000);
+          }
           return;
         }
 
-        if (status === "SUBSCRIBED" && hasDisconnected) {
-          hasDisconnected = false;
-          if (debounceTimer) clearTimeout(debounceTimer);
-          // 2s debounce: both channels reconnecting around the same time
-          // (the common case — one network blip affects both sockets)
-          // should produce one refresh, not two.
-          debounceTimer = setTimeout(() => {
-            debounceTimer = null;
-            router.refresh();
-          }, 2000);
+        if (status === "TIMED_OUT" || status === "CLOSED" || status === "CHANNEL_ERROR") {
+          if (hasEverSubscribed[channelLabel]) {
+            hasDisconnected = true;
+          }
         }
       };
     }
