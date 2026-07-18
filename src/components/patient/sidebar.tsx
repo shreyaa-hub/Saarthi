@@ -25,19 +25,18 @@ export function PatientSidebar({
   const [unreadCounts, setUnreadCounts] = useState(initialUnreadCounts);
   const [prevInitialUnreadCounts, setPrevInitialUnreadCounts] = useState(initialUnreadCounts);
 
-  // Same reconciliation-to-server-truth pattern as ConversationList
-  // (Phase 3) and NotificationBell (Phase 4's fix) — see
-  // ClinicianSidebar's identical comment for the full reasoning.
+  // Same reconciliation-to-server-truth pattern as ConversationList and
+  // NotificationBell — see ClinicianSidebar's identical comment for the
+  // full reasoning.
   if (initialUnreadCounts !== prevInitialUnreadCounts) {
     setPrevInitialUnreadCounts(initialUnreadCounts);
     setUnreadCounts(initialUnreadCounts);
   }
 
-  // Step 5, Phase 5: entirely event-driven, same rules as ClinicianSidebar
-  // — kept as two separate, identical implementations (clinician/patient
-  // sidebars were already two separate components before Step 5) rather
-  // than introducing a new shared component now, matching the scope of
-  // this change.
+  // Entirely event-driven, same rules as ClinicianSidebar — kept as two
+  // separate, identical implementations (clinician/patient sidebars are
+  // already two separate components) rather than introducing a new
+  // shared component.
   useEffect(() => {
     const unsubscribeIncrement = conversationUnreadIncremented.subscribe((conversationId) => {
       setUnreadCounts((prev) => ({ ...prev, [conversationId]: (prev[conversationId] ?? 0) + 1 }));

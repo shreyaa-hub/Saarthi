@@ -37,18 +37,17 @@ export function ClinicianSidebar({
   const [unreadCounts, setUnreadCounts] = useState(initialUnreadCounts);
   const [prevInitialUnreadCounts, setPrevInitialUnreadCounts] = useState(initialUnreadCounts);
 
-  // Same reconciliation-to-server-truth pattern as ConversationList
-  // (Phase 3) and NotificationBell (Phase 4's fix) — a fresh
-  // initialUnreadCounts prop arrives on every one of this user's own
-  // actions that call revalidatePath (most message/notification actions
-  // do), and always fully replaces provisional client state rather than
-  // merging with it.
+  // Same reconciliation-to-server-truth pattern as ConversationList and
+  // NotificationBell — a fresh initialUnreadCounts prop arrives on every
+  // one of this user's own actions that call revalidatePath (most
+  // message/notification actions do), and always fully replaces
+  // provisional client state rather than merging with it.
   if (initialUnreadCounts !== prevInitialUnreadCounts) {
     setPrevInitialUnreadCounts(initialUnreadCounts);
     setUnreadCounts(initialUnreadCounts);
   }
 
-  // Step 5, Phase 5: entirely event-driven — a message from someone else
+  // Entirely event-driven — a message from someone else
   // increments its conversation's count (unless that conversation is
   // currently open, suppressed upstream in MessagingRealtimeProvider, so
   // it never arrives here at all); opening a conversation zeroes it.

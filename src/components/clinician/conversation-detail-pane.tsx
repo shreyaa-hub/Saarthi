@@ -70,11 +70,11 @@ export async function ConversationDetailPane({
         {/* key forces a fresh MessageThread instance whenever the
             conversation changes, guaranteed by React's own reconciliation
             contract rather than relying on Next.js's routing layer to
-            remount this subtree — verified during the Step 5 final audit
-            that this project doesn't currently enable cacheComponents
-            (which would otherwise hide-not-unmount routes and preserve
-            stale `messages` state across navigation), but this component
-            shouldn't depend on that config staying off to stay correct. */}
+            remount this subtree. This project doesn't currently enable
+            cacheComponents (which would otherwise hide-not-unmount routes
+            and preserve stale `messages` state across navigation), but
+            this component shouldn't depend on that config staying off to
+            stay correct. */}
         <MessageThread
           key={conversation.id}
           conversationId={conversation.id}

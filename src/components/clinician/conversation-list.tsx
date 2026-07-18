@@ -56,7 +56,7 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
     setLiveRows(rows);
   }
 
-  // Live preview/order updates (Step 5, Phase 3). Deliberately subscribes
+  // Live preview/order updates. Deliberately subscribes
   // to messagesInserted only, not messagesUpdated: messages_touch_
   // conversation (0001_init.sql) only fires `after insert`, so edits and
   // deletes never change last_message_at/last_message_preview server-side
@@ -70,8 +70,7 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
   // ignored — this happens when the other party starts a conversation
   // for the first time during this session; fabricating a new row would
   // need the patient's name/email, which a bare message payload doesn't
-  // carry. That row appears on the next real fetch (the effect above),
-  // same as it would have before Phase 3.
+  // carry. That row appears on the next real fetch (the effect above).
   useEffect(() => {
     const unsubscribe = messagesInserted.subscribe((row) => {
       setLiveRows((prev) => {
@@ -92,7 +91,7 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
     return unsubscribe;
   }, []);
 
-  // Live per-row unread badge (Step 5, Phase 5). Never affects sort order
+  // Live per-row unread badge. Never affects sort order
   // (compareInboxRows is never called here) — unread status has never
   // reordered this list, on the server or live, by design.
   useEffect(() => {

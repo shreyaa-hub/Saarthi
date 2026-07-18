@@ -17,40 +17,30 @@ import type { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUp
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
-// Step 5. Opens the two feature-scoped Realtime channels and emits every
-// event into the plain pub/sub topics in messaging-dispatcher.ts — this
-// component owns channel lifecycle only, never the events' meaning.
-// Phase 1 shipped this scaffolding with the emit target being
-// console.log; Phase 2 (current) wires the four handlers below to the
-// real dispatcher, whose topics MessageThread is now the first
-// subscriber of (later phases: the conversation list, NotificationBell).
-// Connection-status logging (the .subscribe((status) => ...) calls below)
-// stays as plain console.log — low-noise diagnostic info, not a
-// per-message event any consumer needs.
+// Opens the two feature-scoped Realtime channels for this user and emits
+// every event into the plain pub/sub topics in messaging-dispatcher.ts —
+// this component owns channel lifecycle only, never the events' meaning.
+// Connection-status logging (the .subscribe() callbacks below) stays as
+// plain console.log — low-noise diagnostic info, not a per-message event
+// any consumer needs.
 //
 // Mounted once per shell layout (clinician/layout.tsx, patient/layout.tsx),
-// not per page and not per component — see the Step 5 design review for
-// why the shell is the right scope (the eventual unread badge needs
-// coverage on every route in the shell, and a signed-in user is inside
-// exactly one shell per tab, so this is "one dispatcher per tab" by
-// construction, not a global/app-wide provider).
+// not per page and not per component: the unread badge needs coverage on
+// every route in the shell, and a signed-in user is inside exactly one
+// shell per tab, so this is "one dispatcher per tab" by construction, not
+// a global/app-wide provider.
 //
 // messages channel: deliberately NO conversation_id filter — delivery is
 // scoped entirely by messages_participant_select RLS, which Realtime
 // evaluates per-subscriber before broadcasting (see the Realtime
 // publication comment in 0001_init.sql). This is the one assumption the
-// whole no-filter architecture depends on.
-//
-// KNOWN GAP: verify-realtime-rls.mjs (the standalone script written to
-// empirically test that assumption against a real Supabase project) was
-// NOT run before this phase shipped — explicitly waived by the project
-// owner, who accepted the risk in order to proceed. Manual testing after
-// this phase must specifically include the case that script would have
-// covered: sign in as a user with no conversation in common with whoever
-// is generating test messages, and confirm nothing ever logs on their
-// messages channel for those messages. If that check ever shows an
-// unauthorized delivery, stop immediately — see the design review's
-// fallback (explicit conversation_id=in.(...) filtering).
+// whole no-filter architecture depends on, and it has not been
+// empirically verified against a real Supabase project. Manual testing
+// must include: sign in as a user with no conversation in common with
+// whoever is generating test messages, and confirm nothing ever logs on
+// their messages channel for those messages. If that check ever shows an
+// unauthorized delivery, stop immediately and fall back to explicit
+// conversation_id=in.(...) filtering.
 export function MessagingRealtimeProvider({
   userId,
   children,
@@ -90,18 +80,16 @@ export function MessagingRealtimeProvider({
     // router.refresh() instead of one per cycle.
     let hasDisconnected = false;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    // Per-channel, not shared: verified against @supabase/realtime-js's
-    // RealtimeChannel.subscribe() source (node_modules/@supabase/
-    // realtime-js/dist/module/RealtimeChannel.js) that `_onClose`/`_onError`
-    // are raw socket-level listeners, registered unconditionally at
-    // subscribe() time — they fire CLOSED/CHANNEL_ERROR for a connection
-    // hiccup during the channel's very first join attempt just as readily
-    // as for losing an already-established connection. Without this guard,
-    // a transient failure before any SUBSCRIBED has ever been reached would
-    // still be treated as "recovered from a disconnect" once the retry
-    // succeeds, firing a router.refresh() on ordinary page-load network
-    // flakiness — there was never a live subscription for events to have
-    // been missed from, so nothing needs reconciling.
+    // Per-channel, not shared: @supabase/realtime-js's `_onClose`/
+    // `_onError` are raw socket-level listeners, registered unconditionally
+    // at subscribe() time — they fire CLOSED/CHANNEL_ERROR for a connection
+    // hiccup during a channel's very first join attempt just as readily as
+    // for losing an already-established connection. Without this guard, a
+    // transient failure before any SUBSCRIBED has ever been reached would
+    // be treated as "recovered from a disconnect" once the retry succeeds,
+    // firing a router.refresh() on ordinary page-load network flakiness —
+    // there was never a live subscription for events to have been missed
+    // from, so nothing needs reconciling.
     const hasEverSubscribed: Record<string, boolean> = { messages: false, notifications: false };
 
     function handleStatus(channelLabel: "messages" | "notifications") {
@@ -166,9 +154,9 @@ export function MessagingRealtimeProvider({
           { event: "INSERT", schema: "public", table: "messages" },
           (payload: RealtimePostgresInsertPayload<MessageRow>) => {
             messagesInserted.emit(payload.new);
-            // Step 5, Phase 5: a message from someone else, for a
-            // conversation the current tab doesn't have open right now,
-            // is unread — increment. Own sends never count (matches
+            // A message from someone else, for a conversation the current
+            // tab doesn't have open right now, is unread — increment. Own
+            // sends never count (matches
             // computeUnreadCounts()'s existing sender_id exclusion); a
             // conversation actively open in MessageThread is suppressed
             // here rather than incremented-then-immediately-cleared, to

@@ -49,14 +49,14 @@ function useIsDesktop(): boolean {
 // (in the detail pane itself) returning to the bare route. On desktop
 // (md+) both are always visible side by side.
 //
-// detailVisible (Step 5 audit fix): the `hidden` Tailwind class below
-// hides `detail` visually on mobile while the bare list route is shown,
-// but hidden ≠ unmounted — MessageThread inside it keeps running its
-// "conversation is active" mount effect regardless of CSS. detailVisible
-// tells that effect the truth via ConversationVisibilityProvider, so it
-// stops treating "mounted" as "the user is looking at this" on mobile,
-// while leaving the actual CSS-based show/hide (and therefore the
-// flash-free desktop experience) completely untouched.
+// detailVisible: the `hidden` Tailwind class below hides `detail` visually
+// on mobile while the bare list route is shown, but hidden ≠ unmounted —
+// MessageThread inside it keeps running its "conversation is active"
+// mount effect regardless of CSS. detailVisible tells that effect the
+// truth via ConversationVisibilityProvider, so it doesn't treat "mounted"
+// as "the user is looking at this" on mobile, while leaving the actual
+// CSS-based show/hide (and therefore the flash-free desktop experience)
+// completely untouched.
 export function MessagesSplitPane({ list, detail }: { list: React.ReactNode; detail: React.ReactNode }) {
   const pathname = usePathname();
   const isListRoute = pathname === "/clinician/messages";

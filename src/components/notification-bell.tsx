@@ -15,13 +15,13 @@ type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 // Single reconciliation path for "a notification row was inserted or
 // updated" — used by BOTH the user's own optimistic actions
 // (openNotification, markAllRead) AND the Realtime echoes of those same
-// actions, so neither can double-count against the other. This is the
-// exact same fix applied to MessageThread's duplicate-message bug in
-// Phase 2: two independently-written reconciliation paths (an optimistic
-// click vs. the Realtime echo of that same click) are exactly what
-// drifted apart there, and would drift the same way here if
-// unreadCount were decremented once at the click site and again when
-// the echo of that click arrives.
+// actions, so neither can double-count against the other. Two
+// independently-written reconciliation paths (an optimistic click vs. the
+// Realtime echo of that same click) are exactly what would drift apart
+// here if unreadCount were decremented once at the click site and again
+// when the echo of that click arrives — the same class of bug as
+// MessageThread's duplicate-message handling, fixed the same way: one
+// shared, idempotent function for both paths.
 //
 // New notification (id not already held): always unread —
 // notify_new_message()'s ON CONFLICT ... WHERE read_at IS NULL DO UPDATE
@@ -39,7 +39,7 @@ type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 // (always the server's real values) fully replaces the local one, which
 // incidentally corrects openNotification's client-fabricated read_at
 // guess below (a provisional value, same pattern as MessageThread's
-// pre-existing edited_at limitation from Phase 2) once the echo arrives.
+// client-fabricated edited_at) once the echo arrives.
 //
 // unreadCount is deliberately NOT derived from notifications.length here
 // (unlike, say, a simple filter().length) — this list is capped at the
@@ -84,28 +84,27 @@ export function NotificationBell({
   const [, startTransition] = useTransition();
 
   // Re-seeds from fresh server props whenever they arrive — the same
-  // reconciliation-to-server-truth pattern ConversationList uses (Phase
-  // 3), applied here after its absence turned out to be a real gap: both
+  // reconciliation-to-server-truth pattern ConversationList uses: both
   // markNotificationRead and markAllNotificationsRead call revalidatePath,
-  // which (per the same mechanism Phase 3 relies on) refreshes this
-  // user's own mounted layout — including these props — on every click,
-  // not just on a full reload. Without this, any drift between live-
-  // patched state and server truth (a missed event, an ordering quirk, a
-  // different conversation's notification cleared via
-  // markConversationRead) had no self-correction, unlike everywhere else
+  // which refreshes this user's own mounted layout — including these
+  // props — on every click, not just on a full reload. Without this, any
+  // drift between live-patched state and server truth (a missed event, an
+  // ordering quirk, a different conversation's notification cleared via
+  // markConversationRead) has no self-correction, unlike everywhere else
   // in this design. Uses React's documented "adjust state during render"
   // pattern (guarded by reference comparison), not a useEffect mirroring
-  // the props, for the same set-state-in-effect reason as Phase 3.
+  // the props, to avoid an extra render pass and the project's
+  // set-state-in-effect lint rule.
   if (initialNotifications !== prevInitialNotifications) {
     setPrevInitialNotifications(initialNotifications);
     setNotifications(initialNotifications);
     setUnreadCount(initialUnreadCount);
   }
 
-  // Live updates (Step 5, Phase 4). The provider's notifications channel
-  // is already filtered server-side to user_id=eq.<this user> (Phase 1),
-  // so the row.user_id check below is belt-and-suspenders, not duplicated
-  // authorization logic.
+  // Live updates. The provider's notifications channel is already
+  // filtered server-side to user_id=eq.<this user>, so the row.user_id
+  // check below is belt-and-suspenders, not duplicated authorization
+  // logic.
   useEffect(() => {
     const applyLive = (row: NotificationRow) => {
       if (row.user_id !== userId) return;

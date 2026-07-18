@@ -204,10 +204,10 @@ export function MessageThread({
   // Whether this MessageThread instance is actually visible right now, not
   // just mounted — defaults to true everywhere except inside
   // MessagesSplitPane's mobile-hidden subtree (see
-  // conversation-visibility-context.tsx). Found during the Step 5 final
-  // audit: MessagesSplitPane keeps the clinician inbox's auto-selected
-  // conversation mounted at all times, only CSS-hiding it on mobile — a
-  // mounted-but-hidden thread was being treated as "the user is reading
+  // conversation-visibility-context.tsx). MessagesSplitPane keeps the
+  // clinician inbox's auto-selected conversation mounted at all times,
+  // only CSS-hiding it on mobile — without this distinction, a
+  // mounted-but-hidden thread would be treated as "the user is reading
   // this," both marking it read server-side and suppressing its unread
   // badge, for a conversation the user had never actually looked at.
   const isVisible = useConversationVisible();
@@ -217,12 +217,12 @@ export function MessageThread({
   // swallow-failures posture as notify() elsewhere in this app — a failed
   // read receipt shouldn't block or error the thread view.
   //
-  // Also (Step 5, Phase 5): marks this conversation "active" for as long
-  // as it stays visible, and emits an immediate, optimistic
-  // conversationUnreadCleared — both synchronous, client-side, not gated
-  // on markConversationRead()'s server round-trip, matching "opening a
-  // conversation marks it read immediately" from the Phase 5 acceptance
-  // criteria. setActiveConversationId(null) whenever this effect cleans up
+  // Also marks this conversation "active" for as long as it stays
+  // visible, and emits an immediate, optimistic conversationUnreadCleared
+  // — both synchronous, client-side, not gated on
+  // markConversationRead()'s server round-trip, so opening a conversation
+  // marks it read immediately rather than waiting on that request.
+  // setActiveConversationId(null) whenever this effect cleans up
   // (unmount, conversationId change, OR isVisible flipping to false) is
   // what lets MessagingRealtimeProvider suppress
   // conversationUnreadIncremented for messages arriving while this thread
@@ -238,13 +238,13 @@ export function MessageThread({
     };
   }, [conversationId, isVisible]);
 
-  // Live updates (Step 5, Phase 2) — subscribes to the shared dispatcher
-  // (see messaging-dispatcher.ts / MessagingRealtimeProvider), not its own
+  // Live updates — subscribes to the shared dispatcher (see
+  // messaging-dispatcher.ts / MessagingRealtimeProvider), not its own
   // Realtime channel; the provider already owns the one messages channel
   // per tab. Each subscribe() call returns an unsubscribe function, wired
   // as this effect's cleanup, which removes the callback before this
-  // component unmounts or conversationId changes — see the Phase 1 review
-  // for why that's sufficient to prevent dispatch to a stale registration.
+  // component unmounts or conversationId changes — that's sufficient to
+  // prevent dispatch to a stale registration.
   //
   // The dispatcher's messages channel has no conversation_id filter (RLS
   // scopes delivery instead — see messaging-provider.tsx), so it emits
@@ -276,8 +276,8 @@ export function MessageThread({
       // whole entry is both simpler and more correct than patching
       // individual fields — this also incidentally corrects
       // handleSaveEdit's client-fabricated edited_at guess below (a
-      // pre-Step-5 limitation, not fixed by design, just naturally
-      // overwritten once the server's real row arrives here).
+      // deliberately-accepted approximation, naturally overwritten once
+      // the server's real row arrives here).
       setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
       // This is the authoritative confirmation for any pending local edit/
       // delete on this id — safe to let a future refresh's merge trust
@@ -366,11 +366,11 @@ export function MessageThread({
         return;
       }
       shouldScrollToBottomRef.current = true;
-      // Was an unconditional append — the actual bug. If the Realtime
-      // echo of this exact send had already arrived first (a real,
-      // observed race, not hypothetical — see sendMessage()'s await
-      // ordering discussed during the design review), this would append
-      // a second, duplicate bubble instead of recognizing the row was
+      // insertMessage's own id-dedup matters here specifically because
+      // the Realtime echo of this exact send can arrive before this
+      // await resolves (a real race, not hypothetical, given
+      // sendMessage()'s await ordering) — an unconditional append would
+      // add a second, duplicate bubble instead of recognizing the row was
       // already there.
       setMessages((prev) => insertMessage(prev, message));
     });
@@ -386,11 +386,11 @@ export function MessageThread({
         toast.error(error);
         return;
       }
-      // Pre-Step-5 limitation, left as-is by design: editMessage() only
-      // returns {error}, not the updated row, so edited_at here is this
-      // browser's own clock, not the server's real value — briefly wrong
-      // until the messagesUpdated dispatcher event (see the effect above)
-      // replaces this whole row with the server's actual one.
+      // Accepted limitation: editMessage() only returns {error}, not the
+      // updated row, so edited_at here is this browser's own clock, not
+      // the server's real value — briefly wrong until the messagesUpdated
+      // dispatcher event (see the effect above) replaces this whole row
+      // with the server's actual one.
       const editedAt = new Date().toISOString();
       // Marked pending BEFORE the optimistic setMessages so a reconnect
       // refresh's merge (which can run concurrently, see mergeMessages)
@@ -546,9 +546,10 @@ function MessageBubble({
   onRequestDelete: () => void;
 }) {
   // message_type/sender_id only ever affect rendering here — never
-  // authorization or any other behaviour. sender_id === null is how Phase 0
-  // marks SYSTEM rows (only create_system_message() can produce that
-  // combination), so this is the one place the UI needs to branch on it.
+  // authorization or any other behaviour. sender_id === null is how
+  // SYSTEM rows are marked (only create_system_message() can produce
+  // that combination), so this is the one place the UI needs to branch
+  // on it.
   if (message.sender_id === null) {
     return <p className="py-1 text-center text-xs text-muted-foreground">{message.body}</p>;
   }

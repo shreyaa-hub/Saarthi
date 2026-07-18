@@ -197,7 +197,8 @@ export default async function PatientDetailPage({
                   sites — guarantees a fresh instance on a conversation
                   change via React's own contract, independent of whatever
                   Next.js's routing layer does with this [patientId]
-                  segment (see the audit note in conversation-detail-pane.tsx). */}
+                  segment (see conversation-detail-pane.tsx's comment on
+                  its own MessageThread key for the full reasoning). */}
               <MessageThread
                 key={messagesTab.conversationId}
                 conversationId={messagesTab.conversationId}

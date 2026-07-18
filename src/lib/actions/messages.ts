@@ -29,16 +29,16 @@ function messageNotificationLink(viewerRole: ProfileRole, clinicianPatientId: st
 // clinician inbox list are correct once someone actually navigates there.
 // It does NOT make a counterpart's already-open tab update on its own —
 // an open clinician tab will not show a patient's new message or read
-// receipt appearing live. That's what Step 5 (Realtime) is for; nothing
-// here provides it.
+// receipt appearing live. That's what the Realtime provider
+// (messaging-provider.tsx) is for; nothing here provides it.
 function revalidateMessagingRoutes() {
   revalidatePath("/clinician", "layout");
   revalidatePath("/patient", "layout");
 }
 
 // Client Components have no server-side Supabase client of their own, so
-// "load older messages" needs a callable server entry point. This is a pure
-// pass-through to Phase 1's getMessages() — no pagination or authorization
+// "load older messages" needs a callable server entry point. This is a
+// pure pass-through to getMessages() — no pagination or authorization
 // logic is duplicated here.
 export async function loadOlderMessages(
   conversationId: string,
@@ -49,10 +49,11 @@ export async function loadOlderMessages(
   return getMessages(supabase, conversationId, { before, limit });
 }
 
-// Notifies every other participant of a new message via notify_new_message()
-// (Step 4) — while unread, a later message on the same conversation
-// coalesces into the same notification instead of stacking a new one; see
-// that RPC's definition in the migration for the full dedup reasoning.
+// Notifies every other participant of a new message via
+// notify_new_message() — while unread, a later message on the same
+// conversation coalesces into the same notification instead of stacking a
+// new one; see that RPC's definition in the migration for the full dedup
+// reasoning.
 // Requires the conversation's clinician_patient_id to build each
 // recipient's link (clinician and patient recipients get different route
 // shapes); a conversation with none (none exist yet — every conversation
@@ -110,7 +111,7 @@ async function notifyRecipients(
 }
 
 // Get-or-create the conversation for a clinician_patients relationship.
-// Thin wrapper around the Phase 0 start_conversation() RPC, which does all
+// Thin wrapper around the start_conversation() RPC, which does all
 // authorization (active + claimed relationship; caller is one of its two
 // parties) — nothing here duplicates that check.
 export async function startConversation(
