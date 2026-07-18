@@ -67,6 +67,25 @@ function insertMessage(prev: MessageRow[], row: MessageRow): MessageRow[] {
   return [...prev, row].sort(compareMessages);
 }
 
+// Reconnect reconciliation, other half. insertMessage() above is
+// deliberately insert-only (no-ops on an id already present), which is
+// correct for Realtime events arriving one at a time on a live socket but
+// wrong here: a fresh `initialMessages` batch (from a reconnect-triggered
+// router.refresh(), see messaging-provider.tsx) is the server's authoritative
+// state as of right now, so a row it contains must OVERWRITE any stale local
+// copy of that same id — otherwise an edit/delete that happened to a message
+// during the disconnect gap would silently never surface, even though the
+// gap-recovery mechanism ran. Starts from `current` rather than `fresh` so
+// older paginated-in messages (outside the fresh batch's window, loaded via
+// loadOlderMessages) are preserved rather than dropped.
+function mergeMessages(current: MessageRow[], fresh: MessageRow[]): MessageRow[] {
+  const byId = new Map(current.map((m) => [m.id, m]));
+  for (const row of fresh) {
+    byId.set(row.id, row);
+  }
+  return Array.from(byId.values()).sort(compareMessages);
+}
+
 export function MessageThread({
   conversationId,
   currentUserId,
@@ -81,7 +100,23 @@ export function MessageThread({
   initialCursor: MessageCursor | null;
 }) {
   const [messages, setMessages] = useState(initialMessages);
+  const [prevInitialMessages, setPrevInitialMessages] = useState(initialMessages);
   const [cursor, setCursor] = useState(initialCursor);
+
+  // Adjust state during render (React's documented alternative to a
+  // useEffect-based prop mirror — same pattern already used by
+  // ConversationList/NotificationBell/both Sidebars). Reference-equality
+  // guard means this only fires when the parent Server Component actually
+  // re-ran and produced a genuinely new `initialMessages` array, i.e. a
+  // router.refresh() (or any other revalidatePath-triggered refresh) while
+  // this exact MessageThread instance stays mounted — the reconnect
+  // reconciliation case. Merges rather than replaces so in-flight local
+  // state (a message sent via handleSend a moment ago, not yet reflected in
+  // this fresh batch) isn't discarded — see mergeMessages's own comment.
+  if (initialMessages !== prevInitialMessages) {
+    setPrevInitialMessages(initialMessages);
+    setMessages((prev) => mergeMessages(prev, initialMessages));
+  }
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [, startTransition] = useTransition();
   const [composerValue, setComposerValue] = useState("");

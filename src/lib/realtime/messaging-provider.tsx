@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   messagesInserted,
@@ -58,10 +59,59 @@ export function MessagingRealtimeProvider({
   children: React.ReactNode;
 }) {
   const channelsRef = useRef<RealtimeChannel[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
+
+    // Reconnect reconciliation. postgres_changes is fire-and-forget — there
+    // is no server-side queue and no per-client delivery tracking (verified
+    // against Supabase's own docs and https://github.com/supabase/realtime/
+    // discussions/21093), so any event whose INSERT/UPDATE lands on the
+    // server while this tab's socket is disconnected is gone for that tab,
+    // permanently — it will never be redelivered on reconnect. Most of this
+    // app's live surfaces (ConversationList, NotificationBell, both
+    // Sidebars) already self-heal from that gap on the user's own next
+    // action, because they each reconcile against a fresh server-fetched
+    // prop (see their "adjust state during render" logic). MessageThread's
+    // `messages` state has no equivalent path — a fresh `initialMessages`
+    // prop is only consulted by useState's initializer on first mount, so
+    // without this, a message sent by the other party during a disconnect
+    // gap would never appear in an already-open thread, and nothing the
+    // user does afterward would surface it (see mergeMessages in
+    // message-thread.tsx, the other half of this fix).
+    //
+    // hasDisconnectedRef only turns true on a REAL disconnect (TIMED_OUT /
+    // CLOSED / CHANNEL_ERROR), not on the initial SUBSCRIBED — so a normal
+    // first connection never triggers a refresh. debounceRef collapses a
+    // flapping connection (repeated drop/reconnect cycles) into a single
+    // trailing router.refresh() instead of one per cycle.
+    let hasDisconnected = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function handleStatus(channelLabel: string) {
+      return (status: string, err?: Error) => {
+        console.log(`[realtime:${channelLabel}:status]`, status, err ?? "");
+
+        if (status === "TIMED_OUT" || status === "CLOSED" || status === "CHANNEL_ERROR") {
+          hasDisconnected = true;
+          return;
+        }
+
+        if (status === "SUBSCRIBED" && hasDisconnected) {
+          hasDisconnected = false;
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // 2s debounce: both channels reconnecting around the same time
+          // (the common case — one network blip affects both sockets)
+          // should produce one refresh, not two.
+          debounceTimer = setTimeout(() => {
+            debounceTimer = null;
+            router.refresh();
+          }, 2000);
+        }
+      };
+    }
 
     async function setup() {
       // Explicitly sets Realtime's auth before subscribing, rather than
@@ -113,9 +163,7 @@ export function MessagingRealtimeProvider({
             messagesUpdated.emit(payload.new);
           },
         )
-        .subscribe((status, err) => {
-          console.log("[realtime:messages:status]", status, err ?? "");
-        });
+        .subscribe(handleStatus("messages"));
 
       // Unlike the messages channel, this filter is kept explicitly rather
       // than relying on RLS alone — user_id is a static value that never
@@ -137,9 +185,7 @@ export function MessagingRealtimeProvider({
             notificationsUpdated.emit(payload.new);
           },
         )
-        .subscribe((status, err) => {
-          console.log("[realtime:notifications:status]", status, err ?? "");
-        });
+        .subscribe(handleStatus("notifications"));
 
       channelsRef.current = [messagesChannel, notificationsChannel];
     }
@@ -148,10 +194,11 @@ export function MessagingRealtimeProvider({
 
     return () => {
       cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
       channelsRef.current.forEach((channel) => supabase.removeChannel(channel));
       channelsRef.current = [];
     };
-  }, [userId]);
+  }, [userId, router]);
 
   return <>{children}</>;
 }
