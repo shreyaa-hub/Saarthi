@@ -65,13 +65,20 @@ async function notifyRecipients(
   senderId: string,
   preview: string,
 ) {
-  const [{ data: conversation }, { data: recipients, error: recipientsError }] = await Promise.all([
+  const [{ data: conversation }, { data: recipients, error: recipientsError }, { data: sender }] = await Promise.all([
     supabase.from("conversations").select("clinician_patient_id").eq("id", conversationId).maybeSingle(),
     supabase
       .from("conversation_participants")
       .select("user_id, profiles(role)")
       .eq("conversation_id", conversationId)
       .neq("user_id", senderId),
+    // Sender's own profile — RLS-permitted trivially (profiles_select_own,
+    // this is the caller's own row via auth.uid() = senderId). Needed so
+    // the notification title identifies who sent it (previously a static
+    // "New message" for every recipient, regardless of sender — with only
+    // one recipient per 1:1 conversation, no per-recipient personalization
+    // beyond the name itself is needed).
+    supabase.from("profiles").select("full_name").eq("id", senderId).maybeSingle(),
   ]);
 
   if (recipientsError) {
@@ -82,6 +89,8 @@ async function notifyRecipients(
   const clinicianPatientId = conversation?.clinician_patient_id;
   if (!clinicianPatientId) return;
 
+  const title = `New message from ${sender?.full_name ?? "someone"}`;
+
   await Promise.all(
     (recipients ?? []).map(async (r) => {
       if (!r.profiles) return;
@@ -90,7 +99,7 @@ async function notifyRecipients(
         p_recipient_id: r.user_id,
         p_reference_id: conversationId,
         p_link: link,
-        p_title: "New message",
+        p_title: title,
         p_body: preview,
       });
       if (error) {
