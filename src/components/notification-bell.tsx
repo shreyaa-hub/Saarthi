@@ -80,7 +80,27 @@ export function NotificationBell({
   const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [prevInitialNotifications, setPrevInitialNotifications] = useState(initialNotifications);
   const [, startTransition] = useTransition();
+
+  // Re-seeds from fresh server props whenever they arrive — the same
+  // reconciliation-to-server-truth pattern ConversationList uses (Phase
+  // 3), applied here after its absence turned out to be a real gap: both
+  // markNotificationRead and markAllNotificationsRead call revalidatePath,
+  // which (per the same mechanism Phase 3 relies on) refreshes this
+  // user's own mounted layout — including these props — on every click,
+  // not just on a full reload. Without this, any drift between live-
+  // patched state and server truth (a missed event, an ordering quirk, a
+  // different conversation's notification cleared via
+  // markConversationRead) had no self-correction, unlike everywhere else
+  // in this design. Uses React's documented "adjust state during render"
+  // pattern (guarded by reference comparison), not a useEffect mirroring
+  // the props, for the same set-state-in-effect reason as Phase 3.
+  if (initialNotifications !== prevInitialNotifications) {
+    setPrevInitialNotifications(initialNotifications);
+    setNotifications(initialNotifications);
+    setUnreadCount(initialUnreadCount);
+  }
 
   // Live updates (Step 5, Phase 4). The provider's notifications channel
   // is already filtered server-side to user_id=eq.<this user> (Phase 1),
