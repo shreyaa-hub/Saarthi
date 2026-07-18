@@ -10,16 +10,16 @@ import {
 const LOCALE = "en-US";
 
 describe("formatListTimestamp", () => {
-  it("shows 'Just now' for anything under 60s old", () => {
+  it("shows 'Now' for anything under 60s old", () => {
     const now = new Date(2025, 2, 10, 14, 0, 0);
     const date = new Date(2025, 2, 10, 13, 59, 5);
-    expect(formatListTimestamp(date, now, LOCALE).label).toBe("Just now");
+    expect(formatListTimestamp(date, now, LOCALE).label).toBe("Now");
   });
 
-  it("clamps a future timestamp (device clock skew) to 'Just now' rather than a negative duration", () => {
+  it("clamps a future timestamp (device clock skew) to 'Now' rather than a negative duration", () => {
     const now = new Date(2025, 2, 10, 14, 0, 0);
     const date = new Date(2025, 2, 10, 14, 5, 0); // 5 minutes "in the future"
-    expect(formatListTimestamp(date, now, LOCALE).label).toBe("Just now");
+    expect(formatListTimestamp(date, now, LOCALE).label).toBe("Now");
   });
 
   it("switches to clock time once past 60s, for the same local day", () => {
@@ -27,7 +27,7 @@ describe("formatListTimestamp", () => {
     const date = new Date(2025, 2, 10, 10, 42, 0);
     const { label } = formatListTimestamp(date, now, LOCALE);
     expect(label).toMatch(/10:42/);
-    expect(label).not.toBe("Just now");
+    expect(label).not.toBe("Now");
   });
 
   // The exact bug class the design explicitly guards against: bucketing
@@ -96,10 +96,36 @@ describe("formatDateSeparator", () => {
     expect(formatDateSeparator(date, now, LOCALE).label).toBe("Yesterday");
   });
 
-  it("gives a date-only iso (no time component) for <time dateTime>", () => {
+  it("gives a date-only iso (no time component) that matches the LOCAL date, not the UTC date", () => {
     const date = new Date(2025, 2, 7, 10, 42, 0);
     const { iso } = formatDateSeparator(date, new Date(2025, 2, 10), LOCALE);
-    expect(iso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(iso).toBe("2025-03-07");
+  });
+});
+
+// Regression test for a real bug found in adversarial review: the
+// date-only iso was originally built via Date#toISOString().slice(0, 10),
+// which is always UTC — for any viewer not at UTC+0, a late-evening local
+// timestamp can serialize to the NEXT UTC day, while every visible label
+// (correctly computed from local Date components) still says "Today" or
+// names the correct, earlier local date. Confirmed directly with `node -e`
+// before fixing: new Date(2025, 2, 10, 23, 30) in America/New_York
+// (11:30pm Mar 10 local) has toISOString() "2025-03-11T03:30:00.000Z" —
+// slicing gives "2025-03-11", the wrong day entirely.
+describe("formatDateSeparator iso — local date, not UTC date", () => {
+  const originalTz = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/New_York"; // UTC-4/UTC-5, behind UTC
+  });
+  afterAll(() => {
+    process.env.TZ = originalTz;
+  });
+
+  it("does not shift the date forward for a late-evening local timestamp", () => {
+    const lateEvening = new Date(2025, 2, 10, 23, 30, 0); // 11:30pm local, Mar 10
+    const { iso, label } = formatDateSeparator(lateEvening, lateEvening, LOCALE);
+    expect(iso).toBe("2025-03-10");
+    expect(label).toBe("Today");
   });
 });
 
@@ -157,5 +183,35 @@ describe("DST safety", () => {
     const morning = new Date(2025, 2, 9, 1, 0, 0); // before the 2am jump
     const evening = new Date(2025, 2, 9, 22, 0, 0); // after it
     expect(isSameLocalDay(morning, evening)).toBe(true);
+  });
+});
+
+// Regression test for a real bug found in adversarial review: "Now" /
+// "Today" / "Yesterday" were originally hardcoded English literals,
+// bypassing localization entirely even though every other label (clock
+// time, weekday, date) correctly localized via Intl.DateTimeFormat. Fixed
+// via Intl.RelativeTimeFormat, which — confirmed directly with `node -e`
+// — produces "aujourd'hui"/"hier"/"maintenant" for fr, "hoy"/"ayer" for
+// es, matching the design's own stated requirement that this was never
+// actually wired up for.
+describe("localization", () => {
+  it("translates 'Today' and 'Yesterday' for a non-English locale", () => {
+    const now = new Date(2025, 2, 10, 14, 0, 0);
+    const today = new Date(2025, 2, 10, 8, 0, 0);
+    const yesterday = new Date(2025, 2, 9, 23, 0, 0);
+    expect(formatDateSeparator(today, now, "fr").label).toBe("Aujourd’hui");
+    expect(formatDateSeparator(yesterday, now, "fr").label).toBe("Hier");
+  });
+
+  it("translates 'Now' for a non-English locale", () => {
+    const now = new Date(2025, 2, 10, 14, 0, 0);
+    const justNow = new Date(2025, 2, 10, 13, 59, 50);
+    expect(formatListTimestamp(justNow, now, "fr").label).toBe("Maintenant");
+  });
+
+  it("does not affect weekday/date localization, which already worked", () => {
+    const date = new Date(2025, 2, 7, 9, 0, 0); // Friday
+    const now = new Date(2025, 2, 10, 9, 0, 0);
+    expect(formatListTimestamp(date, now, "fr").label).toBe("vendredi");
   });
 });

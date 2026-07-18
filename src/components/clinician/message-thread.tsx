@@ -561,17 +561,24 @@ export function MessageThread({
 // Today/Yesterday/weekday/date — the date-only ladder (see
 // useLiveDateSeparator), live-updated only on local-midnight crossings
 // and tab refocus, never on a timer, since a separator never needs a
-// "Just now" state. No full-precision tooltip here deliberately: unlike a
-// point-in-time bubble/list timestamp, a separator already names an
-// entire, unambiguous calendar day in context — there's no additional
-// clock-time precision to disclose.
+// "Just now" state.
+//
+// Uses TimeLabel (full-precision title/aria-label), not a bare label —
+// "Monday" alone is only unambiguous to a sighted user who has the
+// surrounding scroll position as visual context. A screen-reader user
+// jumping between separators in a long thread would hear "Monday" for
+// every distinct week with no way to tell them apart; a mouse user
+// hovering gets the same ambiguity. The full precision (from
+// formatDateSeparator's fullPrecision, e.g. "Monday, March 3, 2025")
+// resolves both.
 function DateSeparator({ date }: { date: string }) {
   const timestamp = useLiveDateSeparator(date);
   return (
-    <div className="flex justify-center py-1" role="separator" aria-label={timestamp.label}>
-      <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-        {timestamp.label}
-      </span>
+    <div className="flex justify-center py-1" role="separator">
+      <TimeLabel
+        timestamp={timestamp}
+        className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+      />
     </div>
   );
 }
