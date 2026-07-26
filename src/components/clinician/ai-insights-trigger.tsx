@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BrainCircuit, ChevronRight } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PatientInsightsPanel } from "@/components/clinician/patient-insights-panel";
 import { formatDate } from "@/lib/utils";
@@ -15,6 +16,14 @@ type Insight = Database["public"]["Tables"]["ai_insights"]["Row"];
 // permanent full-width section every clinician scrolls past on every visit.
 // The AI logic itself (generation, refresh, API call) is untouched — it
 // lives entirely in PatientInsightsPanel, reused here exactly as it is.
+//
+// Deliberately a plain `ghost` Button (the same variant/size the dashboard's
+// "Recent activity → View all" header action already uses) rather than a
+// bordered/filled chip — the Performance Summary's numbers are the thing
+// this card exists to show; the AI action should read as a quiet secondary
+// affordance next to that heading, not a second thing competing for
+// attention. The "last generated" context sits beside it as small muted
+// text rather than inside the button, so the button itself stays minimal.
 export function AiInsightsTrigger({
   clinicianPatientId,
   patientId,
@@ -39,21 +48,12 @@ export function AiInsightsTrigger({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-        className="flex shrink-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 py-1.5 pl-2 pr-2.5 text-left transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-secondary/40"
-      >
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary text-primary">
-          <BrainCircuit className="size-3.5" />
-        </span>
-        <span className="flex flex-col leading-tight">
-          <span className="text-xs font-medium">AI insights</span>
-          <span className="text-[11px] text-muted-foreground">{context}</span>
-        </span>
-        {!disabled && <ChevronRight className="ml-0.5 size-3.5 shrink-0 text-muted-foreground" />}
-      </button>
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        <Button variant="ghost" size="sm" onClick={() => setOpen(true)} disabled={disabled} className="h-7 px-2">
+          <BrainCircuit className="size-3.5" /> AI insights
+        </Button>
+        <span className="pr-2 text-[11px] text-muted-foreground">{context}</span>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">

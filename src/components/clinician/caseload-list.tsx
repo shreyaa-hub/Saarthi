@@ -27,7 +27,13 @@ type CaseloadRow = {
   profiles: { full_name: string; email: string | null } | null;
 };
 
-export function CaseloadList({ caseload }: { caseload: CaseloadRow[] }) {
+export function CaseloadList({
+  caseload,
+  placeholder = "Search patients by name or status…",
+}: {
+  caseload: CaseloadRow[];
+  placeholder?: string;
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -46,7 +52,7 @@ export function CaseloadList({ caseload }: { caseload: CaseloadRow[] }) {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search patients by name or status…"
+          placeholder={placeholder}
           className="pl-9"
         />
       </div>

@@ -86,12 +86,22 @@ export default async function CaseloadPage({
         </Card>
       ) : activeStatus && visibleCaseload.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            No patients currently match &ldquo;{STATUS_META[activeStatus].label}&rdquo;.
+          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              No patients currently match &ldquo;{STATUS_META[activeStatus].label}&rdquo;.
+            </p>
+            <Link href="/clinician/caseload" className="text-xs font-medium text-primary hover:underline">
+              Clear filter and view full caseload
+            </Link>
           </CardContent>
         </Card>
       ) : (
-        <CaseloadList caseload={visibleCaseload} />
+        <CaseloadList
+          caseload={visibleCaseload}
+          placeholder={
+            activeStatus ? `Search within these ${visibleCaseload.length} patients…` : undefined
+          }
+        />
       )}
     </div>
   );
