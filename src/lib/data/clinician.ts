@@ -98,6 +98,11 @@ export async function getCaseload(supabase: Client, clinicianId: string) {
   return data ?? [];
 }
 
+// Patient/assignment/insight metadata only — attempt history is a separate
+// concern, owned entirely by getPatientAttempts(). This used to also fetch
+// attempts itself (filtered by this patient's assignment ids), which
+// duplicated getPatientAnalyticsAttempts's own attempts query for the same
+// rows; callers now fetch attempts once, from one place.
 export async function getPatientDetail(
   supabase: Client,
   clinicianId: string,
@@ -137,23 +142,9 @@ export async function getPatientDetail(
   logIfError("getPatientDetail:assignments", assignmentsRes.error);
   logIfError("getPatientDetail:insights", insightsRes.error);
 
-  const assignments = assignmentsRes.data ?? [];
-  const assignmentIds = assignments.map((a) => a.id);
-
-  const { data: attempts, error: attemptsError } = assignmentIds.length
-    ? await supabase
-        .from("activity_attempts")
-        .select("*")
-        .in("assignment_id", assignmentIds)
-        .order("completed_at", { ascending: true })
-    : { data: [], error: null };
-
-  logIfError("getPatientDetail:attempts", attemptsError);
-
   return {
     link,
-    assignments,
-    attempts: attempts ?? [],
+    assignments: assignmentsRes.data ?? [],
     latestInsight: insightsRes.data ?? null,
   };
 }
@@ -234,21 +225,76 @@ export async function getCaseloadAttempts(
   return ((data ?? []) as unknown as AttemptWithDomainRow[]).map(normalizeAttemptWithDomain);
 }
 
-// One patient's complete attempt history with domains resolved. Unbounded on
-// purpose — the Performance Analytics page and printable report both show
-// long-term trends, so they need everything, not just a recent slice.
-export async function getPatientAnalyticsAttempts(
+// One patient's complete attempt history — the single canonical source for
+// everything on the patient detail page that needs attempt data, whether
+// that's the domain-resolved analytics (Overview) or the operational
+// per-attempt record (Activity tab: title lookup via assignment_id, score,
+// clinician_note). Unbounded on purpose — Performance Analytics and the
+// Phase 5 printable report both show long-term/all-time trends.
+//
+// Callers project this one record into whatever shape they need (e.g. the
+// AnalyticsAttempt subset for buildPatientAnalytics, or the snake_case shape
+// AttemptNotes expects) — that projection is a pure, zero-fetch-cost
+// .map() done at the call site, not a second query. This replaces the
+// former getPatientAnalyticsAttempts AND the attempts sub-query that used
+// to live inside getPatientDetail; both fetched overlapping rows from the
+// same table on the same page load.
+export type PatientAttemptRecord = {
+  id: string;
+  assignmentId: string;
+  patientId: string;
+  completedAt: string;
+  correctCount: number;
+  totalCount: number;
+  score: number | null;
+  clinicianNote: string | null;
+  durationSeconds: number | null;
+  domain: string | null;
+};
+
+type PatientAttemptRow = {
+  id: string;
+  assignment_id: string;
+  patient_id: string;
+  completed_at: string;
+  correct_count: number;
+  total_count: number;
+  score: number | null;
+  clinician_note: string | null;
+  duration_seconds: number | null;
+  assignments: { templates: { domain: string } | null } | null;
+};
+
+const PATIENT_ATTEMPT_SELECT =
+  "id, assignment_id, patient_id, completed_at, correct_count, total_count, score, clinician_note, duration_seconds, assignments!inner(clinician_id, patient_id, templates(domain))";
+
+function normalizePatientAttempt(row: PatientAttemptRow): PatientAttemptRecord {
+  return {
+    id: row.id,
+    assignmentId: row.assignment_id,
+    patientId: row.patient_id,
+    completedAt: row.completed_at,
+    correctCount: row.correct_count,
+    totalCount: row.total_count,
+    score: row.score,
+    clinicianNote: row.clinician_note,
+    durationSeconds: row.duration_seconds,
+    domain: row.assignments?.templates?.domain ?? null,
+  };
+}
+
+export async function getPatientAttempts(
   supabase: Client,
   clinicianId: string,
   patientId: string,
-): Promise<AnalyticsAttempt[]> {
+): Promise<PatientAttemptRecord[]> {
   const { data, error } = await supabase
     .from("activity_attempts")
-    .select(ATTEMPT_WITH_DOMAIN_SELECT)
+    .select(PATIENT_ATTEMPT_SELECT)
     .eq("assignments.clinician_id", clinicianId)
     .eq("assignments.patient_id", patientId)
     .order("completed_at", { ascending: true });
 
-  logIfError("getPatientAnalyticsAttempts", error);
-  return ((data ?? []) as unknown as AttemptWithDomainRow[]).map(normalizeAttemptWithDomain);
+  logIfError("getPatientAttempts", error);
+  return ((data ?? []) as unknown as PatientAttemptRow[]).map(normalizePatientAttempt);
 }

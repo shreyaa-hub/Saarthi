@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/session";
-import { getPatientDetail, getPatientAnalyticsAttempts } from "@/lib/data/clinician";
+import { getPatientDetail, getPatientAttempts } from "@/lib/data/clinician";
 import { buildPatientAnalytics } from "@/lib/analytics/models";
 import { buildTrend } from "@/lib/analytics/trends";
+import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -44,20 +45,45 @@ export default async function PatientDetailPage({
 
   if (!detail) notFound();
 
-  const { link, assignments, attempts, latestInsight } = detail;
+  const { link, assignments, latestInsight } = detail;
   const name = link.profiles?.full_name ?? link.display_name;
   const publishedTemplates = templates.filter((t) => t.status === "published");
   const titleByAssignment = Object.fromEntries(assignments.map((a) => [a.id, a.title]));
 
-  // Performance Analytics: domain-resolved attempts -> analytics model. Only
+  // Single canonical attempt fetch for this patient — everything below that
+  // needs attempt data (Overview's analytics, Activity's operational list)
+  // projects from this one array rather than issuing its own query. Only
   // reachable once the patient has claimed their invite (no patient_id, no
-  // attempts). The weekly trend is precomputed here so the client trend chart
-  // can toggle to it without importing the analytics layer.
-  const analyticsAttempts = link.patient_id
-    ? await getPatientAnalyticsAttempts(supabase, user.id, link.patient_id)
+  // attempts).
+  const patientAttempts = link.patient_id
+    ? await getPatientAttempts(supabase, user.id, link.patient_id)
     : [];
+
+  // Projection 1: the analytics shape (domain-resolved, no operational
+  // detail) — buildPatientAnalytics/buildTrend are unchanged; this is a pure
+  // field-selection map, not a second fetch.
+  const analyticsAttempts: AnalyticsAttempt[] = patientAttempts.map((a) => ({
+    patientId: a.patientId,
+    completedAt: a.completedAt,
+    correctCount: a.correctCount,
+    totalCount: a.totalCount,
+    domain: a.domain,
+  }));
   const analytics = buildPatientAnalytics(analyticsAttempts);
   const weeklyTrend = buildTrend(analyticsAttempts, "week");
+
+  // Projection 2: the operational shape AttemptNotes expects (snake_case,
+  // carries score/clinician_note/assignment_id — fields the analytics
+  // projection above deliberately drops).
+  const attemptRows = patientAttempts.map((a) => ({
+    id: a.id,
+    assignment_id: a.assignmentId,
+    score: a.score,
+    correct_count: a.correctCount,
+    total_count: a.totalCount,
+    clinician_note: a.clinicianNote,
+    completed_at: a.completedAt,
+  }));
 
   // Get-or-create the conversation and load its first page of history. Only
   // possible once the patient has claimed their invite (start_conversation
@@ -139,7 +165,7 @@ export default async function PatientDetailPage({
               clinicianPatientId={link.id}
               patientId={link.patient_id}
               initialInsight={latestInsight}
-              attemptCount={attempts.length}
+              attemptCount={patientAttempts.length}
             />
           </div>
         </TabsContent>
@@ -191,7 +217,7 @@ export default async function PatientDetailPage({
               </CardHeader>
               <CardContent>
                 <AttemptNotes
-                  attempts={attempts}
+                  attempts={attemptRows}
                   titleByAssignment={titleByAssignment}
                   clinicianPatientId={link.id}
                 />
