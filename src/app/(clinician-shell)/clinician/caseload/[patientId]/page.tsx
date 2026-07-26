@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/session";
-import { getPatientDetail, getPatientAttempts } from "@/lib/data/clinician";
-import { buildPatientAnalytics } from "@/lib/analytics/models";
-import { buildTrend } from "@/lib/analytics/trends";
-import type { AnalyticsAttempt } from "@/lib/analytics/types";
+import { getPatientDetail, getPatientPerformanceData } from "@/lib/data/clinician";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials, formatDate } from "@/lib/utils";
@@ -17,7 +15,7 @@ import { PatientPerformancePanel } from "@/components/clinician/analytics/patien
 import { getTemplates } from "@/lib/data/clinician";
 import { startConversation } from "@/lib/actions/messages";
 import { getMessages } from "@/lib/data/messages";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, "success" | "secondary" | "outline"> = {
@@ -50,40 +48,15 @@ export default async function PatientDetailPage({
   const publishedTemplates = templates.filter((t) => t.status === "published");
   const titleByAssignment = Object.fromEntries(assignments.map((a) => [a.id, a.title]));
 
-  // Single canonical attempt fetch for this patient — everything below that
-  // needs attempt data (Overview's analytics, Activity's operational list)
-  // projects from this one array rather than issuing its own query. Only
-  // reachable once the patient has claimed their invite (no patient_id, no
-  // attempts).
-  const patientAttempts = link.patient_id
-    ? await getPatientAttempts(supabase, user.id, link.patient_id)
-    : [];
-
-  // Projection 1: the analytics shape (domain-resolved, no operational
-  // detail) — buildPatientAnalytics/buildTrend are unchanged; this is a pure
-  // field-selection map, not a second fetch.
-  const analyticsAttempts: AnalyticsAttempt[] = patientAttempts.map((a) => ({
-    patientId: a.patientId,
-    completedAt: a.completedAt,
-    correctCount: a.correctCount,
-    totalCount: a.totalCount,
-    domain: a.domain,
-  }));
-  const analytics = buildPatientAnalytics(analyticsAttempts);
-  const weeklyTrend = buildTrend(analyticsAttempts, "week");
-
-  // Projection 2: the operational shape AttemptNotes expects (snake_case,
-  // carries score/clinician_note/assignment_id — fields the analytics
-  // projection above deliberately drops).
-  const attemptRows = patientAttempts.map((a) => ({
-    id: a.id,
-    assignment_id: a.assignmentId,
-    score: a.score,
-    correct_count: a.correctCount,
-    total_count: a.totalCount,
-    clinician_note: a.clinicianNote,
-    completed_at: a.completedAt,
-  }));
+  // Single canonical attempt fetch + the two projections everything below
+  // needs — shared with the printable report so both pages compose the
+  // exact same analytics from the exact same fetch. Only reachable once the
+  // patient has claimed their invite (no patient_id, no attempts).
+  const { patientAttempts, attemptRows, analytics, weeklyTrend } = await getPatientPerformanceData(
+    supabase,
+    user.id,
+    link.patient_id,
+  );
 
   // Get-or-create the conversation and load its first page of history. Only
   // possible once the patient has claimed their invite (start_conversation
@@ -128,11 +101,21 @@ export default async function PatientDetailPage({
           </div>
         </div>
         {link.patient_id && (
-          <AssignTemplateDialog
-            patientId={link.patient_id}
-            clinicianPatientId={link.id}
-            templates={publishedTemplates}
-          />
+          <div className="flex items-center gap-2">
+            {/* Page-level action, not an Overview/analytics action — sits in
+                the header (above the Tabs) so it stays visible regardless of
+                which tab is active, per the agreed report placement. */}
+            <Button variant="outline" asChild>
+              <Link href={`/clinician/caseload/${link.id}/report`}>
+                <Printer className="size-4" /> Print / Export
+              </Link>
+            </Button>
+            <AssignTemplateDialog
+              patientId={link.patient_id}
+              clinicianPatientId={link.id}
+              templates={publishedTemplates}
+            />
+          </div>
         )}
       </div>
 

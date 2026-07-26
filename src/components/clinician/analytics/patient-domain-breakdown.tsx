@@ -2,13 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DomainStat } from "@/lib/analytics/types";
 import { pluralize } from "@/lib/utils";
 
-// Accuracy per therapy domain, shown as a simple horizontal bar list (the
-// same lightweight bar treatment as Clinical Pulse's status bar, rather than
-// a second charting library surface). Each row pairs accuracy WITH volume so
-// a one-activity domain is never mistaken for a strength. Ordered strongest
-// first; domains with no scored activities yet sort to the bottom.
-export function PatientDomainBreakdown({ domains }: { domains: DomainStat[] }) {
-  const sorted = [...domains].sort((a, b) => {
+// Strongest-first display ordering, shared with the printable report's
+// domain section so both places sort domains identically without each
+// re-implementing the same comparator. This is a display-ordering choice,
+// not an analytics calculation — it doesn't belong in lib/analytics.
+export function sortDomainsForDisplay(domains: DomainStat[]): DomainStat[] {
+  return [...domains].sort((a, b) => {
     if (a.averageAccuracy === null && b.averageAccuracy === null) {
       return b.completedCount - a.completedCount;
     }
@@ -16,6 +15,15 @@ export function PatientDomainBreakdown({ domains }: { domains: DomainStat[] }) {
     if (b.averageAccuracy === null) return -1;
     return b.averageAccuracy - a.averageAccuracy || b.completedCount - a.completedCount;
   });
+}
+
+// Accuracy per therapy domain, shown as a simple horizontal bar list (the
+// same lightweight bar treatment as Clinical Pulse's status bar, rather than
+// a second charting library surface). Each row pairs accuracy WITH volume so
+// a one-activity domain is never mistaken for a strength. Ordered strongest
+// first; domains with no scored activities yet sort to the bottom.
+export function PatientDomainBreakdown({ domains }: { domains: DomainStat[] }) {
+  const sorted = sortDomainsForDisplay(domains);
 
   return (
     <Card>

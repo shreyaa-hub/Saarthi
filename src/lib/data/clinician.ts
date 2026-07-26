@@ -1,6 +1,8 @@
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 import type { AnalyticsAttempt } from "@/lib/analytics/types";
+import { buildPatientAnalytics } from "@/lib/analytics/models";
+import { buildTrend } from "@/lib/analytics/trends";
 
 type Client = SupabaseClient<Database>;
 
@@ -297,4 +299,45 @@ export async function getPatientAttempts(
 
   logIfError("getPatientAttempts", error);
   return ((data ?? []) as unknown as PatientAttemptRow[]).map(normalizePatientAttempt);
+}
+
+// The shared "fetch + project + analyze" sequence for one patient's attempt
+// history — both the live Overview/Activity page and the printable report
+// need the exact same two projections of the exact same fetch, so this is
+// the one place that does it. Callers get back everything they need without
+// re-deriving it: the raw records, the analytics model (unchanged —
+// buildPatientAnalytics/buildTrend are called exactly as before), and the
+// AttemptNotes-shaped rows. patientId is nullable so callers can pass
+// link.patient_id directly rather than branching at the call site.
+export async function getPatientPerformanceData(
+  supabase: Client,
+  clinicianId: string,
+  patientId: string | null,
+) {
+  const patientAttempts = patientId ? await getPatientAttempts(supabase, clinicianId, patientId) : [];
+
+  const analyticsAttempts: AnalyticsAttempt[] = patientAttempts.map((a) => ({
+    patientId: a.patientId,
+    completedAt: a.completedAt,
+    correctCount: a.correctCount,
+    totalCount: a.totalCount,
+    domain: a.domain,
+  }));
+
+  const attemptRows = patientAttempts.map((a) => ({
+    id: a.id,
+    assignment_id: a.assignmentId,
+    score: a.score,
+    correct_count: a.correctCount,
+    total_count: a.totalCount,
+    clinician_note: a.clinicianNote,
+    completed_at: a.completedAt,
+  }));
+
+  return {
+    patientAttempts,
+    attemptRows,
+    analytics: buildPatientAnalytics(analyticsAttempts),
+    weeklyTrend: buildTrend(analyticsAttempts, "week"),
+  };
 }
