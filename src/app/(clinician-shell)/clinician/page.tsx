@@ -1,19 +1,42 @@
 import Link from "next/link";
 import { Users, LayoutTemplate, Send, ClipboardList, ArrowRight, Plus } from "lucide-react";
 import { requireProfile } from "@/lib/auth/session";
-import { getDashboardStats, getRecentAttempts } from "@/lib/data/clinician";
+import {
+  getDashboardStats,
+  getRecentAttempts,
+  getCaseloadAttempts,
+  getActivePatientsForAssignment,
+} from "@/lib/data/clinician";
+import { buildCaseloadPulse } from "@/lib/analytics/models";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CountUp } from "@/components/motion/count-up";
+import { ClinicalPulse } from "@/components/clinician/pulse/clinical-pulse";
+import type { PatientRefMap } from "@/components/clinician/pulse/types";
 import { initials, formatDate } from "@/lib/utils";
 
 export default async function ClinicianDashboardPage() {
   const { supabase, profile, user } = await requireProfile("clinician");
-  const [stats, recentAttempts] = await Promise.all([
+  const [stats, recentAttempts, caseloadAttempts, activePatients] = await Promise.all([
     getDashboardStats(supabase, user.id),
     getRecentAttempts(supabase, user.id),
+    getCaseloadAttempts(supabase, user.id),
+    getActivePatientsForAssignment(supabase, user.id),
   ]);
+
+  // Resolve each patientId the analytics model references to a display name
+  // and the caseload link that opens that patient. The analytics layer is
+  // name-agnostic; names/links are a presentation concern assembled here.
+  const patientRefs: PatientRefMap = {};
+  const patientIds: string[] = [];
+  for (const p of activePatients) {
+    if (!p.patient_id) continue;
+    const fullName = (p as unknown as { profiles?: { full_name?: string } }).profiles?.full_name;
+    patientRefs[p.patient_id] = { name: fullName ?? p.display_name, caseloadLinkId: p.id };
+    patientIds.push(p.patient_id);
+  }
+  const pulse = buildCaseloadPulse(caseloadAttempts, patientIds);
 
   const statCards = [
     {
@@ -86,6 +109,8 @@ export default async function ClinicianDashboardPage() {
           </Link>
         ))}
       </div>
+
+      {patientIds.length > 0 && <ClinicalPulse pulse={pulse} patients={patientRefs} />}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
