@@ -79,15 +79,35 @@ export function CaseloadStatusOverview({
               ))}
             </div>
 
-            {/* Legend with counts */}
+            {/* Legend with counts — each row is a real filter into the
+                Caseload page (reusing the same status-filter mechanism the
+                "needs attention" overflow link below uses), so the whole
+                legend doubles as navigation, not just a readout. */}
             <ul className="grid grid-cols-2 gap-2">
-              {STATUS_ORDER.map((s) => (
-                <li key={s} className="flex items-center gap-2 text-sm">
-                  <span className={`size-2.5 shrink-0 rounded-full ${STATUS_META[s].dot}`} aria-hidden />
-                  <span className="text-muted-foreground">{STATUS_META[s].label}</span>
-                  <span className="ml-auto font-semibold tabular-nums">{distribution[s]}</span>
-                </li>
-              ))}
+              {STATUS_ORDER.map((s) => {
+                const count = distribution[s];
+                const row = (
+                  <>
+                    <span className={`size-2.5 shrink-0 rounded-full ${STATUS_META[s].dot}`} aria-hidden />
+                    <span className="text-muted-foreground">{STATUS_META[s].label}</span>
+                    <span className="ml-auto font-semibold tabular-nums">{count}</span>
+                  </>
+                );
+                return (
+                  <li key={s}>
+                    {count > 0 ? (
+                      <Link
+                        href={`/clinician/caseload?status=${s}`}
+                        className="-mx-1 flex items-center gap-2 rounded-md px-1 py-0.5 text-sm transition-colors hover:bg-muted/60"
+                      >
+                        {row}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-2 px-1 py-0.5 text-sm">{row}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
 
             {/* Actionable list: who specifically needs attention, and why */}
@@ -120,9 +140,12 @@ export function CaseloadStatusOverview({
                   );
                 })}
                 {attention.length > MAX_ATTENTION_ROWS && (
-                  <p className="px-0.5 text-xs text-muted-foreground">
-                    +{attention.length - MAX_ATTENTION_ROWS} more
-                  </p>
+                  <Link
+                    href="/clinician/caseload?status=needs_attention"
+                    className="px-0.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    +{attention.length - MAX_ATTENTION_ROWS} more →
+                  </Link>
                 )}
               </div>
             )}

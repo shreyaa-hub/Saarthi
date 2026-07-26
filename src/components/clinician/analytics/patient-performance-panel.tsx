@@ -1,22 +1,37 @@
 import { LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PatientAnalytics, TrendPoint } from "@/lib/analytics/types";
+import type { Database } from "@/lib/types/database";
 import { PatientActivitySummary } from "./patient-activity-summary";
 import { PatientDomainBreakdown } from "./patient-domain-breakdown";
 import { PatientTrendChart } from "./patient-trend-chart";
+import { AiInsightsTrigger } from "@/components/clinician/ai-insights-trigger";
 
-// Performance Analytics for one patient: the activity summary, the
-// accuracy-over-time trend (with a weekly long-term view), and the per-domain
-// breakdown — all rendering the buildPatientAnalytics model, nothing
-// recomputed here. When the patient has no completed activities at all, one
-// guiding empty card stands in for the whole panel rather than three empty
-// cards stacked.
+type Insight = Database["public"]["Tables"]["ai_insights"]["Row"];
+
+// Performance Analytics for one patient: the activity summary (with the AI
+// insights trigger folded into its header — see AiInsightsTrigger's comment
+// for why AI no longer gets a permanent section), the accuracy-over-time
+// trend (with a weekly long-term view), and the per-domain breakdown — all
+// rendering the buildPatientAnalytics model, nothing recomputed here. When
+// the patient has no completed activities at all, one guiding empty card
+// stands in for the whole panel rather than four empty cards stacked (AI
+// insights genuinely has nothing to offer with zero attempts either, so it's
+// correctly absent from this branch too, not just hidden).
 export function PatientPerformancePanel({
   analytics,
   weeklyTrend,
+  clinicianPatientId,
+  patientId,
+  initialInsight,
+  attemptCount,
 }: {
   analytics: PatientAnalytics;
   weeklyTrend: TrendPoint[];
+  clinicianPatientId: string;
+  patientId: string | null;
+  initialInsight: Insight | null;
+  attemptCount: number;
 }) {
   if (analytics.summary.totalCompleted === 0) {
     return (
@@ -42,7 +57,18 @@ export function PatientPerformancePanel({
 
   return (
     <>
-      <PatientActivitySummary summary={analytics.summary} status={analytics.status} />
+      <PatientActivitySummary
+        summary={analytics.summary}
+        status={analytics.status}
+        headerAction={
+          <AiInsightsTrigger
+            clinicianPatientId={clinicianPatientId}
+            patientId={patientId}
+            initialInsight={initialInsight}
+            attemptCount={attemptCount}
+          />
+        }
+      />
 
       <Card>
         <CardHeader>

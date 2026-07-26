@@ -14,9 +14,11 @@ function completedActivities(n: number) {
 export function PatientActivitySummary({
   summary,
   status,
+  headerAction,
 }: {
   summary: Summary;
   status: StatusResult;
+  headerAction?: React.ReactNode;
 }) {
   const meta = STATUS_META[status.status];
 
@@ -46,8 +48,9 @@ export function PatientActivitySummary({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className={headerAction ? "flex-row items-start justify-between space-y-0" : undefined}>
         <CardTitle>Performance summary</CardTitle>
+        {headerAction}
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="flex items-start gap-2">

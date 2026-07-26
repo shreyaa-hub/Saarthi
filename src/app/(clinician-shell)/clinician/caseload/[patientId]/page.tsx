@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials, formatDate } from "@/lib/utils";
 import { AssignTemplateDialog } from "@/components/clinician/assign-template-dialog";
-import { PatientInsightsPanel } from "@/components/clinician/patient-insights-panel";
 import { AttemptNotes } from "@/components/clinician/attempt-notes";
 import { MessageThread } from "@/components/clinician/message-thread";
 import { PatientPerformancePanel } from "@/components/clinician/analytics/patient-performance-panel";
@@ -123,74 +122,81 @@ export default async function PatientDetailPage({
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="messages">Messages</TabsTrigger>
         </TabsList>
 
+        {/* Overview answers "how is this patient doing" — current-state
+            analytics only. The operational record (what was assigned, what
+            was completed) is a different workflow and lives in Activity;
+            splitting them keeps a daily glance short regardless of how many
+            years of history a patient accumulates. */}
         <TabsContent value="overview">
-          {/* Single-column reading order: understand the patient's
-              performance first, then the AI interpretation, then the
-              assignment/attempt detail. */}
           <div className="flex flex-col gap-6">
-            <PatientPerformancePanel analytics={analytics} weeklyTrend={weeklyTrend} />
-
-            <PatientInsightsPanel
+            <PatientPerformancePanel
+              analytics={analytics}
+              weeklyTrend={weeklyTrend}
               clinicianPatientId={link.id}
               patientId={link.patient_id}
               initialInsight={latestInsight}
               attemptCount={attempts.length}
             />
+          </div>
+        </TabsContent>
 
+        <TabsContent value="activity">
+          <div className="flex flex-col gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Assignments</CardTitle>
               </CardHeader>
-                <CardContent>
-                  {assignments.length === 0 ? (
-                    <p className="py-6 text-center text-sm text-muted-foreground">
-                      No activities assigned yet.
-                    </p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-border">
-                      {assignments.map((a) => {
-                        const overdue = isOverdue(a.due_date, a.status);
-                        return (
-                          <div key={a.id} className="flex items-center justify-between gap-3 py-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{a.title}</p>
-                              <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
-                                {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {overdue && (
-                                <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
-                                  <AlertTriangle className="size-3" /> Overdue
-                                </Badge>
-                              )}
-                              <Badge variant={statusStyles[a.status] ?? "outline"}>
-                                {a.status.replace("_", " ")}
-                              </Badge>
-                            </div>
+              <CardContent>
+                {assignments.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    No activities assigned yet.
+                  </p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-border">
+                    {assignments.map((a) => {
+                      const overdue = isOverdue(a.due_date, a.status);
+                      return (
+                        <div key={a.id} className="flex items-center justify-between gap-3 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{a.title}</p>
+                            <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
+                              {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                          <div className="flex items-center gap-2">
+                            {overdue && (
+                              <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
+                                <AlertTriangle className="size-3" /> Overdue
+                              </Badge>
+                            )}
+                            <Badge variant={statusStyles[a.status] ?? "outline"}>
+                              {a.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Completed attempts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <AttemptNotes
-                    attempts={attempts}
-                    titleByAssignment={titleByAssignment}
-                    clinicianPatientId={link.id}
-                  />
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Completed attempts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AttemptNotes
+                  attempts={attempts}
+                  titleByAssignment={titleByAssignment}
+                  clinicianPatientId={link.id}
+                />
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

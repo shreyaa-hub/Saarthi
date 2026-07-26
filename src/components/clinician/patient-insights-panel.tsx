@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BrainCircuit, Loader2, Sparkles, ThumbsUp, TriangleAlert, Lightbulb } from "lucide-react";
+import { Loader2, Sparkles, ThumbsUp, TriangleAlert, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
@@ -50,18 +49,14 @@ export function PatientInsightsPanel({
     }
   };
 
+  // No outer Card here on purpose — this component is embedded inside
+  // AiInsightsTrigger's Dialog, which already provides the bordered surface
+  // and the "AI insights" title (via DialogHeader/DialogTitle). Keeping this
+  // component title-less and chrome-less means it could also be dropped into
+  // any other container in the future without fighting nested card borders.
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-primary">
-            <BrainCircuit className="size-4" />
-          </span>
-          <CardTitle>AI insights</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {!patientId ? (
+    <div className="flex flex-col gap-4">
+      {!patientId ? (
           <p className="text-sm text-muted-foreground">Available once this patient links their account.</p>
         ) : attemptCount === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -107,8 +102,7 @@ export function PatientInsightsPanel({
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
