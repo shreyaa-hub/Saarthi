@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/session";
-import { getPatientDetail } from "@/lib/data/clinician";
+import { getPatientDetail, getPatientAnalyticsAttempts } from "@/lib/data/clinician";
+import { buildPatientAnalytics } from "@/lib/analytics/models";
+import { buildTrend } from "@/lib/analytics/trends";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,7 +13,7 @@ import { AssignTemplateDialog } from "@/components/clinician/assign-template-dia
 import { PatientInsightsPanel } from "@/components/clinician/patient-insights-panel";
 import { AttemptNotes } from "@/components/clinician/attempt-notes";
 import { MessageThread } from "@/components/clinician/message-thread";
-import { ProgressChart } from "@/components/charts/progress-chart";
+import { PatientPerformancePanel } from "@/components/clinician/analytics/patient-performance-panel";
 import { getTemplates } from "@/lib/data/clinician";
 import { startConversation } from "@/lib/actions/messages";
 import { getMessages } from "@/lib/data/messages";
@@ -47,6 +49,16 @@ export default async function PatientDetailPage({
   const name = link.profiles?.full_name ?? link.display_name;
   const publishedTemplates = templates.filter((t) => t.status === "published");
   const titleByAssignment = Object.fromEntries(assignments.map((a) => [a.id, a.title]));
+
+  // Performance Analytics: domain-resolved attempts -> analytics model. Only
+  // reachable once the patient has claimed their invite (no patient_id, no
+  // attempts). The weekly trend is precomputed here so the client trend chart
+  // can toggle to it without importing the analytics layer.
+  const analyticsAttempts = link.patient_id
+    ? await getPatientAnalyticsAttempts(supabase, user.id, link.patient_id)
+    : [];
+  const analytics = buildPatientAnalytics(analyticsAttempts);
+  const weeklyTrend = buildTrend(analyticsAttempts, "week");
 
   // Get-or-create the conversation and load its first page of history. Only
   // possible once the patient has claimed their invite (start_conversation
@@ -117,14 +129,7 @@ export default async function PatientDetailPage({
         <TabsContent value="overview">
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="flex flex-col gap-6 lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Accuracy over time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ProgressChart attempts={attempts} />
-                </CardContent>
-              </Card>
+              <PatientPerformancePanel analytics={analytics} weeklyTrend={weeklyTrend} />
 
               <Card>
                 <CardHeader>
