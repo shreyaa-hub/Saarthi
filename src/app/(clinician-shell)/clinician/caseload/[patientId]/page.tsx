@@ -127,14 +127,23 @@ export default async function PatientDetailPage({
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-6 lg:col-span-2">
-              <PatientPerformancePanel analytics={analytics} weeklyTrend={weeklyTrend} />
+          {/* Single-column reading order: understand the patient's
+              performance first, then the AI interpretation, then the
+              assignment/attempt detail. */}
+          <div className="flex flex-col gap-6">
+            <PatientPerformancePanel analytics={analytics} weeklyTrend={weeklyTrend} />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Assignments</CardTitle>
-                </CardHeader>
+            <PatientInsightsPanel
+              clinicianPatientId={link.id}
+              patientId={link.patient_id}
+              initialInsight={latestInsight}
+              attemptCount={attempts.length}
+            />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Assignments</CardTitle>
+              </CardHeader>
                 <CardContent>
                   {assignments.length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
@@ -182,16 +191,6 @@ export default async function PatientDetailPage({
                   />
                 </CardContent>
               </Card>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              <PatientInsightsPanel
-                clinicianPatientId={link.id}
-                patientId={link.patient_id}
-                initialInsight={latestInsight}
-                attemptCount={attempts.length}
-              />
-            </div>
           </div>
         </TabsContent>
 
