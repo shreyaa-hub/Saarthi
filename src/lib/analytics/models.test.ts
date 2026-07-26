@@ -18,6 +18,7 @@ describe("buildCaseloadPulse", () => {
     expect(pulse.statusDistribution.inactive).toBe(1);
     const neverStarted = pulse.patientStatuses.find((p) => p.patientId === "never-started");
     expect(neverStarted?.status).toBe("inactive");
+    expect(neverStarted?.reason).toMatch(/last 7 days/i); // reason travels with the status
   });
 
   it("computes this-week vs last-week caseload accuracy and the delta", () => {
@@ -43,7 +44,7 @@ describe("buildCaseloadPulse", () => {
     expect(pulse.activePatientCount).toBe(0);
     expect(pulse.mostActive).toEqual([]);
     expect(pulse.mostImproved).toEqual([]);
-    expect(pulse.statusDistribution).toEqual({ improving: 0, steady: 0, needs_attention: 0, inactive: 0 });
+    expect(pulse.statusDistribution).toEqual({ improving: 0, stable: 0, needs_attention: 0, inactive: 0 });
   });
 });
 
@@ -59,7 +60,8 @@ describe("buildPatientAnalytics", () => {
     expect(model.trend).toHaveLength(4); // attempt-level
     expect(model.domains.map((d) => d.domain)).toContain("Articulation");
     expect(model.summary.totalCompleted).toBe(4);
-    expect(model.status).toBe("improving"); // 70 -> 90
+    expect(model.status.status).toBe("improving"); // 70 -> 90
+    expect(model.status.reason).toMatch(/increased/i);
   });
 
   it("is safe and empty for a patient with no attempts", () => {
@@ -67,6 +69,6 @@ describe("buildPatientAnalytics", () => {
     expect(model.trend).toEqual([]);
     expect(model.domains).toEqual([]);
     expect(model.summary.averageAccuracy).toBeNull();
-    expect(model.status).toBe("inactive");
+    expect(model.status.status).toBe("inactive");
   });
 });

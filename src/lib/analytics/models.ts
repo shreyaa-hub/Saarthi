@@ -44,10 +44,10 @@ export function buildCaseloadPulse(
   const averageAccuracyLastWeek = averageAccuracy(lastWeekAttempts);
 
   const byPatient = groupByPatient(attempts);
-  const patientStatuses = patientIds.map((patientId) => ({
-    patientId,
-    status: classifyStatus(byPatient.get(patientId) ?? [], thisWeek, lastWeek),
-  }));
+  const patientStatuses = patientIds.map((patientId) => {
+    const { status, reason } = classifyStatus(byPatient.get(patientId) ?? [], thisWeek, lastWeek);
+    return { patientId, status, reason };
+  });
 
   return {
     generatedAt: now.toISOString(),

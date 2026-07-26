@@ -7,6 +7,7 @@ import type {
   PatientActivitySummary,
   PatientStatus,
   StatusDistribution,
+  StatusResult,
   WindowRange,
 } from "./types";
 import { averageAccuracy, isAccuracyCountable } from "./accuracy";
@@ -31,14 +32,19 @@ import {
 //
 // Trend-based branches (3/4) only fire when the patient has enough
 // accuracy-countable attempts in both windows to trust the delta; otherwise
-// an active patient with adequate accuracy simply reads as steady.
+// an active patient with adequate accuracy simply reads as stable.
+//
+// Returns the status AND a plain-language reason so the UI can explain the
+// classification without re-implementing any of the rules below.
 export function classifyStatus(
   attempts: AnalyticsAttempt[],
   thisWeek: WindowRange,
   lastWeek: WindowRange,
-): PatientStatus {
+): StatusResult {
   const activeThisWeek = attempts.some((a) => isWithin(thisWeek, a.completedAt));
-  if (!activeThisWeek) return "inactive";
+  if (!activeThisWeek) {
+    return { status: "inactive", reason: "No completed activities in the last 7 days" };
+  }
 
   const thisWeekCountable = attempts.filter(
     (a) => isWithin(thisWeek, a.completedAt) && isAccuracyCountable(a),
@@ -49,7 +55,10 @@ export function classifyStatus(
 
   const thisWeekAccuracy = averageAccuracy(thisWeekCountable);
   if (thisWeekAccuracy !== null && thisWeekAccuracy < NEEDS_ATTENTION_ACCURACY) {
-    return "needs_attention";
+    return {
+      status: "needs_attention",
+      reason: `Average accuracy this week is ${thisWeekAccuracy}%, below the ${NEEDS_ATTENTION_ACCURACY}% target`,
+    };
   }
 
   const eligibleForTrend =
@@ -58,21 +67,44 @@ export function classifyStatus(
 
   if (eligibleForTrend) {
     const delta = averageAccuracy(thisWeekCountable)! - averageAccuracy(lastWeekCountable)!;
-    if (delta <= -DECLINING_DELTA) return "needs_attention";
-    if (delta >= IMPROVING_DELTA) return "improving";
+    if (delta <= -DECLINING_DELTA) {
+      return {
+        status: "needs_attention",
+        reason: `Average accuracy declined by ${Math.abs(delta)}% week-over-week`,
+      };
+    }
+    if (delta >= IMPROVING_DELTA) {
+      return {
+        status: "improving",
+        reason: `Average accuracy increased by ${delta}% week-over-week`,
+      };
+    }
+    return {
+      status: "stable",
+      reason: "Accuracy is holding steady week-over-week",
+    };
   }
 
-  return "steady";
+  // Active this week, but not enough data in both windows to read a trend.
+  return {
+    status: "stable",
+    reason:
+      thisWeekAccuracy !== null
+        ? `Active this week at ${thisWeekAccuracy}% accuracy`
+        : "Active this week",
+  };
 }
 
 // Empty distribution with every bucket present at 0 — so the UI can render a
 // full legend without null-checking each status.
 export function emptyStatusDistribution(): StatusDistribution {
-  return { improving: 0, steady: 0, needs_attention: 0, inactive: 0 };
+  return { improving: 0, stable: 0, needs_attention: 0, inactive: 0 };
 }
 
+// Accepts anything carrying a `status` (StatusResult, or the pulse's
+// patientStatuses entries) so callers don't have to reshape first.
 export function statusDistribution(
-  statuses: { patientId: string; status: PatientStatus }[],
+  statuses: { status: PatientStatus }[],
 ): StatusDistribution {
   const dist = emptyStatusDistribution();
   for (const { status } of statuses) dist[status] += 1;

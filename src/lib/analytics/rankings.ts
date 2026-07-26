@@ -78,7 +78,14 @@ export function mostImproved(
     const delta = thisWeekAccuracy - lastWeekAccuracy;
     if (delta <= 0) continue;
 
-    entries.push({ patientId, thisWeekAccuracy, lastWeekAccuracy, delta });
+    entries.push({
+      patientId,
+      thisWeekAccuracy,
+      lastWeekAccuracy,
+      delta,
+      thisWeekAttempts: thisWeekCountable.length,
+      lastWeekAttempts: lastWeekCountable.length,
+    });
   }
 
   entries.sort((a, b) => b.delta - a.delta || a.patientId.localeCompare(b.patientId));

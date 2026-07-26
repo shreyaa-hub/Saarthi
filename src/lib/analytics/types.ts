@@ -47,18 +47,34 @@ export type TrendPoint = {
 };
 
 // The four caseload-status buckets. The dashboard answers "which patients
-// need my attention today?" by counting patients in each.
-export type PatientStatus = "improving" | "steady" | "needs_attention" | "inactive";
+// need my attention today?" by counting patients in each. "stable" (rather
+// than "steady") is the product-facing term for an active patient holding
+// their level.
+export type PatientStatus = "improving" | "stable" | "needs_attention" | "inactive";
+
+// A classification paired with a plain-language explanation of WHY. The
+// reason is computed once, in the classifier, so the UI can show something
+// actionable ("Average accuracy increased by 18%") without re-deriving any
+// of the business logic that produced the status.
+export type StatusResult = {
+  status: PatientStatus;
+  reason: string;
+};
 
 export type StatusDistribution = Record<PatientStatus, number>;
 
 export type MostActiveEntry = { patientId: string; attemptCount: number };
 
+// Carries the supporting context a clinician needs to trust the ranking, not
+// just the headline delta: how many accuracy-countable attempts backed each
+// side of the comparison.
 export type MostImprovedEntry = {
   patientId: string;
   thisWeekAccuracy: number;
   lastWeekAccuracy: number;
   delta: number;
+  thisWeekAttempts: number;
+  lastWeekAttempts: number;
 };
 
 export type PatientActivitySummary = {
@@ -85,7 +101,7 @@ export type CaseloadPulse = {
   mostImproved: MostImprovedEntry[];
   mostActive: MostActiveEntry[];
   statusDistribution: StatusDistribution;
-  patientStatuses: { patientId: string; status: PatientStatus }[];
+  patientStatuses: (StatusResult & { patientId: string })[];
   activePatientCount: number;
 };
 
@@ -96,5 +112,5 @@ export type PatientAnalytics = {
   summary: PatientActivitySummary;
   trend: TrendPoint[];
   domains: DomainStat[];
-  status: PatientStatus;
+  status: StatusResult;
 };
