@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus, LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/motion/count-up";
 import type { CaseloadPulse } from "@/lib/analytics/types";
+import { rollingWeekWindows } from "@/lib/analytics/windows";
 import { CaseloadTrendChart } from "./caseload-trend-chart";
 
 // A line needs at least two plottable points to read as a trend; one point
@@ -15,8 +16,17 @@ const MIN_TREND_POINTS = 2;
 // "no activity this week" rather than a fabricated 0%.
 export function CaseloadTrendCard({ pulse }: { pulse: CaseloadPulse }) {
   const { averageAccuracyThisWeek, accuracyDelta } = pulse;
-  const plottablePoints = pulse.trend.filter((p) => p.averageAccuracy !== null).length;
-  const hasTrend = plottablePoints >= MIN_TREND_POINTS;
+
+  // Only chart a trend when there's meaningful RECENT activity — at least
+  // two plottable days within the comparison window this card is labeled for
+  // ("last 7 days vs previous 7"). Gating on recency (not just total points)
+  // means a caseload that was active weeks ago but is quiet now shows the
+  // dedicated empty state, never a stale line masquerading as current.
+  const { lastWeek } = rollingWeekWindows(new Date(pulse.generatedAt));
+  const recentPlottablePoints = pulse.trend.filter(
+    (p) => p.averageAccuracy !== null && new Date(p.periodStart) >= lastWeek.start,
+  ).length;
+  const hasTrend = recentPlottablePoints >= MIN_TREND_POINTS;
 
   return (
     <Card className="h-full">

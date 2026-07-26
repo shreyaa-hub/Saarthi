@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
 export type RankingRow = {
   key: string;
@@ -37,13 +37,13 @@ export function RankingCard({
     // self-start keeps an empty card at its natural (short) height instead of
     // stretching to match a populated sibling in the same grid row.
     <Card className={isEmpty ? "self-start" : undefined}>
-      <CardHeader className="flex-row items-center gap-2 space-y-0">
+      <CardHeader className={cn("flex-row items-center gap-2 space-y-0", isEmpty && "pb-3")}>
         <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Icon className="size-4" />
         </span>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className={isEmpty ? "pt-0" : undefined}>
+      <CardContent className={isEmpty ? "pt-0 pb-5" : undefined}>
         {isEmpty ? (
           <p className="text-sm text-muted-foreground">{emptyText}</p>
         ) : (
