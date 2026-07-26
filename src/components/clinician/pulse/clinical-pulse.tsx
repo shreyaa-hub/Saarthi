@@ -67,18 +67,18 @@ export function ClinicalPulse({
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid items-start gap-4 md:grid-cols-2">
         <RankingCard
           title="Most improved"
           icon={TrendingUp}
           rows={improvedRows}
-          emptyText="No patients improved week-over-week yet."
+          emptyText="No week-over-week gains yet — improvement shows here once patients complete activities across two weeks."
         />
         <RankingCard
           title="Most active"
           icon={Flame}
           rows={activeRows}
-          emptyText="No activity completed this week yet."
+          emptyText="No activities completed this week yet — a quick reminder can help re-engage your patients."
         />
       </div>
     </section>

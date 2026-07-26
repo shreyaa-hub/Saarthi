@@ -1,8 +1,13 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, TrendingDown, Minus, LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/motion/count-up";
 import type { CaseloadPulse } from "@/lib/analytics/types";
 import { CaseloadTrendChart } from "./caseload-trend-chart";
+
+// A line needs at least two plottable points to read as a trend; one point
+// is just a dot. Below this, we show guidance instead of a chart.
+const MIN_TREND_POINTS = 2;
 
 // Caseload-wide accuracy: the this-week headline with its week-over-week
 // delta (the approved placement — folded into the trend card, not a 5th KPI)
@@ -10,6 +15,8 @@ import { CaseloadTrendChart } from "./caseload-trend-chart";
 // "no activity this week" rather than a fabricated 0%.
 export function CaseloadTrendCard({ pulse }: { pulse: CaseloadPulse }) {
   const { averageAccuracyThisWeek, accuracyDelta } = pulse;
+  const plottablePoints = pulse.trend.filter((p) => p.averageAccuracy !== null).length;
+  const hasTrend = plottablePoints >= MIN_TREND_POINTS;
 
   return (
     <Card className="h-full">
@@ -28,14 +35,32 @@ export function CaseloadTrendCard({ pulse }: { pulse: CaseloadPulse }) {
         )}
       </CardHeader>
       <CardContent>
-        {averageAccuracyThisWeek === null && (
-          <p className="mb-2 text-sm text-muted-foreground">
-            No completed activities this week yet.
-          </p>
-        )}
-        <CaseloadTrendChart points={pulse.trend} />
+        {hasTrend ? <CaseloadTrendChart points={pulse.trend} /> : <TrendEmptyState />}
       </CardContent>
     </Card>
+  );
+}
+
+// Guides the clinician toward the action that populates this chart, rather
+// than only stating there's no data.
+function TrendEmptyState() {
+  return (
+    <div className="flex h-56 flex-col items-center justify-center gap-2 text-center">
+      <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <LineChart className="size-5" />
+      </span>
+      <p className="text-sm font-medium">Not enough activity to chart a trend yet</p>
+      <p className="max-w-xs text-xs text-muted-foreground">
+        Caseload accuracy appears here once your patients complete a few activities across
+        different days.
+      </p>
+      <Link
+        href="/clinician/assignments"
+        className="text-xs font-medium text-primary hover:underline"
+      >
+        Assign an activity →
+      </Link>
+    </div>
   );
 }
 

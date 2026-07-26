@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Users, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StatusDistribution, StatusResult } from "@/lib/analytics/types";
 import { STATUS_META, STATUS_ORDER } from "./status-meta";
@@ -26,6 +26,10 @@ export function CaseloadStatusOverview({
   const total = patientStatuses.length;
   const segments = STATUS_ORDER.filter((s) => distribution[s] > 0);
   const attention = patientStatuses.filter((p) => p.status === "needs_attention");
+  // "Engaged" = anyone with activity in the last 7 days. When this is zero,
+  // the whole caseload is inactive and a proportional bar would just be a
+  // solid grey strip — meaningless — so we swap in a dedicated state.
+  const engaged = distribution.improving + distribution.stable + distribution.needs_attention;
 
   return (
     <Card>
@@ -34,9 +38,34 @@ export function CaseloadStatusOverview({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {total === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No active patients yet. Invite patients to see caseload health here.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Users className="size-5" />
+            </span>
+            <p className="text-sm font-medium">No patients yet</p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              Invite a patient to start tracking how your caseload is doing.
+            </p>
+            <Link href="/clinician/caseload" className="text-xs font-medium text-primary hover:underline">
+              Go to caseload →
+            </Link>
+          </div>
+        ) : engaged === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Moon className="size-5" />
+            </span>
+            <p className="text-sm font-medium">
+              {total === 1 ? "Your patient has" : `All ${total} patients have`} been quiet this week
+            </p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              No activities completed in the last 7 days. Assign fresh work or send a reminder to
+              re-engage them.
+            </p>
+            <Link href="/clinician/assignments" className="text-xs font-medium text-primary hover:underline">
+              Review assignments →
+            </Link>
+          </div>
         ) : (
           <>
             {/* Proportional distribution bar */}

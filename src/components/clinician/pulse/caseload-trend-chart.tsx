@@ -28,7 +28,10 @@ export function CaseloadTrendChart({ points }: { points: TrendPoint[] }) {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -20 }}>
+        {/* left margin 0 (not negative) + a wide-enough YAxis so the tick
+            labels render in full — a negative left margin clips the digits
+            and leaves only the trailing "%". */}
+        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="date"
@@ -38,10 +41,11 @@ export function CaseloadTrendChart({ points }: { points: TrendPoint[] }) {
           />
           <YAxis
             domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             axisLine={false}
             tickLine={false}
-            width={36}
+            width={44}
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip

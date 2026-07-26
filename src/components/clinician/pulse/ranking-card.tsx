@@ -32,17 +32,20 @@ export function RankingCard({
   rows: RankingRow[];
   emptyText: string;
 }) {
+  const isEmpty = rows.length === 0;
   return (
-    <Card>
+    // self-start keeps an empty card at its natural (short) height instead of
+    // stretching to match a populated sibling in the same grid row.
+    <Card className={isEmpty ? "self-start" : undefined}>
       <CardHeader className="flex-row items-center gap-2 space-y-0">
         <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Icon className="size-4" />
         </span>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+      <CardContent className={isEmpty ? "pt-0" : undefined}>
+        {isEmpty ? (
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {rows.map((row) => {
