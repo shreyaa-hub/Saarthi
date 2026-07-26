@@ -38,3 +38,13 @@ export const STATUS_META: Record<
 // Positive-to-dormant reading order, used for both the distribution bar and
 // the legend so they line up.
 export const STATUS_ORDER: PatientStatus[] = ["improving", "stable", "needs_attention", "inactive"];
+
+// Single source of truth for the Caseload page's status-filter URL contract.
+// Every link that filters into a clinical status (Clinical Pulse's legend,
+// its "needs attention" overflow) goes through this, and
+// clinician/caseload/page.tsx's `isPatientStatus` parser is the other half
+// of the same contract — if the query-param name or shape ever changes,
+// there's one place to update on the producing side.
+export function caseloadFilterHref(status: PatientStatus): string {
+  return `/clinician/caseload?status=${status}`;
+}

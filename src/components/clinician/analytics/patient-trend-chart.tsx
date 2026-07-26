@@ -41,6 +41,7 @@ export function PatientTrendChart({
             <button
               key={m}
               type="button"
+              aria-pressed={mode === m}
               onClick={() => setMode(m)}
               className={cn(
                 "rounded-md px-2.5 py-1 font-medium transition-colors",

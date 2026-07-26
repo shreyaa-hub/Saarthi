@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// No default plural suffix on purpose — a naive `${singular}s` default has
+// already produced a real bug in this codebase ("3 activitys"); requiring
+// callers to spell out the plural form keeps that class of mistake from
+// coming back silently.
+export function pluralize(n: number, singular: string, pluralForm: string) {
+  return `${n} ${n === 1 ? singular : pluralForm}`;
+}
+
 export function initials(name: string) {
   return name
     .split(" ")

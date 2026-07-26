@@ -1,9 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DomainStat } from "@/lib/analytics/types";
-
-function activityCount(n: number) {
-  return `${n} ${n === 1 ? "activity" : "activities"}`;
-}
+import { pluralize } from "@/lib/utils";
 
 // Accuracy per therapy domain, shown as a simple horizontal bar list (the
 // same lightweight bar treatment as Clinical Pulse's status bar, rather than
@@ -42,10 +39,10 @@ export function PatientDomainBreakdown({ domains }: { domains: DomainStat[] }) {
                         <span className="font-semibold text-foreground tabular-nums">
                           {d.averageAccuracy}%
                         </span>{" "}
-                        · {activityCount(d.completedCount)}
+                        · {pluralize(d.completedCount, "activity", "activities")}
                       </>
                     ) : (
-                      `No scored activities · ${activityCount(d.completedCount)}`
+                      `No scored activities · ${pluralize(d.completedCount, "activity", "activities")}`
                     )}
                   </span>
                 </div>

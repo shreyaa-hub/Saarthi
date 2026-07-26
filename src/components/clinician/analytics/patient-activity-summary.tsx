@@ -1,11 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
 import type { DomainStat, PatientActivitySummary as Summary, StatusResult } from "@/lib/analytics/types";
 import { STATUS_META } from "@/components/clinician/pulse/status-meta";
-
-function completedActivities(n: number) {
-  return `${n} completed ${n === 1 ? "activity" : "activities"}`;
-}
 
 // The at-a-glance answer to "how is this patient progressing?" — the current
 // status with its plain-language reason, a small grid of headline figures,
@@ -89,7 +85,7 @@ function DomainLine({ label, domain }: { label: string; domain: DomainStat }) {
       <span className="text-right">
         <span className="block font-medium">{domain.domain}</span>
         <span className="block text-xs text-muted-foreground">
-          {domain.averageAccuracy}% accuracy · {completedActivities(domain.completedCount)}
+          {domain.averageAccuracy}% accuracy · completed {pluralize(domain.completedCount, "activity", "activities")}
         </span>
       </span>
     </div>

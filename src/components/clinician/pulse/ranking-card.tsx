@@ -67,6 +67,7 @@ export function RankingCard({
                 <Link
                   key={row.key}
                   href={row.href}
+                  aria-label={`${row.name}, ${row.detail}, ${row.metric}`}
                   className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-muted/60"
                 >
                   {body}

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AlertTriangle, Users, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StatusDistribution, StatusResult } from "@/lib/analytics/types";
-import { STATUS_META, STATUS_ORDER } from "./status-meta";
+import { pluralize } from "@/lib/utils";
+import { STATUS_META, STATUS_ORDER, caseloadFilterHref } from "./status-meta";
 import type { PatientRefMap } from "./types";
 
 const MAX_ATTENTION_ROWS = 4;
@@ -97,7 +98,8 @@ export function CaseloadStatusOverview({
                   <li key={s}>
                     {count > 0 ? (
                       <Link
-                        href={`/clinician/caseload?status=${s}`}
+                        href={caseloadFilterHref(s)}
+                        aria-label={`${STATUS_META[s].label}: ${pluralize(count, "patient", "patients")}`}
                         className="-mx-1 flex items-center gap-2 rounded-md px-1 py-0.5 text-sm transition-colors hover:bg-muted/60"
                       >
                         {row}
@@ -129,6 +131,7 @@ export function CaseloadStatusOverview({
                     <Link
                       key={p.patientId}
                       href={`/clinician/caseload/${ref.caseloadLinkId}`}
+                      aria-label={`${name}: ${p.reason}`}
                       className="-mx-2 flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60"
                     >
                       {row}
@@ -141,7 +144,7 @@ export function CaseloadStatusOverview({
                 })}
                 {attention.length > MAX_ATTENTION_ROWS && (
                   <Link
-                    href="/clinician/caseload?status=needs_attention"
+                    href={caseloadFilterHref("needs_attention")}
                     className="px-0.5 text-xs font-medium text-primary hover:underline"
                   >
                     +{attention.length - MAX_ATTENTION_ROWS} more →
