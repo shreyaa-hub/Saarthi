@@ -6,6 +6,26 @@ import { homeForRole } from "@/lib/auth/session";
 
 export type ActionState = { error: string | null; message?: string | null };
 
+// Supabase surfaces a failure inside the handle_new_user() trigger as an
+// opaque auth error whose message can arrive empty or as a stringified empty
+// body — which is how a signup blocked by the profiles role CHECK constraint
+// ends up rendering as a literal "{}" in the form. Never show the raw value
+// in that case: log it for the server and give the operator something they
+// can actually act on.
+function describeAuthError(error: { message?: string | null }, context: string): string {
+  const raw = (error.message ?? "").trim();
+  const isUseless = raw === "" || raw === "{}" || raw === "[object Object]";
+
+  console.error(`[actions/auth] ${context} failed:`, error);
+
+  if (!isUseless) return raw;
+  return (
+    "Could not create the account. The database rejected the new user — " +
+    "if this is a fresh deployment, check that every migration in " +
+    "supabase/migrations has been applied."
+  );
+}
+
 export async function signIn(
   _prevState: ActionState,
   formData: FormData,
@@ -66,7 +86,7 @@ export async function signUpClinician(
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: describeAuthError(error, "signUpClinician") };
 
   if (!data.session) {
     return {
@@ -103,7 +123,7 @@ export async function signUpPatient(
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: describeAuthError(error, "signUpPatient") };
 
   if (!data.session) {
     return {
@@ -152,7 +172,7 @@ export async function signUpParent(
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: describeAuthError(error, "signUpParent") };
 
   if (!data.session) {
     return {

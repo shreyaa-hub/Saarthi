@@ -1,18 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { homeForRole as resolveHome } from "@/lib/auth/roles";
 import type { Database } from "@/lib/types/database";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-// The single place that maps a role to its landing route. Every redirect
-// after sign-in or a wrong-role bounce goes through this — a role missing
-// from here would be sent to another role's shell, whose own guard would
-// bounce it straight back into an infinite redirect.
-export function homeForRole(role: Profile["role"]): string {
-  if (role === "clinician") return "/clinician";
-  if (role === "parent") return "/parent";
-  return "/patient";
-}
+// Re-exported so existing importers keep working; the definition lives in
+// lib/auth/roles.ts because the proxy needs it too and cannot import this
+// module (next/headers).
+export { homeForRole } from "@/lib/auth/roles";
 
 export async function requireProfile(role?: Profile["role"]) {
   const supabase = await createClient();
@@ -34,7 +30,7 @@ export async function requireProfile(role?: Profile["role"]) {
 
   if (!profile) redirect("/sign-in");
   if (role && profile.role !== role) {
-    redirect(homeForRole(profile.role));
+    redirect(resolveHome(profile.role));
   }
 
   return { supabase, user, profile };

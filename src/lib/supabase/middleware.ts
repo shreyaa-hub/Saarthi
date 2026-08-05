@@ -1,9 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ROLE_ROUTE_PREFIXES, asProfileRole, homeForRole } from "@/lib/auth/roles";
 import type { Database } from "@/lib/types/database";
 
-const CLINICIAN_PREFIX = "/clinician";
-const PATIENT_PREFIX = "/patient";
 const AUTH_PATHS = ["/sign-in", "/sign-up"];
 
 export async function updateSession(request: NextRequest) {
@@ -19,8 +18,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  const isClinicianRoute = pathname.startsWith(CLINICIAN_PREFIX);
-  const isPatientRoute = pathname.startsWith(PATIENT_PREFIX);
+  // Driven off the shared prefix list rather than a hand-maintained set of
+  // booleans — adding a role's shell without adding it here would leave that
+  // whole area ungated at the proxy (exactly what happened when /parent was
+  // introduced).
+  const isRoleRoute = ROLE_ROUTE_PREFIXES.some((p) => pathname.startsWith(p));
   const isAuthRoute = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
   try {
@@ -43,7 +45,7 @@ export async function updateSession(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user && (isClinicianRoute || isPatientRoute)) {
+    if (!user && isRoleRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/sign-in";
       url.searchParams.set("redirect", pathname);
@@ -56,13 +58,12 @@ export async function updateSession(request: NextRequest) {
       // requireProfile() on the destination page re-checks against the
       // database and is the single source of truth; if this guess is
       // wrong it self-corrects in one hop, it never loops.
-      const role = user.user_metadata?.role === "clinician" ? "clinician" : "patient";
       const url = request.nextUrl.clone();
-      url.pathname = role === "clinician" ? "/clinician" : "/patient";
+      url.pathname = homeForRole(asProfileRole(user.user_metadata?.role));
       return NextResponse.redirect(url);
     }
 
-    // Deliberately no role-based redirect for /clinician and /patient here.
+    // Deliberately no role-based redirect between role shells here.
     // Checking the JWT's role claim against the route AND having
     // requireProfile() separately check the database's role against the
     // route creates two authorities that can disagree (JWT says patient,
