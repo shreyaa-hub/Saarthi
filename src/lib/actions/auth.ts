@@ -12,6 +12,21 @@ export type ActionState = { error: string | null; message?: string | null };
 // ends up rendering as a literal "{}" in the form. Never show the raw value
 // in that case: log it for the server and give the operator something they
 // can actually act on.
+// Distinguishes "0002_parents.sql was never applied" from any other
+// server-side signup failure. Supabase reports a handle_new_user() trigger
+// failure as an opaque auth error, so the sign-up response alone can't tell
+// us why the insert was refused — but parent_children only exists after that
+// migration, so probing for it answers the question directly instead of
+// leaving the operator to guess.
+async function parentSchemaMissing(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<boolean> {
+  const { error } = await supabase.from("parent_children").select("id").limit(1);
+  if (!error) return false;
+  // PGRST205: table absent from PostgREST's schema cache.
+  return error.code === "PGRST205" || /does not exist|schema cache/i.test(error.message ?? "");
+}
+
 function describeAuthError(error: { message?: string | null }, context: string): string {
   const raw = (error.message ?? "").trim();
   const isUseless = raw === "" || raw === "{}" || raw === "[object Object]";
@@ -172,7 +187,17 @@ export async function signUpParent(
     },
   });
 
-  if (error) return { error: describeAuthError(error, "signUpParent") };
+  if (error) {
+    if (await parentSchemaMissing(supabase)) {
+      return {
+        error:
+          "Parent accounts aren't enabled on this database yet — " +
+          "supabase/migrations/0002_parents.sql has not been applied. " +
+          "Run that file in the Supabase SQL editor, then try again.",
+      };
+    }
+    return { error: describeAuthError(error, "signUpParent") };
+  }
 
   if (!data.session) {
     return {
