@@ -3,8 +3,9 @@
 // project exists, or edit this file to match.
 import type { TemplateCanvas } from "./canvas";
 
-export type ProfileRole = "clinician" | "patient";
+export type ProfileRole = "clinician" | "patient" | "parent";
 export type ClinicianPatientStatus = "invited" | "active" | "archived";
+export type InvoiceStatus = "draft" | "issued" | "paid" | "void";
 export type TemplateStatus = "draft" | "published" | "archived";
 export type AssignmentStatus = "assigned" | "in_progress" | "completed";
 // Presentation-only — how a client renders a row. Event-specific behaviour
@@ -45,6 +46,7 @@ export type Database = {
           patient_id: string | null;
           display_name: string;
           invite_code: string;
+          guardian_code: string | null;
           status: ClinicianPatientStatus;
           notes: string | null;
           created_at: string;
@@ -273,6 +275,7 @@ export type Database = {
         Row: {
           id: string;
           clinician_patient_id: string | null;
+          parent_child_id: string | null;
           created_by: string | null;
           last_message_at: string | null;
           last_message_preview: string | null;
@@ -363,8 +366,125 @@ export type Database = {
           },
         ];
       };
+      parent_children: {
+        Row: {
+          id: string;
+          parent_id: string;
+          child_id: string;
+          clinician_patient_id: string | null;
+          relationship: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["parent_children"]["Row"]> & {
+          parent_id: string;
+          child_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["parent_children"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "parent_children_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "parent_children_child_id_fkey";
+            columns: ["child_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "parent_children_clinician_patient_id_fkey";
+            columns: ["clinician_patient_id"];
+            isOneToOne: false;
+            referencedRelation: "clinician_patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      invoices: {
+        Row: {
+          id: string;
+          clinician_id: string;
+          parent_id: string;
+          child_id: string | null;
+          reference: string;
+          description: string | null;
+          amount_cents: number;
+          currency: string;
+          period_start: string | null;
+          period_end: string | null;
+          due_date: string | null;
+          status: InvoiceStatus;
+          issued_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["invoices"]["Row"]> & {
+          clinician_id: string;
+          parent_id: string;
+          reference: string;
+          amount_cents: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["invoices"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "invoices_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoices_clinician_id_fkey";
+            columns: ["clinician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      parent_saved_worksheets: {
+        Row: {
+          id: string;
+          parent_id: string;
+          template_id: string;
+          child_id: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["parent_saved_worksheets"]["Row"]> & {
+          parent_id: string;
+          template_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["parent_saved_worksheets"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "parent_saved_worksheets_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "parent_saved_worksheets_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
+      claim_guardian_code: {
+        Args: { p_guardian_code: string };
+        Returns: Database["public"]["Tables"]["parent_children"]["Row"];
+      };
+      start_parent_conversation: {
+        Args: { p_parent_child_id: string };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"];
+      };
       claim_invite: {
         Args: { p_invite_code: string };
         Returns: Database["public"]["Tables"]["clinician_patients"]["Row"];

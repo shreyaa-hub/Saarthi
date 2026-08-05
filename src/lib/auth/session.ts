@@ -4,6 +4,16 @@ import type { Database } from "@/lib/types/database";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
+// The single place that maps a role to its landing route. Every redirect
+// after sign-in or a wrong-role bounce goes through this — a role missing
+// from here would be sent to another role's shell, whose own guard would
+// bounce it straight back into an infinite redirect.
+export function homeForRole(role: Profile["role"]): string {
+  if (role === "clinician") return "/clinician";
+  if (role === "parent") return "/parent";
+  return "/patient";
+}
+
 export async function requireProfile(role?: Profile["role"]) {
   const supabase = await createClient();
   const {
@@ -24,7 +34,7 @@ export async function requireProfile(role?: Profile["role"]) {
 
   if (!profile) redirect("/sign-in");
   if (role && profile.role !== role) {
-    redirect(profile.role === "clinician" ? "/clinician" : "/patient");
+    redirect(homeForRole(profile.role));
   }
 
   return { supabase, user, profile };

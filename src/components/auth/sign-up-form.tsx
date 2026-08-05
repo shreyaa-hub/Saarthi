@@ -2,13 +2,13 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { signUpClinician, signUpPatient, type ActionState } from "@/lib/actions/auth";
+import { signUpClinician, signUpPatient, signUpParent, type ActionState } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Stethoscope, User } from "lucide-react";
+import { Loader2, Stethoscope, User, Users } from "lucide-react";
 
 const initialState: ActionState = { error: null };
 
@@ -21,6 +21,10 @@ export function SignUpForm() {
     signUpPatient,
     initialState,
   );
+  const [parentState, parentAction, parentPending] = useActionState(
+    signUpParent,
+    initialState,
+  );
 
   return (
     <Card>
@@ -30,12 +34,15 @@ export function SignUpForm() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="clinician">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="clinician">
               <Stethoscope className="size-4" /> Clinician
             </TabsTrigger>
             <TabsTrigger value="patient">
               <User className="size-4" /> Patient
+            </TabsTrigger>
+            <TabsTrigger value="parent">
+              <Users className="size-4" /> Parent
             </TabsTrigger>
           </TabsList>
 
@@ -118,6 +125,49 @@ export function SignUpForm() {
               <Button type="submit" disabled={patientPending} className="mt-1">
                 {patientPending && <Loader2 className="size-4 animate-spin" />}
                 Create patient account
+              </Button>
+            </form>
+          </TabsContent>
+          <TabsContent value="parent" className="pt-4">
+            <form action={parentAction} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="g_full_name">Full name</Label>
+                <Input id="g_full_name" name="full_name" required autoComplete="name" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="g_email">Email</Label>
+                <Input id="g_email" name="email" type="email" required autoComplete="email" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="g_password">Password</Label>
+                <Input
+                  id="g_password"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="g_guardian_code">
+                  Guardian code <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  id="g_guardian_code"
+                  name="guardian_code"
+                  placeholder="From your child's clinician"
+                  className="uppercase"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This is different from the code your child uses to sign in.
+                </p>
+              </div>
+              {parentState.error && <p className="text-sm text-destructive">{parentState.error}</p>}
+              {parentState.message && <p className="text-sm text-success">{parentState.message}</p>}
+              <Button type="submit" disabled={parentPending} className="mt-1">
+                {parentPending && <Loader2 className="size-4 animate-spin" />}
+                Create parent account
               </Button>
             </form>
           </TabsContent>

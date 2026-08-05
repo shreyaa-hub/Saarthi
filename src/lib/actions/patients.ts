@@ -7,6 +7,12 @@ import type { ActionState } from "@/lib/actions/auth";
 
 const inviteCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 7);
 
+// A second, independent code on the same row. Kept separate from
+// invite_code on purpose: the invite code makes its bearer *become* the
+// patient, so handing it to a parent would give them the child's account
+// rather than guardian access to it.
+const guardianCode = inviteCode;
+
 export async function invitePatient(
   _prevState: ActionState,
   formData: FormData,
@@ -29,6 +35,7 @@ export async function invitePatient(
     clinician_id: user.id,
     display_name: displayName,
     invite_code: code,
+    guardian_code: guardianCode(),
     notes: notes || null,
     status: "invited",
   });

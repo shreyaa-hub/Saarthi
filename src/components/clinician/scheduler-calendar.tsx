@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
 type Assignment = Database["public"]["Tables"]["assignments"]["Row"] & {
-  profiles: { full_name: string } | null;
+  profiles?: { full_name: string } | null;
 };
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
@@ -44,7 +44,21 @@ function isOverdue(a: Assignment) {
   return isBefore(new Date(a.due_date), new Date(new Date().toDateString()));
 }
 
-export function SchedulerCalendar({ assignments }: { assignments: Assignment[] }) {
+// `showAssignee` and `viewAllHref` exist so the parent area can reuse this
+// calendar as-is: a parent is only ever looking at one child, so naming the
+// assignee on every row is noise, and "view all" must not point into the
+// clinician area they can't reach.
+export function SchedulerCalendar({
+  assignments,
+  showAssignee = true,
+  viewAllHref = "/clinician/assignments",
+  viewAllLabel = "View all assignments",
+}: {
+  assignments: Assignment[];
+  showAssignee?: boolean;
+  viewAllHref?: string;
+  viewAllLabel?: string;
+}) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -158,7 +172,9 @@ export function SchedulerCalendar({ assignments }: { assignments: Assignment[] }
                 <div key={a.id} className="flex items-center justify-between gap-3 py-2">
                   <p className="truncate text-sm font-medium">{a.title}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{a.profiles?.full_name ?? "Patient"}</span>
+                    {showAssignee && (
+                      <span className="text-xs text-muted-foreground">{a.profiles?.full_name ?? "Patient"}</span>
+                    )}
                     <Badge variant={statusVariant[a.status] ?? "outline"}>{a.status.replace("_", " ")}</Badge>
                   </div>
                 </div>
@@ -181,7 +197,9 @@ export function SchedulerCalendar({ assignments }: { assignments: Assignment[] }
               <div key={a.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{a.title}</p>
-                  <p className="text-xs text-muted-foreground">{a.profiles?.full_name ?? "Patient"}</p>
+                  {showAssignee && (
+                    <p className="text-xs text-muted-foreground">{a.profiles?.full_name ?? "Patient"}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {isOverdue(a) && (
@@ -195,7 +213,7 @@ export function SchedulerCalendar({ assignments }: { assignments: Assignment[] }
             ))}
           </div>
           <Button asChild variant="outline" size="sm" className="self-start">
-            <Link href="/clinician/assignments">View all assignments</Link>
+            <Link href={viewAllHref}>{viewAllLabel}</Link>
           </Button>
         </DialogContent>
       </Dialog>

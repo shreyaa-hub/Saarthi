@@ -19,6 +19,8 @@ import {
   CalendarDays,
   BookOpen,
   Map,
+  MessageSquare,
+  Wallet,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -56,7 +58,18 @@ const PATIENT_ITEMS: StaticItem[] = [
   { id: "nav-map", label: "Go to System Map", icon: Map, action: (r) => r.push("/patient/system-map") },
 ];
 
-export function CommandPalette({ role }: { role: "clinician" | "patient" }) {
+const PARENT_ITEMS: StaticItem[] = [
+  { id: "nav-parent-home", label: "Go to Dashboard", icon: LayoutDashboard, action: (r) => r.push("/parent") },
+  { id: "nav-parent-missions", label: "Go to Missions", icon: Send, action: (r) => r.push("/parent/missions") },
+  { id: "nav-parent-progress", label: "Go to Progress", icon: TrendingUp, action: (r) => r.push("/parent/progress") },
+  { id: "nav-parent-calendar", label: "Go to Calendar", icon: CalendarDays, action: (r) => r.push("/parent/calendar") },
+  { id: "nav-parent-messages", label: "Go to Messages", icon: MessageSquare, action: (r) => r.push("/parent/messages") },
+  { id: "nav-parent-hub", label: "Go to Creator Hub", icon: BookOpen, action: (r) => r.push("/parent/creator-hub") },
+  { id: "nav-parent-finances", label: "Go to Finances", icon: Wallet, action: (r) => r.push("/parent/finances") },
+  { id: "nav-map", label: "Go to System Map", icon: Map, action: (r) => r.push("/parent/system-map") },
+];
+
+export function CommandPalette({ role }: { role: "clinician" | "patient" | "parent" }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,7 +113,8 @@ export function CommandPalette({ role }: { role: "clinician" | "patient" }) {
     };
   }, [query, role]);
 
-  const staticItems = role === "clinician" ? CLINICIAN_ITEMS : PATIENT_ITEMS;
+  const staticItems =
+    role === "clinician" ? CLINICIAN_ITEMS : role === "parent" ? PARENT_ITEMS : PATIENT_ITEMS;
 
   const filteredStatic = useMemo(() => {
     const q = query.trim().toLowerCase();

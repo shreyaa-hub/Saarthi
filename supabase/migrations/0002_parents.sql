@@ -1,0 +1,358 @@
+-- Saarthi Coach — Parent / Guardian area
+--
+-- Phase P1: the guardian model. A parent is a third role whose account links
+-- to one or more existing patient accounts through a clinician-issued
+-- guardian code. Deliberately additive: no existing column changes meaning,
+-- so `patient_id` still means "the profile that owns this activity" exactly
+-- as it did before, and every clinician/patient policy already in
+-- 0001_init.sql keeps working untouched.
+--
+-- This lands the parent_children link table that a later phase (managed
+-- child profiles, for children too young to hold their own login) also
+-- needs, so that phase extends this rather than undoing it.
+--
+-- Safe to re-run: every object is create-if-not-exists or
+-- drop-if-exists-then-create, matching 0001_init.sql's convention.
+
+-- ---------------------------------------------------------------------------
+-- profiles.role — admit 'parent'
+-- ---------------------------------------------------------------------------
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('clinician', 'patient', 'parent'));
+
+-- ---------------------------------------------------------------------------
+-- clinician_patients.guardian_code
+--
+-- A second, separate code on the same caseload row. Deliberately NOT the
+-- existing invite_code: that code makes its bearer *become* the patient, and
+-- a guardian must never be able to do that. Two codes means the clinician
+-- can hand the child their login code and the parent their guardian code
+-- without either one granting the other's access.
+-- ---------------------------------------------------------------------------
+alter table public.clinician_patients
+  add column if not exists guardian_code text;
+
+-- Backfill existing rows before the unique index goes on. gen_random_uuid()
+-- is only a source of randomness here; the substring is formatted to match
+-- the 7-character A-Z2-9 shape the app generates for new rows.
+update public.clinician_patients
+set guardian_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 7))
+where guardian_code is null;
+
+create unique index if not exists clinician_patients_guardian_code_uidx
+  on public.clinician_patients (guardian_code)
+  where guardian_code is not null;
+
+-- ---------------------------------------------------------------------------
+-- parent_children — the guardian link.
+--
+-- clinician_patient_id records which caseload row the guardian code came
+-- from, which is what gives us "who is this child's clinician" for the
+-- parent's message thread without a second lookup. ON DELETE SET NULL (not
+-- cascade) so archiving a caseload row doesn't silently revoke a parent's
+-- access to their own child's history.
+-- ---------------------------------------------------------------------------
+create table if not exists public.parent_children (
+  id uuid primary key default gen_random_uuid(),
+  parent_id uuid not null references public.profiles (id) on delete cascade,
+  child_id uuid not null references public.profiles (id) on delete cascade,
+  clinician_patient_id uuid references public.clinician_patients (id) on delete set null,
+  relationship text,
+  created_at timestamptz not null default now(),
+  unique (parent_id, child_id)
+);
+
+alter table public.parent_children enable row level security;
+
+create index if not exists parent_children_parent_idx on public.parent_children (parent_id);
+create index if not exists parent_children_child_idx on public.parent_children (child_id);
+
+-- Security-definer helper, mirroring is_clinician_of() — lets policies ask
+-- "is the caller this profile's guardian?" without RLS recursion.
+create or replace function public.is_guardian_of(target_child_id uuid)
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.parent_children pc
+    where pc.child_id = target_child_id
+      and pc.parent_id = auth.uid()
+  );
+$$;
+
+-- ---------------------------------------------------------------------------
+-- invoices — the Finances view.
+--
+-- Records a statement the clinician has issued to a parent. There is NO
+-- payment processing anywhere in this product, so `status` is a bookkeeping
+-- field the clinician sets after being paid out-of-band; nothing in the app
+-- charges a card or moves money, and the parent-facing screen is read-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.invoices (
+  id uuid primary key default gen_random_uuid(),
+  clinician_id uuid not null references public.profiles (id) on delete cascade,
+  parent_id uuid not null references public.profiles (id) on delete cascade,
+  child_id uuid references public.profiles (id) on delete set null,
+  reference text not null,
+  description text,
+  amount_cents integer not null check (amount_cents >= 0),
+  currency text not null default 'INR',
+  period_start date,
+  period_end date,
+  due_date date,
+  status text not null default 'issued' check (status in ('draft', 'issued', 'paid', 'void')),
+  issued_at timestamptz not null default now()
+);
+
+alter table public.invoices enable row level security;
+
+create index if not exists invoices_parent_idx on public.invoices (parent_id, issued_at desc);
+create index if not exists invoices_clinician_idx on public.invoices (clinician_id, issued_at desc);
+
+-- ---------------------------------------------------------------------------
+-- parent_saved_worksheets — the Creator Hub.
+--
+-- A parent's saved shortlist of printable material for home practice. Points
+-- at a public library template; nothing is copied, so a template that stops
+-- being public simply stops resolving rather than leaving the parent holding
+-- a stale private copy of a clinician's work.
+-- ---------------------------------------------------------------------------
+create table if not exists public.parent_saved_worksheets (
+  id uuid primary key default gen_random_uuid(),
+  parent_id uuid not null references public.profiles (id) on delete cascade,
+  template_id uuid not null references public.templates (id) on delete cascade,
+  child_id uuid references public.profiles (id) on delete set null,
+  note text,
+  created_at timestamptz not null default now(),
+  unique (parent_id, template_id, child_id)
+);
+
+alter table public.parent_saved_worksheets enable row level security;
+
+create index if not exists parent_saved_worksheets_parent_idx
+  on public.parent_saved_worksheets (parent_id, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- conversations.parent_child_id — the parent's own thread with the clinician.
+--
+-- A separate conversation from the child's, never a shared one: an older
+-- patient's thread with their clinician stays private from their guardian.
+-- The messaging tables are already role-agnostic and N-ary, so this reuses
+-- conversation_participants/messages/triggers/realtime wholesale.
+-- ---------------------------------------------------------------------------
+alter table public.conversations
+  add column if not exists parent_child_id uuid references public.parent_children (id) on delete set null;
+
+create unique index if not exists conversations_parent_child_uidx
+  on public.conversations (parent_child_id)
+  where parent_child_id is not null;
+
+-- ---------------------------------------------------------------------------
+-- Grants
+-- ---------------------------------------------------------------------------
+grant select, insert, update, delete on public.parent_children to authenticated;
+grant select, insert, update, delete on public.parent_saved_worksheets to authenticated;
+grant select, insert, update, delete on public.invoices to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- RLS — parent_children
+-- ---------------------------------------------------------------------------
+drop policy if exists "parent_children_parent_select" on public.parent_children;
+create policy "parent_children_parent_select" on public.parent_children
+  for select using (parent_id = auth.uid());
+
+drop policy if exists "parent_children_parent_delete" on public.parent_children;
+create policy "parent_children_parent_delete" on public.parent_children
+  for delete using (parent_id = auth.uid());
+
+-- Rows are only ever created through claim_guardian_code() below, never by a
+-- direct insert — same reasoning as clinician_patients: it keeps a parent
+-- from linking themselves to an arbitrary child_id of their choosing.
+
+-- The child's clinician can see who a child's guardians are.
+drop policy if exists "parent_children_clinician_select" on public.parent_children;
+create policy "parent_children_clinician_select" on public.parent_children
+  for select using (public.is_clinician_of(child_id));
+
+-- ---------------------------------------------------------------------------
+-- RLS — parent's read access to their children's records
+--
+-- All SELECT-only and all additive: Postgres ORs same-command policies
+-- together, so these widen access for parents without altering what
+-- clinicians or patients could already see.
+-- ---------------------------------------------------------------------------
+drop policy if exists "profiles_select_guardian" on public.profiles;
+create policy "profiles_select_guardian" on public.profiles
+  for select using (
+    -- the parent's own children …
+    public.is_guardian_of(id)
+    -- … and those children's clinicians, so the parent can see who is
+    -- treating their child and message them.
+    or exists (
+      select 1
+      from public.parent_children pc
+      join public.clinician_patients cp on cp.patient_id = pc.child_id
+      where pc.parent_id = auth.uid()
+        and cp.clinician_id = profiles.id
+        and cp.status = 'active'
+    )
+  );
+
+drop policy if exists "clinician_patients_guardian_select" on public.clinician_patients;
+create policy "clinician_patients_guardian_select" on public.clinician_patients
+  for select using (public.is_guardian_of(patient_id));
+
+drop policy if exists "assignments_guardian_select" on public.assignments;
+create policy "assignments_guardian_select" on public.assignments
+  for select using (public.is_guardian_of(patient_id));
+
+drop policy if exists "activity_attempts_guardian_select" on public.activity_attempts;
+create policy "activity_attempts_guardian_select" on public.activity_attempts
+  for select using (public.is_guardian_of(patient_id));
+
+-- Deliberately absent: ai_insights. Those are the clinician's own working
+-- notes about a patient, not a parent-facing artefact, and nothing in the
+-- parent area reads them.
+
+-- ---------------------------------------------------------------------------
+-- RLS — invoices (parent reads their own; clinician manages what they issued)
+-- ---------------------------------------------------------------------------
+drop policy if exists "invoices_parent_select" on public.invoices;
+create policy "invoices_parent_select" on public.invoices
+  for select using (parent_id = auth.uid() and status <> 'draft');
+
+drop policy if exists "invoices_clinician_all" on public.invoices;
+create policy "invoices_clinician_all" on public.invoices
+  for all using (clinician_id = auth.uid()) with check (clinician_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- RLS — parent_saved_worksheets (entirely the parent's own)
+-- ---------------------------------------------------------------------------
+drop policy if exists "parent_saved_worksheets_owner_all" on public.parent_saved_worksheets;
+create policy "parent_saved_worksheets_owner_all" on public.parent_saved_worksheets
+  for all using (parent_id = auth.uid()) with check (parent_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- claim_guardian_code — a parent links to a child by code.
+--
+-- Security definer for the same reason claim_invite() is: it has to read a
+-- clinician_patients row the caller cannot otherwise see, while enforcing
+-- its own narrow rule. Unlike claim_invite() it does NOT consume the code —
+-- two parents (e.g. separated guardians) may each link to the same child.
+-- ---------------------------------------------------------------------------
+create or replace function public.claim_guardian_code(p_guardian_code text)
+returns public.parent_children
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_link public.clinician_patients;
+  v_row public.parent_children;
+  v_role text;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select role into v_role from public.profiles where id = auth.uid();
+  if v_role is distinct from 'parent' then
+    raise exception 'Only a parent account can use a guardian code';
+  end if;
+
+  select * into v_link
+  from public.clinician_patients
+  where guardian_code = p_guardian_code;
+
+  if v_link.id is null then
+    raise exception 'Invalid guardian code';
+  end if;
+
+  -- The child must have claimed their own invite first: until they do there
+  -- is no child profile to attach the guardian to.
+  if v_link.patient_id is null then
+    raise exception 'That child has not set up their account yet';
+  end if;
+
+  if v_link.patient_id = auth.uid() then
+    raise exception 'You cannot be your own guardian';
+  end if;
+
+  insert into public.parent_children (parent_id, child_id, clinician_patient_id)
+  values (auth.uid(), v_link.patient_id, v_link.id)
+  on conflict (parent_id, child_id) do update
+    set clinician_patient_id = excluded.clinician_patient_id
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+grant execute on function public.claim_guardian_code(text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- start_parent_conversation — get-or-create the parent↔clinician thread.
+--
+-- Mirrors start_conversation() but keys off a parent_children row, so the
+-- parent's thread is a distinct conversation from the child's own.
+-- ---------------------------------------------------------------------------
+create or replace function public.start_parent_conversation(p_parent_child_id uuid)
+returns public.conversations
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_link public.parent_children;
+  v_clinician_id uuid;
+  v_conversation public.conversations;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select * into v_link
+  from public.parent_children
+  where id = p_parent_child_id;
+
+  if v_link.id is null then
+    raise exception 'Unknown guardian link';
+  end if;
+
+  select cp.clinician_id into v_clinician_id
+  from public.clinician_patients cp
+  where cp.id = v_link.clinician_patient_id;
+
+  if v_clinician_id is null then
+    raise exception 'That child is not currently on a clinician''s caseload';
+  end if;
+
+  -- Only the two people the thread is between may open it.
+  if auth.uid() <> v_link.parent_id and auth.uid() <> v_clinician_id then
+    raise exception 'Not a participant';
+  end if;
+
+  select * into v_conversation
+  from public.conversations
+  where parent_child_id = p_parent_child_id;
+
+  if v_conversation.id is null then
+    insert into public.conversations (parent_child_id, created_by)
+    values (p_parent_child_id, auth.uid())
+    returning * into v_conversation;
+  end if;
+
+  insert into public.conversation_participants (conversation_id, user_id)
+  values (v_conversation.id, v_link.parent_id)
+  on conflict (conversation_id, user_id) do nothing;
+
+  insert into public.conversation_participants (conversation_id, user_id)
+  values (v_conversation.id, v_clinician_id)
+  on conflict (conversation_id, user_id) do nothing;
+
+  return v_conversation;
+end;
+$$;
+
+grant execute on function public.start_parent_conversation(uuid) to authenticated;

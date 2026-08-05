@@ -126,6 +126,22 @@ export async function startConversation(
   return { error: null, conversation: data ?? undefined };
 }
 
+// The parent's own thread with their child's clinician. Keyed off the
+// guardian link rather than the caseload row, so it is a separate
+// conversation from the child's own — an older patient's thread with their
+// clinician stays private from their guardian.
+export async function startParentConversation(
+  parentChildId: string,
+): Promise<{ error: string | null; conversation?: ConversationRow }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("start_parent_conversation", {
+    p_parent_child_id: parentChildId,
+  });
+
+  if (error) return { error: error.message };
+  return { error: null, conversation: data ?? undefined };
+}
+
 // Sends a TEXT message and notifies the other participant(s). Authorization
 // (sender must be a participant; can't impersonate another sender; can't
 // insert SYSTEM directly) is entirely enforced by the messages_sender_insert

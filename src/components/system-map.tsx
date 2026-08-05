@@ -13,6 +13,8 @@ import {
   Bell,
   Search,
   Moon,
+  MessageSquare,
+  Wallet,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -74,14 +76,42 @@ const PATIENT_SECTIONS: MapSection[] = [
   },
 ];
 
+const PARENT_SECTIONS: MapSection[] = [
+  {
+    title: "Following your child",
+    entries: [
+      { icon: LayoutDashboard, href: "/parent", label: "Dashboard", body: "How your child is doing at a glance, and what's coming up." },
+      { icon: Send, href: "/parent/missions", label: "Missions", body: "Every activity their clinician has assigned. Your child completes these in their own account." },
+      { icon: TrendingUp, href: "/parent/progress", label: "Progress", body: "Accuracy over time plus any notes the clinician has left on an activity." },
+      { icon: CalendarDays, href: "/parent/calendar", label: "Calendar", body: "Activity due dates laid out by month." },
+      { icon: MessageSquare, href: "/parent/messages", label: "Messages", body: "Your own conversation with your child's clinician — separate from your child's." },
+    ],
+  },
+  {
+    title: "Home practice and admin",
+    entries: [
+      { icon: BookOpen, href: "/parent/creator-hub", label: "Creator Hub", body: "Browse printable worksheets clinicians have published, and save the ones you want for home practice." },
+      { icon: Wallet, href: "/parent/finances", label: "Finances", body: "Statements your clinic has issued. A record only — no payment is taken here." },
+    ],
+  },
+  {
+    title: "Switching between children",
+    entries: [
+      { icon: Users, label: "Child Selector", body: "Top bar — if you're linked to more than one child, switch which one every screen is showing. Your choice is remembered." },
+      { icon: BookOpen, href: "/library/templates", label: "Global Library", body: "Everything clinicians have published platform-wide." },
+    ],
+  },
+];
+
 const EVERYWHERE: MapEntry[] = [
   { icon: Bell, label: "Notification bell", body: "Top bar, right side — unread alerts for new assignments, completed activities, and clinician notes." },
   { icon: Search, label: "Command palette", body: "Press Cmd/Ctrl+K anywhere to jump to a page or run a quick action." },
   { icon: Moon, label: "Theme toggle", body: "Top bar — switch between light and dark, persisted across visits." },
 ];
 
-export function SystemMap({ role }: { role: "clinician" | "patient" }) {
-  const sections = role === "clinician" ? CLINICIAN_SECTIONS : PATIENT_SECTIONS;
+export function SystemMap({ role }: { role: "clinician" | "patient" | "parent" }) {
+  const sections =
+    role === "clinician" ? CLINICIAN_SECTIONS : role === "parent" ? PARENT_SECTIONS : PATIENT_SECTIONS;
 
   return (
     <div className="flex flex-col gap-8">

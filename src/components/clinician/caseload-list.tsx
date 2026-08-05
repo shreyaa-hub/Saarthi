@@ -22,6 +22,7 @@ type CaseloadRow = {
   status: string;
   display_name: string;
   invite_code: string;
+  guardian_code: string | null;
   created_at: string;
   patient_id: string | null;
   profiles: { full_name: string; email: string | null } | null;
@@ -98,7 +99,12 @@ export function CaseloadList({
                       <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
                     )}
                     <div className="relative z-10">
-                      <PatientRowActions id={row.id} status={row.status} inviteCode={row.invite_code} />
+                      <PatientRowActions
+                        id={row.id}
+                        status={row.status}
+                        inviteCode={row.invite_code}
+                        guardianCode={row.guardian_code}
+                      />
                     </div>
                   </CardContent>
                 </Card>

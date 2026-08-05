@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MoreHorizontal, Archive, RotateCcw, Copy } from "lucide-react";
+import { MoreHorizontal, Archive, RotateCcw, Copy, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -16,10 +16,12 @@ export function PatientRowActions({
   id,
   status,
   inviteCode,
+  guardianCode,
 }: {
   id: string;
   status: string;
   inviteCode: string;
+  guardianCode?: string | null;
 }) {
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -40,6 +42,19 @@ export function PatientRowActions({
             }}
           >
             <Copy className="size-4" /> Copy invite code
+          </DropdownMenuItem>
+        )}
+        {/* Available at any status, not just "invited": a parent commonly
+            asks for access long after the child has set their own account
+            up, and unlike the invite code this one is never consumed. */}
+        {guardianCode && status !== "archived" && (
+          <DropdownMenuItem
+            onSelect={() => {
+              navigator.clipboard.writeText(guardianCode);
+              toast.success("Guardian code copied — share this with a parent, not the patient");
+            }}
+          >
+            <Users className="size-4" /> Copy guardian code
           </DropdownMenuItem>
         )}
         {status === "archived" ? (

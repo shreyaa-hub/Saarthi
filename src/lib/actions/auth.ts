@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { homeForRole } from "@/lib/auth/session";
 
 export type ActionState = { error: string | null; message?: string | null };
 
@@ -33,7 +34,7 @@ export async function signIn(
     .eq("id", data.user.id)
     .single();
 
-  redirect(profile?.role === "clinician" ? "/clinician" : "/patient");
+  redirect(homeForRole(profile?.role ?? "patient"));
 }
 
 export async function signUpClinician(
@@ -124,6 +125,58 @@ export async function signUpPatient(
   }
 
   redirect("/patient");
+}
+
+export async function signUpParent(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const fullName = String(formData.get("full_name") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const guardianCode = String(formData.get("guardian_code") || "").trim().toUpperCase();
+
+  if (!fullName || !email || !password) {
+    return { error: "Fill in your name, email, and password." };
+  }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { role: "parent", full_name: fullName },
+    },
+  });
+
+  if (error) return { error: error.message };
+
+  if (!data.session) {
+    return {
+      error: null,
+      message: "Account created. Check your email to confirm, then sign in.",
+    };
+  }
+
+  // Same shape as signUpPatient's invite handling: a bad code must never
+  // strand a successfully created account, so it reports back and leaves the
+  // parent to retry from their dashboard.
+  if (guardianCode) {
+    const { error: linkError } = await supabase.rpc("claim_guardian_code", {
+      p_guardian_code: guardianCode,
+    });
+    if (linkError) {
+      return {
+        error: null,
+        message: `Account created, but the guardian code was not accepted: ${linkError.message} You can enter it again from your dashboard.`,
+      };
+    }
+  }
+
+  redirect("/parent");
 }
 
 export async function signOut() {
