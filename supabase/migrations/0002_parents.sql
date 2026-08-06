@@ -25,27 +25,50 @@
 -- constraint on the table whose definition mentions the role column and drop
 -- it by its real name, whatever that turns out to be.
 -- ---------------------------------------------------------------------------
+-- Two deliberate choices here:
+--
+-- 1. Constraints are matched by whether they actually constrain the `role`
+--    COLUMN (conkey), not by whether the word "role" appears in their
+--    definition text. A text match would also catch an unrelated constraint
+--    that merely mentions the string — e.g. one on a column named "control",
+--    or a CHECK listing a value like 'enrolled'.
+--
+-- 2. The drop and the re-add are a single ALTER TABLE. ALTER TABLE applies
+--    all its actions atomically, so `profiles` is never briefly left with no
+--    constraint on role. Splitting them would open a window where a bad row
+--    could be written if anything ran in between.
 do $$
 declare
+  v_attnum smallint;
+  v_actions text := '';
   v_name text;
 begin
+  select attnum into v_attnum
+  from pg_attribute
+  where attrelid = 'public.profiles'::regclass
+    and attname = 'role'
+    and not attisdropped;
+
+  if v_attnum is null then
+    raise exception 'public.profiles has no role column — is 0001_init.sql applied?';
+  end if;
+
   for v_name in
     select con.conname
     from pg_constraint con
-    join pg_class rel on rel.oid = con.conrelid
-    join pg_namespace nsp on nsp.oid = rel.relnamespace
-    where nsp.nspname = 'public'
-      and rel.relname = 'profiles'
+    where con.conrelid = 'public.profiles'::regclass
       and con.contype = 'c'
-      and pg_get_constraintdef(con.oid) ilike '%role%'
+      and con.conkey @> array[v_attnum]
   loop
-    execute format('alter table public.profiles drop constraint %I', v_name);
+    v_actions := v_actions || format('drop constraint %I, ', v_name);
   end loop;
+
+  execute 'alter table public.profiles '
+       || v_actions
+       || 'add constraint profiles_role_check '
+       || 'check (role in (''clinician'', ''patient'', ''parent''))';
 end
 $$;
-
-alter table public.profiles add constraint profiles_role_check
-  check (role in ('clinician', 'patient', 'parent'));
 
 -- ---------------------------------------------------------------------------
 -- clinician_patients.guardian_code
