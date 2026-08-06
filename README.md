@@ -10,8 +10,8 @@ Anthropic Claude (progress insights) · zustand (canvas editor state) · rechart
 
 - **Public marketing site** — home, features, workflow, about, contact, and stub pages for
   the library/marketplace areas from the sitemap.
-- **Auth** — email/password sign-up with role selection (clinician / patient), role-aware
-  middleware route protection.
+- **Auth** — email/password sign-up with role selection (clinician / patient / parent),
+  role-aware middleware route protection.
 - **Clinician workspace** — dashboard, caseload (invite-code based patient linking), and a
   drag-and-drop canvas **Template Studio** with 9 element types (text, image, shape, audio,
   button, multiple choice, fill-in-the-blank, drag-to-match, sequencing), autosave, and
@@ -25,9 +25,16 @@ Anthropic Claude (progress insights) · zustand (canvas editor state) · rechart
   panel that asks Claude to summarize recent attempts into strengths / concerns /
   recommendations for the clinician (never shown to the patient).
 
+- **Parent area** — a guardian links to an existing patient account with a clinician-issued
+  guardian code (separate from the patient's own invite code, which would otherwise let a
+  parent *become* the patient). Dashboard, missions, progress, calendar, a parent↔clinician
+  message thread kept separate from the child's, a home-practice worksheet shortlist, and a
+  read-only statements view. A Child Selector switches between children.
+
 Out of scope for this pass (present in the sitemap, not built): the Admin console,
 marketplace, wallets/points, gamification, and localization. Nav links to those areas render
-a "coming soon" page rather than 404ing.
+a "coming soon" page rather than 404ing. Parent **Finances** is a record only — there is no
+payment processing anywhere in the product, and nothing charges a card.
 
 ## Prerequisites
 
@@ -44,12 +51,34 @@ a "coming soon" page rather than 404ing.
    npm install
    ```
 
-2. **Create a Supabase project**, then open **SQL Editor** in the dashboard and run the
-   contents of [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql).
-   This creates all tables, the `handle_new_user` / `claim_invite` functions, and the RLS
-   policies. The policies were exercised against a local Postgres instance during
-   development (clinician/patient data isolation, cross-tenant access denial, invite-claim
-   flow) — see the migration file's comments for what each policy does.
+2. **Create a Supabase project**, then open **SQL Editor** in the dashboard and run every
+   file in [`supabase/migrations/`](./supabase/migrations) **in filename order**:
+
+   | File | What it adds |
+   | --- | --- |
+   | `0001_init.sql` | Tables, `handle_new_user` / `claim_invite`, and the clinician/patient RLS policies. |
+   | `0002_parents.sql` | The `parent` role, guardian links, `claim_guardian_code`, invoices, and saved worksheets. |
+
+   Every file is idempotent, so re-running one is safe — that is also how you repair a
+   database left in a partial state by a failed run.
+
+   Skipping a migration does not fail loudly at startup; it fails at the first feature that
+   needs it. Skipping `0002` in particular leaves `profiles.role` rejecting `'parent'`, so
+   parent sign-up fails inside the `handle_new_user` trigger, which Supabase reports only as
+   an opaque auth error.
+
+   Alternatively, apply them from the command line:
+
+   ```bash
+   psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
+   psql "$DATABASE_URL" -f supabase/migrations/0002_parents.sql
+   ```
+
+   (`DATABASE_URL` is the connection string under **Project Settings → Database**.)
+
+   The policies were exercised against a local Postgres instance during development
+   (clinician/patient data isolation, cross-tenant access denial, invite-claim flow) — see
+   each migration file's comments for what its policies do.
 
 3. **Copy env vars**
 
