@@ -10,7 +10,7 @@ import { useCanvasStore, useCanvasStoreInstance } from "@/lib/canvas/store";
 import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } from "@/lib/types/canvas";
 import { TEMPLATE_DOMAINS } from "@/lib/types/canvas";
 import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib/actions/templates";
-import { Palette } from "./palette";
+import { EditorSidebar } from "./editor-sidebar";
 import type { ElementSurface } from "@/lib/canvas/defaults";
 import { CanvasSurface } from "./canvas-surface";
 import { PropertiesPanel } from "./properties-panel";
@@ -316,7 +316,7 @@ export function CanvasEditor({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Palette store={store} surface={surface} />
+        <EditorSidebar store={store} surface={surface} />
         <div className="flex-1 overflow-hidden">
           <CanvasSurface store={store} />
         </div>

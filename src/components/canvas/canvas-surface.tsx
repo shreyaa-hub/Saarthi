@@ -6,6 +6,9 @@ import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import { computeSnap } from "@/lib/canvas/alignment";
 import { pageStyleBackground } from "@/lib/canvas/page-style";
+import { createElement } from "@/lib/canvas/defaults";
+import { ELEMENT_DND_TYPE } from "@/lib/canvas/dnd";
+import type { CanvasElementType } from "@/lib/types/canvas";
 import { ElementBox } from "./element-box";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +24,7 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const pageStyle = useCanvasStore(store, (s) => s.pageStyle);
   const elements = useCanvasStore(store, (s) => s.elements);
   const selectedIds = useCanvasStore(store, (s) => s.selectedIds);
-  const { updateElement, removeElement, duplicateElement, select, selectMany } = store.getState();
+  const { updateElement, removeElement, duplicateElement, reorder, select, selectMany } = store.getState();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
@@ -30,6 +33,37 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
 
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropActive, setDropActive] = useState(false);
+
+  // Dropping from the sidebar. The element lands centred on the pointer, in
+  // canvas coordinates — client coordinates have to be divided back through
+  // the current zoom, or an element dropped while zoomed out would land far
+  // from the cursor.
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes(ELEMENT_DND_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setDropActive(true);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      const raw = e.dataTransfer.getData(ELEMENT_DND_TYPE);
+      if (!raw) return;
+      e.preventDefault();
+      setDropActive(false);
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / scale;
+      const y = (e.clientY - rect.top) / scale;
+
+      const el = createElement(raw as CanvasElementType, 0, 0);
+      const placed = { ...el, x: Math.round(x - el.w / 2), y: Math.round(y - el.h / 2) };
+      store.getState().addElement(placed);
+      store.getState().select(placed.id);
+    },
+    [scale, store],
+  );
 
   // Pure derivation from the current drag position — no state needed, this
   // just recomputes on every render while dragging.
@@ -141,7 +175,10 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
         className="canvas-surface flex flex-1 items-center justify-center overflow-auto p-6"
       >
         <div
-          className="relative shrink-0 shadow-lg ring-1 ring-border"
+          className={cn(
+            "relative shrink-0 shadow-lg ring-1 transition-shadow",
+            dropActive ? "ring-2 ring-primary" : "ring-border",
+          )}
           style={{ width: width * scale, height: height * scale }}
         >
           <div
@@ -156,6 +193,9 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
             onPointerDown={handleBackgroundPointerDown}
             onPointerMove={handleBackgroundPointerMove}
             onPointerUp={handleBackgroundPointerUp}
+            onDragOver={handleDragOver}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={handleDrop}
           >
             {elements.map((el) => (
               <ElementBox
@@ -169,6 +209,7 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
                 onChange={(patch) => updateElement(el.id, patch)}
                 onDelete={() => removeElement(el.id)}
                 onDuplicate={() => duplicateElement(el.id)}
+                onReorder={(direction) => reorder(el.id, direction)}
                 onDragStart={() => setDraggingId(el.id)}
                 onDragEnd={() => setDraggingId(null)}
               />

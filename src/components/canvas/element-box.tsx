@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, ChevronUp, ChevronDown, Lock, Unlock } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { snapToGridValue } from "@/lib/canvas/alignment";
 import { ElementPreview } from "./element-preview";
@@ -22,6 +22,7 @@ export function ElementBox({
   onChange,
   onDelete,
   onDuplicate,
+  onReorder,
   onDragStart,
   onDragEnd,
 }: {
@@ -35,6 +36,7 @@ export function ElementBox({
   onChange: (patch: Partial<CanvasElement>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onReorder?: (direction: "forward" | "backward") => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
 }) {
@@ -51,9 +53,12 @@ export function ElementBox({
 
   const handleMoveDown = useCallback(
     (e: React.PointerEvent) => {
-      if (readOnly || element.locked) return;
+      if (readOnly) return;
       e.stopPropagation();
+      // A locked element still selects — otherwise it could never be picked
+      // to unlock again — it just refuses to move.
       onSelect(e.shiftKey);
+      if (element.locked) return;
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       dragState.current = { startX: e.clientX, startY: e.clientY, elX: element.x, elY: element.y };
       onDragStart?.();
@@ -80,6 +85,7 @@ export function ElementBox({
 
   const handleResizeDown = useCallback(
     (handle: Handle) => (e: React.PointerEvent) => {
+      if (element.locked) return;
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       resizeState.current = {
@@ -92,7 +98,7 @@ export function ElementBox({
         handle,
       };
     },
-    [element.x, element.y, element.w, element.h],
+    [element.x, element.y, element.w, element.h, element.locked],
   );
 
   const handleResizeMove = useCallback(
@@ -139,8 +145,8 @@ export function ElementBox({
     <div
       className={cn(
         "absolute select-none",
-        !readOnly && "cursor-move",
-        selected && !readOnly && "outline outline-2 outline-primary outline-offset-2",
+        !readOnly && (element.locked ? "cursor-default" : "cursor-move"),
+        selected && !readOnly && "outline outline-2 outline-primary outline-offset-2 rounded-[2px]",
       )}
       style={{
         left: element.x,
@@ -158,41 +164,41 @@ export function ElementBox({
 
       {soleSelected && !readOnly && (
         <>
-          <div className="absolute -top-9 right-0 flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow-sm">
-            <button
-              type="button"
-              className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-              title="Duplicate"
+          {/* Counter-rotated so the toolbar stays upright and readable even
+              when the element itself is rotated. */}
+          <div
+            className="absolute -top-11 right-0 flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-md"
+            style={element.rotation ? { transform: `rotate(${-element.rotation}deg)` } : undefined}
+          >
+            <ToolbarButton label="Bring forward" onClick={() => onReorder?.("forward")}>
+              <ChevronUp className="size-3.5" />
+            </ToolbarButton>
+            <ToolbarButton label="Send backward" onClick={() => onReorder?.("backward")}>
+              <ChevronDown className="size-3.5" />
+            </ToolbarButton>
+            <ToolbarButton
+              label={element.locked ? "Unlock" : "Lock position"}
+              onClick={() => onChange({ locked: !element.locked })}
             >
+              {element.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+            </ToolbarButton>
+            <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+            <ToolbarButton label="Duplicate" onClick={onDuplicate}>
               <Copy className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              className="flex size-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 cursor-pointer"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              title="Delete"
-            >
+            </ToolbarButton>
+            <ToolbarButton label="Delete" destructive onClick={onDelete}>
               <Trash2 className="size-3.5" />
-            </button>
+            </ToolbarButton>
           </div>
 
-          {(["nw", "ne", "sw", "se"] as Handle[]).map((h) => (
+          {!element.locked && (["nw", "ne", "sw", "se"] as Handle[]).map((h) => (
             <div
               key={h}
               onPointerDown={handleResizeDown(h)}
               onPointerMove={handleResizeMove}
               onPointerUp={handleResizeUp}
               className={cn(
-                "absolute size-3 rounded-full border-2 border-primary bg-white",
+                "absolute size-2.5 rounded-sm border-2 border-primary bg-white shadow-sm",
                 h === "nw" && "-left-1.5 -top-1.5 cursor-nwse-resize",
                 h === "ne" && "-right-1.5 -top-1.5 cursor-nesw-resize",
                 h === "sw" && "-left-1.5 -bottom-1.5 cursor-nesw-resize",
@@ -203,5 +209,39 @@ export function ElementBox({
         </>
       )}
     </div>
+  );
+}
+
+function ToolbarButton({
+  label,
+  onClick,
+  destructive = false,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex size-7 items-center justify-center rounded-lg transition-colors cursor-pointer",
+        destructive
+          ? "text-destructive hover:bg-destructive/10"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+      // Stops the press from starting a drag on the element underneath.
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {children}
+    </button>
   );
 }
