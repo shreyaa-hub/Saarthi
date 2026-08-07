@@ -4,7 +4,7 @@ import { getAssignments, getCaseload } from "@/lib/data/clinician";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, cn } from "@/lib/utils";
-import { Send, ChevronRight, AlertTriangle } from "lucide-react";
+import { Send, ChevronRight, AlertTriangle, Home } from "lucide-react";
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
   completed: "success",
@@ -20,7 +20,7 @@ function isOverdue(dueDate: string | null, status: string) {
 export default async function AssignmentsPage() {
   const { supabase, user } = await requireProfile("clinician");
   const [assignments, caseload] = await Promise.all([
-    getAssignments(supabase, user.id),
+    getAssignments(supabase),
     getCaseload(supabase, user.id),
   ]);
   const patientToLink = new Map(caseload.map((c) => [c.patient_id, c.id]));
@@ -74,6 +74,11 @@ export default async function AssignmentsPage() {
                     {overdue && (
                       <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
                         <AlertTriangle className="size-3" /> Overdue
+                      </Badge>
+                    )}
+                    {a.clinician_id === null && (
+                      <Badge variant="outline" className="gap-1">
+                        <Home className="size-3" /> Home practice
                       </Badge>
                     )}
                     <Badge variant={statusVariant[a.status] ?? "outline"}>

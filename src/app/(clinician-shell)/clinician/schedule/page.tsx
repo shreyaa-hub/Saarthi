@@ -4,8 +4,8 @@ import { SchedulerCalendar } from "@/components/clinician/scheduler-calendar";
 import { Reveal } from "@/components/motion/reveal";
 
 export default async function SchedulePage() {
-  const { supabase, user } = await requireProfile("clinician");
-  const assignments = await getAssignments(supabase, user.id);
+  const { supabase } = await requireProfile("clinician");
+  const assignments = await getAssignments(supabase);
 
   return (
     <div className="flex flex-col gap-6">

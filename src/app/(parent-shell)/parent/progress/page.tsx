@@ -6,7 +6,7 @@ import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { NoChildState } from "@/components/parent/no-child-state";
-import { formatDate, pluralize } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 export default async function ParentProgressPage() {
   const { supabase, child } = await getParentContext();
@@ -23,15 +23,12 @@ export default async function ParentProgressPage() {
   const attempts = await getChildAttempts(supabase, child.childId);
   const firstName = child.name.split(" ")[0];
 
-  // The headline figures cover clinician-assigned therapy only, which is what
-  // makes them the same numbers the clinician sees — their own analytics
-  // filter on clinician_id, so home practice a parent sent themselves is not
-  // in their data and must not be in this total either. Home practice is
-  // counted separately below rather than being hidden.
-  const therapyAttempts = attempts.filter((a) => !isHomePractice(a));
-  const homePracticeCount = attempts.length - therapyAttempts.length;
-
-  const analyticsAttempts: AnalyticsAttempt[] = therapyAttempts.map((a) => ({
+  // Every completed activity, home practice included. The clinician's own
+  // analytics now cover the same set (0004 scopes their visibility by care
+  // relationship rather than by who assigned), so parent and clinician read
+  // the same numbers for the same child again. Individual rows are still
+  // labelled below so the provenance of each one stays visible.
+  const analyticsAttempts: AnalyticsAttempt[] = attempts.map((a) => ({
     patientId: child.childId,
     completedAt: a.completed_at,
     correctCount: a.correct_count,
@@ -52,11 +49,7 @@ export default async function ParentProgressPage() {
       <div>
         <h2 className="font-display text-2xl font-semibold">Progress</h2>
         <p className="text-sm text-muted-foreground">
-          {firstName}&apos;s accuracy across the activities their clinician assigned.
-          {homePracticeCount > 0 &&
-            ` ${pluralize(homePracticeCount, "home-practice activity", "home-practice activities")} you sent
-              ${homePracticeCount === 1 ? "is" : "are"} listed below but not counted in these figures,
-              so they match what the clinician sees.`}
+          {firstName}&apos;s accuracy across every completed activity, including home practice.
         </p>
       </div>
 
@@ -76,7 +69,7 @@ export default async function ParentProgressPage() {
           <CardTitle>Accuracy over time</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProgressChart attempts={therapyAttempts} />
+          <ProgressChart attempts={attempts} />
         </CardContent>
       </Card>
 

@@ -52,14 +52,16 @@ export async function getDashboardStats(supabase: Client, clinicianId: string) {
       .eq("owner_id", clinicianId)
       .eq("status", "published"),
     supabase
+      // Scoped by RLS (assignments_assigner_select) rather than by
+      // clinician_id, so parent-assigned home practice for this clinician's
+      // patients is counted too. Filtering on clinician_id here would silently
+      // exclude it, since a parent assignment has none.
       .from("assignments")
       .select("id", { count: "exact", head: true })
-      .eq("clinician_id", clinicianId)
       .neq("status", "completed"),
     supabase
       .from("activity_attempts")
-      .select("id, assignments!inner(clinician_id)", { count: "exact", head: true })
-      .eq("assignments.clinician_id", clinicianId),
+      .select("id", { count: "exact", head: true }),
   ]);
 
   logIfError("getDashboardStats:patients", patients.error);
@@ -81,7 +83,6 @@ export async function getRecentAttempts(supabase: Client, clinicianId: string, l
     .select(
       "id, score, correct_count, total_count, completed_at, patient_id, assignments!inner(id, title, clinician_id), profiles!activity_attempts_patient_id_fkey(full_name)",
     )
-    .eq("assignments.clinician_id", clinicianId)
     .order("completed_at", { ascending: false })
     .limit(limit);
 
@@ -123,9 +124,11 @@ export async function getPatientDetail(
   const [assignmentsRes, insightsRes] = await Promise.all([
     link.patient_id
       ? supabase
+          // patient_id is the explicit scope; no clinician_id filter, so a
+          // parent-assigned worksheet shows up here too. RLS still limits
+          // this to patients on the caller's own caseload.
           .from("assignments")
           .select("*")
-          .eq("clinician_id", clinicianId)
           .eq("patient_id", link.patient_id)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
@@ -175,11 +178,17 @@ export async function getTrashedTemplates(supabase: Client, ownerId: string) {
   return data ?? [];
 }
 
-export async function getAssignments(supabase: Client, clinicianId: string) {
+// Every assignment across the caller's caseload, whoever created it. Scoped
+// entirely by RLS to the authenticated user, so it deliberately takes no
+// clinician id — passing one would imply this can read another clinician's
+// caseload, which it cannot.
+export async function getAssignments(supabase: Client) {
   const { data, error } = await supabase
+    // Scoped by RLS to this clinician's caseload rather than by clinician_id,
+    // which is what lets parent-assigned home practice appear alongside the
+    // clinician's own assignments.
     .from("assignments")
     .select("*, profiles!assignments_patient_id_fkey(full_name)")
-    .eq("clinician_id", clinicianId)
     .order("created_at", { ascending: false });
 
   logIfError("getAssignments", error);
@@ -219,7 +228,9 @@ export async function getCaseloadAttempts(
   const { data, error } = await supabase
     .from("activity_attempts")
     .select(ATTEMPT_WITH_DOMAIN_SELECT)
-    .eq("assignments.clinician_id", clinicianId)
+    // No clinician_id filter: activity_attempts_clinician_select scopes this
+    // to the caller's own caseload by care relationship, which is what admits
+    // parent-assigned home practice (it has no clinician_id to match on).
     .gte("completed_at", since)
     .order("completed_at", { ascending: true });
 
@@ -293,7 +304,9 @@ export async function getPatientAttempts(
   const { data, error } = await supabase
     .from("activity_attempts")
     .select(PATIENT_ATTEMPT_SELECT)
-    .eq("assignments.clinician_id", clinicianId)
+    // patient_id stays as an explicit scope; the clinician_id filter is gone
+    // so home practice is included. RLS still guarantees the caller may only
+    // read attempts for a patient they actually treat.
     .eq("assignments.patient_id", patientId)
     .order("completed_at", { ascending: true });
 

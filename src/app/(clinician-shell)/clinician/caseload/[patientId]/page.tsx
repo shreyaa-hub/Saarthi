@@ -15,7 +15,7 @@ import { PatientPerformancePanel } from "@/components/clinician/analytics/patien
 import { getTemplates } from "@/lib/data/clinician";
 import { startConversation } from "@/lib/actions/messages";
 import { getMessages } from "@/lib/data/messages";
-import { ArrowLeft, AlertTriangle, Printer } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Printer, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, "success" | "secondary" | "outline"> = {
@@ -180,6 +180,14 @@ export default async function PatientDetailPage({
                             {overdue && (
                               <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive">
                                 <AlertTriangle className="size-3" /> Overdue
+                              </Badge>
+                            )}
+                            {/* Sent by a parent, not prescribed by this
+                                clinician — flagged so the two are never
+                                mistaken for each other in the record. */}
+                            {a.clinician_id === null && (
+                              <Badge variant="outline" className="gap-1">
+                                <Home className="size-3" /> Home practice
                               </Badge>
                             )}
                             <Badge variant={statusStyles[a.status] ?? "outline"}>
