@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Volume2, Check, X } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
+import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { cn } from "@/lib/utils";
 
 export function ElementPlayer({
@@ -166,6 +167,15 @@ export function ElementPlayer({
       const order = Array.isArray(response) ? (response as string[]) : [];
       return <SequencePlayer element={element} order={order} onChange={onChange} locked={locked} />;
     }
+
+    // Worksheet elements are printed and filled in on paper — nothing to
+    // capture, nothing to score — so on screen they render exactly as the
+    // author laid them out, via the same components the canvas uses.
+    case "list":
+      return <ListBlock element={element} />;
+
+    case "writingLines":
+      return <WritingLinesBlock element={element} />;
 
     default:
       return null;

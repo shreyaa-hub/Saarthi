@@ -1,5 +1,6 @@
 import { ImageIcon, Volume2, MoveHorizontal, ListOrdered } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
+import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
@@ -159,6 +160,12 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
           </div>
         </div>
       );
+
+    case "list":
+      return <ListBlock element={element} />;
+
+    case "writingLines":
+      return <WritingLinesBlock element={element} />;
 
     default:
       return null;

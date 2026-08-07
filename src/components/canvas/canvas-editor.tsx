@@ -11,6 +11,7 @@ import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } fr
 import { TEMPLATE_DOMAINS } from "@/lib/types/canvas";
 import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib/actions/templates";
 import { Palette } from "./palette";
+import type { ElementSurface } from "@/lib/canvas/defaults";
 import { CanvasSurface } from "./canvas-surface";
 import { PropertiesPanel } from "./properties-panel";
 import { ShortcutsDialog } from "./shortcuts-dialog";
@@ -35,7 +36,19 @@ type TemplateRow = {
   updated_at: string;
 };
 
-export function CanvasEditor({ template }: { template: TemplateRow }) {
+// `surface` and `backHref` are what let the parent worksheet workspace reuse
+// this editor wholesale rather than forking it: the surface narrows the
+// palette to worksheet-only tools, and the back link has to lead somewhere the
+// user can actually reach (a parent has no access to /clinician/studio).
+export function CanvasEditor({
+  template,
+  surface = "activity",
+  backHref = "/clinician/studio",
+}: {
+  template: TemplateRow;
+  surface?: ElementSurface;
+  backHref?: string;
+}) {
   const router = useRouter();
   const store = useCanvasStoreInstance(template.canvas);
 
@@ -206,7 +219,7 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
       <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href="/clinician/studio"
+            href={backHref}
             className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="size-4" />
@@ -289,7 +302,7 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
           <Button size="sm" variant={status === "published" ? "outline" : "default"} onClick={togglePublish}>
             {status === "published" ? "Unpublish" : "Publish"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => router.push("/clinician/studio")}>
+          <Button size="sm" variant="ghost" onClick={() => router.push(backHref)}>
             Done
           </Button>
         </div>
@@ -303,7 +316,7 @@ export function CanvasEditor({ template }: { template: TemplateRow }) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Palette store={store} />
+        <Palette store={store} surface={surface} />
         <div className="flex-1 overflow-hidden">
           <CanvasSurface store={store} />
         </div>

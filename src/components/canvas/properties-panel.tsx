@@ -8,6 +8,9 @@ import type {
   MultipleChoiceElement,
   DragMatchElement,
   SequenceElement,
+  ListElement,
+  WritingLinesElement,
+  PageStyle,
 } from "@/lib/types/canvas";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -50,7 +53,8 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
   const width = useCanvasStore(store, (s) => s.width);
   const height = useCanvasStore(store, (s) => s.height);
   const background = useCanvasStore(store, (s) => s.background);
-  const { updateElement, setBackground, setSize, reorder, removeSelected, duplicateSelected } =
+  const pageStyle = useCanvasStore(store, (s) => s.pageStyle);
+  const { updateElement, setBackground, setSize, setPageStyle, reorder, removeSelected, duplicateSelected } =
     store.getState();
 
   const selected = selectedIds.length === 1 ? elements.find((e) => e.id === selectedIds[0]) ?? null : null;
@@ -99,6 +103,17 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
             />
           </Field>
         </div>
+        <Field label="Page ruling">
+          <Select value={pageStyle} onValueChange={(v) => setPageStyle(v as PageStyle)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="blank">Unruled (blank)</SelectItem>
+              <SelectItem value="ruled">Ruled lines</SelectItem>
+              <SelectItem value="grid">Grid</SelectItem>
+              <SelectItem value="dotted">Dotted</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
         <p className="text-xs text-muted-foreground">
           Select an element on the canvas to edit its properties.
         </p>
@@ -329,7 +344,132 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "dragMatch" && <DragMatchFields element={selected} patch={patch} />}
 
       {selected.type === "sequence" && <SequenceFields element={selected} patch={patch} />}
+
+      {selected.type === "list" && <ListFields element={selected} patch={patch} />}
+
+      {selected.type === "writingLines" && <WritingLinesFields element={selected} patch={patch} />}
     </aside>
+  );
+}
+
+function ListFields({
+  element,
+  patch,
+}: {
+  element: ListElement;
+  patch: (p: Partial<ListElement>) => void;
+}) {
+  const setItem = (i: number, value: string) => {
+    const items = [...element.items];
+    items[i] = value;
+    patch({ items });
+  };
+
+  return (
+    <>
+      <Field label="Style">
+        <Select
+          value={element.ordered ? "numbered" : "bulleted"}
+          onValueChange={(v) => patch({ ordered: v === "numbered" })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bulleted">Bulleted</SelectItem>
+            <SelectItem value="numbered">Numbered</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <Field label="Items">
+        <div className="flex flex-col gap-1.5">
+          {element.items.map((item, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Input value={item} onChange={(e) => setItem(i, e.target.value)} />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove item ${i + 1}`}
+                onClick={() => patch({ items: element.items.filter((_, j) => j !== i) })}
+              >
+                ×
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => patch({ items: [...element.items, "New point"] })}
+          >
+            Add item
+          </Button>
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Font size">
+          <Input
+            type="number"
+            value={element.fontSize}
+            onChange={(e) => patch({ fontSize: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label="Line gap">
+          <Input
+            type="number"
+            value={element.lineGap}
+            onChange={(e) => patch({ lineGap: Number(e.target.value) })}
+          />
+        </Field>
+      </div>
+
+      <Field label="Colour">
+        <Input type="color" value={element.color} onChange={(e) => patch({ color: e.target.value })} />
+      </Field>
+    </>
+  );
+}
+
+function WritingLinesFields({
+  element,
+  patch,
+}: {
+  element: WritingLinesElement;
+  patch: (p: Partial<WritingLinesElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Ruling">
+        <Select value={element.guide} onValueChange={(v) => patch({ guide: v as WritingLinesElement["guide"] })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="single">Single lines</SelectItem>
+            <SelectItem value="dotted-midline">Handwriting (dotted midline)</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Lines">
+          <Input
+            type="number"
+            min={1}
+            value={element.lines}
+            onChange={(e) => patch({ lines: Math.max(1, Number(e.target.value)) })}
+          />
+        </Field>
+        <Field label="Line gap">
+          <Input
+            type="number"
+            value={element.lineGap}
+            onChange={(e) => patch({ lineGap: Number(e.target.value) })}
+          />
+        </Field>
+      </div>
+
+      <Field label="Colour">
+        <Input type="color" value={element.color} onChange={(e) => patch({ color: e.target.value })} />
+      </Field>
+    </>
   );
 }
 

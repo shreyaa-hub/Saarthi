@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { TemplateCanvas } from "@/lib/types/canvas";
 import { isInteractive } from "@/lib/types/canvas";
 import { scoreCanvas, type Responses } from "@/lib/scoring";
+import { pageStyleBackground } from "@/lib/canvas/page-style";
 import { submitAttempt } from "@/lib/actions/patient";
 import { ElementPlayer } from "./element-player";
 import { Button } from "@/components/ui/button";
@@ -135,7 +136,12 @@ export function ActivityPlayer({
         >
           <div
             className="absolute left-0 top-0 origin-top-left"
-            style={{ width: canvas.width, height: canvas.height, background: canvas.background, transform: `scale(${scale})` }}
+            style={{
+              width: canvas.width,
+              height: canvas.height,
+              transform: `scale(${scale})`,
+              ...pageStyleBackground(canvas.pageStyle, canvas.background),
+            }}
           >
             {canvas.elements.map((el) => (
               <div key={el.id} className="absolute" style={{ left: el.x, top: el.y, width: el.w, height: el.h }}>

@@ -106,6 +106,20 @@ export async function getMyInvoices(supabase: Client, parentId: string) {
   return data ?? [];
 }
 
+// Worksheets this parent authored themselves, as opposed to getSavedWorksheets
+// below, which is their shortlist of other people's published material.
+export async function getMyWorksheets(supabase: Client, parentId: string) {
+  const { data, error } = await supabase
+    .from("templates")
+    .select("id, title, domain, medium, status, is_public, thumbnail_color, updated_at")
+    .eq("owner_id", parentId)
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false });
+
+  logIfError("getMyWorksheets", error);
+  return data ?? [];
+}
+
 export async function getSavedWorksheets(supabase: Client, parentId: string) {
   const { data, error } = await supabase
     .from("parent_saved_worksheets")

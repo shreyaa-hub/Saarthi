@@ -1,19 +1,16 @@
 import { getParentContext } from "@/lib/parent/context";
-import { getSavedWorksheets } from "@/lib/data/parent";
+import { getSavedWorksheets, getMyWorksheets } from "@/lib/data/parent";
 import { getPublicTemplates } from "@/lib/data/library";
 import { WorksheetBrowser } from "@/components/parent/worksheet-browser";
 import { SavedWorksheetList, type SavedWorksheet } from "@/components/parent/saved-worksheet-list";
+import { MyWorksheetList, type MyWorksheet } from "@/components/parent/my-worksheet-list";
+import { CreateWorksheetDialog } from "@/components/parent/create-worksheet-dialog";
 
-// Scope note: "Creator Hub" in the sitemap is undefined for a parent, and
-// parents are not clinicians — they should not be authoring therapy content
-// for their own child unsupervised. This implements it as a home-practice
-// shortlist over the printable material clinicians have already published to
-// the Global Library: browse, save, print. Nothing here creates or edits a
-// template.
 export default async function ParentCreatorHubPage() {
   const { supabase, user, child } = await getParentContext();
 
-  const [saved, templates] = await Promise.all([
+  const [mine, saved, templates] = await Promise.all([
+    getMyWorksheets(supabase, user.id),
     getSavedWorksheets(supabase, user.id),
     getPublicTemplates(supabase, { medium: "print" }),
   ]);
@@ -24,12 +21,20 @@ export default async function ParentCreatorHubPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-semibold">Creator Hub</h2>
+          <p className="text-sm text-muted-foreground">
+            Make your own printable worksheets
+            {child ? ` for ${child.name.split(" ")[0]}` : ""}, or save ones other people have shared.
+          </p>
+        </div>
+        <CreateWorksheetDialog />
+      </div>
+
       <div>
-        <h2 className="font-display text-2xl font-semibold">Creator Hub</h2>
-        <p className="text-sm text-muted-foreground">
-          Printable worksheets clinicians have shared publicly. Save the ones you want for home practice
-          {child ? ` with ${child.name.split(" ")[0]}` : ""}.
-        </p>
+        <h3 className="mb-3 text-lg font-semibold">Your worksheets ({mine.length})</h3>
+        <MyWorksheetList worksheets={mine as unknown as MyWorksheet[]} />
       </div>
 
       <div>

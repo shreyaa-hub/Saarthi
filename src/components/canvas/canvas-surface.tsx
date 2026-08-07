@@ -5,6 +5,7 @@ import { ZoomIn, ZoomOut, Maximize2, Magnet } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import { computeSnap } from "@/lib/canvas/alignment";
+import { pageStyleBackground } from "@/lib/canvas/page-style";
 import { ElementBox } from "./element-box";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const width = useCanvasStore(store, (s) => s.width);
   const height = useCanvasStore(store, (s) => s.height);
   const background = useCanvasStore(store, (s) => s.background);
+  const pageStyle = useCanvasStore(store, (s) => s.pageStyle);
   const elements = useCanvasStore(store, (s) => s.elements);
   const selectedIds = useCanvasStore(store, (s) => s.selectedIds);
   const { updateElement, removeElement, duplicateElement, select, selectMany } = store.getState();
@@ -145,7 +147,12 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
           <div
             ref={canvasRef}
             className="absolute left-0 top-0 origin-top-left"
-            style={{ width, height, background, transform: `scale(${scale})` }}
+            style={{
+              width,
+              height,
+              transform: `scale(${scale})`,
+              ...pageStyleBackground(pageStyle, background),
+            }}
             onPointerDown={handleBackgroundPointerDown}
             onPointerMove={handleBackgroundPointerMove}
             onPointerUp={handleBackgroundPointerUp}

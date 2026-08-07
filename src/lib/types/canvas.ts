@@ -94,6 +94,30 @@ export type SequenceElement = ElementBase & {
   items: SequenceItem[];
 };
 
+// --- Worksheet elements -----------------------------------------------------
+// Print-first building blocks. They carry no answer key and are never scored,
+// which is what separates them from the interactive types above: a worksheet
+// is filled in on paper, so the app has nothing to mark.
+
+export type ListElement = ElementBase & {
+  type: "list";
+  ordered: boolean; // numbered when true, bulleted when false
+  items: string[];
+  fontSize: number;
+  color: string;
+  lineGap: number;
+};
+
+// Ruled lines for handwriting practice. Rendered as real lines rather than a
+// background image so they stay crisp at any zoom and in print.
+export type WritingLinesElement = ElementBase & {
+  type: "writingLines";
+  lines: number;
+  lineGap: number;
+  color: string;
+  guide: "single" | "dotted-midline"; // dotted-midline = handwriting practice ruling
+};
+
 export type CanvasElement =
   | TextElement
   | ImageElement
@@ -103,7 +127,9 @@ export type CanvasElement =
   | MultipleChoiceElement
   | FillBlankElement
   | DragMatchElement
-  | SequenceElement;
+  | SequenceElement
+  | ListElement
+  | WritingLinesElement;
 
 export type CanvasElementType = CanvasElement["type"];
 
@@ -118,17 +144,34 @@ export function isInteractive(el: CanvasElement): boolean {
   return INTERACTIVE_TYPES.includes(el.type);
 }
 
+// Whether the page itself carries a ruling behind the elements. Optional so
+// every canvas authored before worksheets existed still parses — absent means
+// "blank", which is what those canvases already rendered as.
+export const PAGE_STYLES = ["blank", "ruled", "grid", "dotted"] as const;
+export type PageStyle = (typeof PAGE_STYLES)[number];
+
 export type TemplateCanvas = {
   width: number;
   height: number;
   background: string;
   elements: CanvasElement[];
+  pageStyle?: PageStyle;
 };
 
 export const EMPTY_CANVAS: TemplateCanvas = {
   width: 900,
   height: 600,
   background: "#ffffff",
+  elements: [],
+};
+
+// A4 at 96dpi in portrait — worksheets are authored at the size they print at,
+// so what the author lays out is what comes out of the printer.
+export const EMPTY_WORKSHEET_CANVAS: TemplateCanvas = {
+  width: 794,
+  height: 1123,
+  background: "#ffffff",
+  pageStyle: "blank",
   elements: [],
 };
 

@@ -1,13 +1,14 @@
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { useState } from "react";
-import type { CanvasElement, TemplateCanvas } from "@/lib/types/canvas";
+import type { CanvasElement, TemplateCanvas, PageStyle } from "@/lib/types/canvas";
 
 type Snapshot = {
   elements: CanvasElement[];
   background: string;
   width: number;
   height: number;
+  pageStyle: PageStyle;
 };
 
 const HISTORY_LIMIT = 50;
@@ -17,6 +18,7 @@ export type CanvasState = {
   width: number;
   height: number;
   background: string;
+  pageStyle: PageStyle;
   elements: CanvasElement[];
   selectedIds: string[];
   dirty: boolean;
@@ -36,6 +38,7 @@ export type CanvasActions = {
   reorder: (id: string, direction: "front" | "back" | "forward" | "backward") => void;
   setBackground: (color: string) => void;
   setSize: (width: number, height: number) => void;
+  setPageStyle: (pageStyle: PageStyle) => void;
   markSaved: () => void;
   toCanvas: () => TemplateCanvas;
   undo: () => void;
@@ -45,7 +48,7 @@ export type CanvasActions = {
 export type CanvasStore = CanvasState & CanvasActions;
 
 function snapshotOf(s: CanvasState): Snapshot {
-  return { elements: s.elements, background: s.background, width: s.width, height: s.height };
+  return { elements: s.elements, background: s.background, width: s.width, height: s.height, pageStyle: s.pageStyle };
 }
 
 export function createCanvasStore(initial: TemplateCanvas) {
@@ -66,6 +69,7 @@ export function createCanvasStore(initial: TemplateCanvas) {
       width: initial.width,
       height: initial.height,
       background: initial.background,
+      pageStyle: initial.pageStyle ?? "blank",
       elements: initial.elements,
       selectedIds: [],
       dirty: false,
@@ -195,10 +199,14 @@ export function createCanvasStore(initial: TemplateCanvas) {
         checkpoint();
         set({ width, height, dirty: true });
       },
+      setPageStyle: (pageStyle) => {
+        checkpoint();
+        set({ pageStyle, dirty: true });
+      },
       markSaved: () => set({ dirty: false }),
       toCanvas: () => {
         const s = get();
-        return { width: s.width, height: s.height, background: s.background, elements: s.elements };
+        return { width: s.width, height: s.height, background: s.background, pageStyle: s.pageStyle, elements: s.elements };
       },
 
       undo: () =>

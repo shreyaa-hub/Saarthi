@@ -11,6 +11,8 @@ import type {
   FillBlankElement,
   DragMatchElement,
   SequenceElement,
+  ListElement,
+  WritingLinesElement,
 } from "@/lib/types/canvas";
 
 const id = () => nanoid(8);
@@ -131,6 +133,31 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         ],
       } satisfies SequenceElement;
 
+    case "list":
+      return {
+        ...base,
+        type: "list",
+        w: 420,
+        h: 160,
+        ordered: false,
+        items: ["First point", "Second point", "Third point"],
+        fontSize: 18,
+        color: "#2a2420",
+        lineGap: 12,
+      } satisfies ListElement;
+
+    case "writingLines":
+      return {
+        ...base,
+        type: "writingLines",
+        w: 620,
+        h: 180,
+        lines: 5,
+        lineGap: 36,
+        color: "#c9bfae",
+        guide: "single",
+      } satisfies WritingLinesElement;
+
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown element type: ${_exhaustive}`);
@@ -138,14 +165,33 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
   }
 }
 
-export const ELEMENT_LIBRARY: { type: CanvasElementType; label: string; group: "content" | "interactive" }[] = [
-  { type: "text", label: "Text", group: "content" },
-  { type: "image", label: "Image", group: "content" },
-  { type: "shape", label: "Shape", group: "content" },
-  { type: "audio", label: "Audio", group: "content" },
-  { type: "button", label: "Button", group: "content" },
-  { type: "multipleChoice", label: "Multiple choice", group: "interactive" },
-  { type: "fillBlank", label: "Fill in the blank", group: "interactive" },
-  { type: "dragMatch", label: "Drag to match", group: "interactive" },
-  { type: "sequence", label: "Sequencing", group: "interactive" },
+// `surfaces` is what keeps the worksheet workspace honest. A worksheet is
+// printed and filled in on paper, so anything that only means something on a
+// screen — audio, buttons, and every scored interactive type — is not offered
+// there at all. Filtering the palette rather than maintaining a second
+// element library means a new element type cannot silently appear in the
+// wrong workspace: it has to declare where it belongs.
+export type ElementSurface = "activity" | "worksheet";
+
+export const ELEMENT_LIBRARY: {
+  type: CanvasElementType;
+  label: string;
+  group: "content" | "interactive" | "worksheet";
+  surfaces: ElementSurface[];
+}[] = [
+  { type: "text", label: "Text", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "image", label: "Image", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "shape", label: "Shape", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "audio", label: "Audio", group: "content", surfaces: ["activity"] },
+  { type: "button", label: "Button", group: "content", surfaces: ["activity"] },
+  { type: "list", label: "List", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "writingLines", label: "Writing lines", group: "worksheet", surfaces: ["worksheet"] },
+  { type: "multipleChoice", label: "Multiple choice", group: "interactive", surfaces: ["activity"] },
+  { type: "fillBlank", label: "Fill in the blank", group: "interactive", surfaces: ["activity"] },
+  { type: "dragMatch", label: "Drag to match", group: "interactive", surfaces: ["activity"] },
+  { type: "sequence", label: "Sequencing", group: "interactive", surfaces: ["activity"] },
 ];
+
+export function elementsForSurface(surface: ElementSurface) {
+  return ELEMENT_LIBRARY.filter((e) => e.surfaces.includes(surface));
+}
