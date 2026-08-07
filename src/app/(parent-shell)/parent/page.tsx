@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ClipboardList, TrendingUp, CalendarDays, MessageSquare, ArrowRight, AlertTriangle } from "lucide-react";
 import { getParentContext } from "@/lib/parent/context";
-import { getChildAssignments, getChildAttempts } from "@/lib/data/parent";
+import { getChildAssignments, getChildAttempts, isHomePractice } from "@/lib/data/parent";
 import { buildPatientAnalytics } from "@/lib/analytics/models";
 import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,10 +33,10 @@ export default async function ParentDashboardPage() {
     getChildAttempts(supabase, child.childId),
   ]);
 
-  // Reuses the same analytics builder the clinician's own screens use, so a
-  // parent and a clinician looking at the same child never see two different
-  // numbers for the same thing.
-  const analyticsAttempts: AnalyticsAttempt[] = attempts.map((a) => ({
+  // Clinician-assigned work only, matching the Progress page and the
+  // clinician's own analytics — home practice a parent sent themselves is not
+  // in the clinician's data and must not inflate the figure shown here.
+  const analyticsAttempts: AnalyticsAttempt[] = attempts.filter((a) => !isHomePractice(a)).map((a) => ({
     patientId: child.childId,
     completedAt: a.completed_at,
     correctCount: a.correct_count,

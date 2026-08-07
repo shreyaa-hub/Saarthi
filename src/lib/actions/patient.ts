@@ -56,19 +56,24 @@ export async function submitAttempt(
       .from("assignments")
       .update({ status: "completed" })
       .eq("id", assignmentId)
-      .select("clinician_id, title")
+      .select("clinician_id, assigned_by, title")
       .single(),
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
   ]);
 
   if (assignment) {
+    // Notify whoever assigned the work, not the clinician specifically — a
+    // parent-assigned worksheet has no clinician, and for clinician-assigned
+    // work assigned_by is the clinician anyway, so this is the same
+    // notification it always was in that case.
+    const assignedByClinician = assignment.assigned_by === assignment.clinician_id;
     await notify(
       supabase,
-      assignment.clinician_id,
+      assignment.assigned_by,
       "attempt_completed",
       `${profile?.full_name ?? "A patient"} completed an activity`,
       `${assignment.title} — ${score}%`,
-      "/clinician/assignments",
+      assignedByClinician ? "/clinician/assignments" : "/parent/missions",
     );
   }
 

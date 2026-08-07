@@ -84,15 +84,28 @@ export async function getChildAssignments(supabase: Client, childId: string) {
   return data ?? [];
 }
 
+// `assignments.clinician_id` comes back so the progress view can distinguish
+// clinician-prescribed therapy from home practice a parent sent themselves.
+// The two are deliberately NOT merged into one headline number: the
+// clinician's own analytics only count clinician-assigned work (their RLS and
+// their queries both filter on clinician_id), so presenting a combined figure
+// here would put a number in front of a parent that their clinician can never
+// reproduce.
 export async function getChildAttempts(supabase: Client, childId: string) {
   const { data, error } = await supabase
     .from("activity_attempts")
-    .select("*, assignments(title)")
+    .select("*, assignments(title, clinician_id)")
     .eq("patient_id", childId)
     .order("completed_at", { ascending: false });
 
   logIfError("getChildAttempts", error);
   return data ?? [];
+}
+
+type AttemptWithAssignment = { assignments?: { clinician_id?: string | null } | null };
+
+export function isHomePractice(attempt: unknown): boolean {
+  return (attempt as AttemptWithAssignment).assignments?.clinician_id == null;
 }
 
 export async function getMyInvoices(supabase: Client, parentId: string) {

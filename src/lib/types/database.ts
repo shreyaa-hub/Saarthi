@@ -108,7 +108,9 @@ export type Database = {
         Row: {
           id: string;
           template_id: string | null;
-          clinician_id: string;
+          // Null when a parent assigned the work and no clinician is involved.
+          clinician_id: string | null;
+          assigned_by: string;
           patient_id: string;
           title: string;
           instructions: string | null;
@@ -118,7 +120,7 @@ export type Database = {
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["assignments"]["Row"]> & {
-          clinician_id: string;
+          assigned_by: string;
           patient_id: string;
           title: string;
           canvas_snapshot: TemplateCanvas;

@@ -37,6 +37,7 @@ export async function createAssignment(
   const { error } = await supabase.from("assignments").insert({
     template_id: templateId,
     clinician_id: user.id,
+    assigned_by: user.id,
     patient_id: patientId,
     title: template.title,
     instructions: instructions || null,

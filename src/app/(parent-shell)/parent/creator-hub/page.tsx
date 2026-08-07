@@ -7,7 +7,7 @@ import { MyWorksheetList, type MyWorksheet } from "@/components/parent/my-worksh
 import { CreateWorksheetDialog } from "@/components/parent/create-worksheet-dialog";
 
 export default async function ParentCreatorHubPage() {
-  const { supabase, user, child } = await getParentContext();
+  const { supabase, user, child, children: myChildren } = await getParentContext();
 
   const [mine, saved, templates] = await Promise.all([
     getMyWorksheets(supabase, user.id),
@@ -34,12 +34,20 @@ export default async function ParentCreatorHubPage() {
 
       <div>
         <h3 className="mb-3 text-lg font-semibold">Your worksheets ({mine.length})</h3>
-        <MyWorksheetList worksheets={mine as unknown as MyWorksheet[]} />
+        <MyWorksheetList
+          worksheets={mine as unknown as MyWorksheet[]}
+          childList={myChildren}
+          selectedChildId={child?.childId ?? null}
+        />
       </div>
 
       <div>
         <h3 className="mb-3 text-lg font-semibold">Saved for home practice ({saved.length})</h3>
-        <SavedWorksheetList saved={saved as unknown as SavedWorksheet[]} />
+        <SavedWorksheetList
+          saved={saved as unknown as SavedWorksheet[]}
+          childList={myChildren}
+          selectedChildId={child?.childId ?? null}
+        />
       </div>
 
       <div>

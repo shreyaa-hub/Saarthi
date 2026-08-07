@@ -1,14 +1,16 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Globe2, Lock, Trash2, Loader2, Pencil } from "lucide-react";
+import { Globe2, Lock, Trash2, Loader2, Pencil, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { setParentWorksheetVisibility, deleteParentWorksheet } from "@/lib/actions/parent";
+import { AssignToChildDialog } from "@/components/parent/assign-to-child-dialog";
+import type { ParentChild } from "@/lib/data/parent";
 import { formatDate } from "@/lib/utils";
 
 export type MyWorksheet = {
@@ -20,9 +22,18 @@ export type MyWorksheet = {
   updated_at: string;
 };
 
-export function MyWorksheetList({ worksheets }: { worksheets: MyWorksheet[] }) {
+export function MyWorksheetList({
+  worksheets,
+  childList,
+  selectedChildId,
+}: {
+  worksheets: MyWorksheet[];
+  childList: ParentChild[];
+  selectedChildId: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [assigning, setAssigning] = useState<MyWorksheet | null>(null);
 
   const toggleVisibility = (id: string, next: boolean) => {
     startTransition(async () => {
@@ -88,6 +99,18 @@ export function MyWorksheetList({ worksheets }: { worksheets: MyWorksheet[] }) {
                   <Pencil className="size-4" /> Edit
                 </Link>
               </Button>
+              {/* Only offered once a child is linked — there is nobody to
+                  send it to otherwise. */}
+              {childList.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssigning(w)}
+                  aria-label={`Send ${w.title} to your child`}
+                >
+                  <Send className="size-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -116,6 +139,17 @@ export function MyWorksheetList({ worksheets }: { worksheets: MyWorksheet[] }) {
           </CardContent>
         </Card>
       ))}
+
+      {assigning && (
+        <AssignToChildDialog
+          templateId={assigning.id}
+          templateTitle={assigning.title}
+          childList={childList}
+          defaultChildId={selectedChildId}
+          open={assigning !== null}
+          onOpenChange={(o) => !o && setAssigning(null)}
+        />
+      )}
     </div>
   );
 }

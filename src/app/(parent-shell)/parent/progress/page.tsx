@@ -1,12 +1,12 @@
 import { MessageSquare } from "lucide-react";
 import { getParentContext } from "@/lib/parent/context";
-import { getChildAttempts } from "@/lib/data/parent";
+import { getChildAttempts, isHomePractice } from "@/lib/data/parent";
 import { buildPatientAnalytics } from "@/lib/analytics/models";
 import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { NoChildState } from "@/components/parent/no-child-state";
-import { formatDate } from "@/lib/utils";
+import { formatDate, pluralize } from "@/lib/utils";
 
 export default async function ParentProgressPage() {
   const { supabase, child } = await getParentContext();
@@ -23,9 +23,15 @@ export default async function ParentProgressPage() {
   const attempts = await getChildAttempts(supabase, child.childId);
   const firstName = child.name.split(" ")[0];
 
-  // Same builder the clinician's analytics run on — a parent and a clinician
-  // must never see two different numbers for the same child.
-  const analyticsAttempts: AnalyticsAttempt[] = attempts.map((a) => ({
+  // The headline figures cover clinician-assigned therapy only, which is what
+  // makes them the same numbers the clinician sees — their own analytics
+  // filter on clinician_id, so home practice a parent sent themselves is not
+  // in their data and must not be in this total either. Home practice is
+  // counted separately below rather than being hidden.
+  const therapyAttempts = attempts.filter((a) => !isHomePractice(a));
+  const homePracticeCount = attempts.length - therapyAttempts.length;
+
+  const analyticsAttempts: AnalyticsAttempt[] = therapyAttempts.map((a) => ({
     patientId: child.childId,
     completedAt: a.completed_at,
     correctCount: a.correct_count,
@@ -46,7 +52,11 @@ export default async function ParentProgressPage() {
       <div>
         <h2 className="font-display text-2xl font-semibold">Progress</h2>
         <p className="text-sm text-muted-foreground">
-          {firstName}&apos;s accuracy across every completed activity.
+          {firstName}&apos;s accuracy across the activities their clinician assigned.
+          {homePracticeCount > 0 &&
+            ` ${pluralize(homePracticeCount, "home-practice activity", "home-practice activities")} you sent
+              ${homePracticeCount === 1 ? "is" : "are"} listed below but not counted in these figures,
+              so they match what the clinician sees.`}
         </p>
       </div>
 
@@ -66,7 +76,7 @@ export default async function ParentProgressPage() {
           <CardTitle>Accuracy over time</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProgressChart attempts={attempts} />
+          <ProgressChart attempts={therapyAttempts} />
         </CardContent>
       </Card>
 
@@ -88,7 +98,10 @@ export default async function ParentProgressPage() {
                       <p className="text-sm font-medium">
                         {(a as unknown as { assignments?: { title?: string } }).assignments?.title ?? "Activity"}
                       </p>
-                      <p className="text-xs text-muted-foreground">{formatDate(a.completed_at)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(a.completed_at)}
+                        {isHomePractice(a) && " · Home practice"}
+                      </p>
                     </div>
                     <p className="text-sm font-semibold">
                       {a.correct_count}/{a.total_count} ({a.score ?? 0}%)

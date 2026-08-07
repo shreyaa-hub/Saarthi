@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/actions/auth";
 import { EMPTY_WORKSHEET_CANVAS } from "@/lib/types/canvas";
 import { randomThumbnailColor } from "@/lib/canvas/colors";
+import { notify } from "@/lib/actions/notifications";
 import { SELECTED_CHILD_COOKIE } from "@/lib/parent/selected-child";
 
 export async function claimGuardianCode(
@@ -116,6 +117,79 @@ export async function deleteParentWorksheet(templateId: string) {
 
   if (error) return { error: error.message };
 
+  revalidatePath("/parent/creator-hub");
+  return { error: null };
+}
+
+// Pushes a worksheet into the child's own mission list. clinician_id is left
+// null: no clinician is involved in a parent-assigned activity, and writing
+// the parent's id into a column meaning "the clinician responsible for this
+// patient" would corrupt every clinician-scoped query that filters on it.
+//
+// Authorization is not enforced here — it is enforced by the
+// assignments_assigner_insert policy, which requires can_assign_to(patient_id).
+// The child_id check below exists so a mistake surfaces as a clear message
+// rather than an opaque RLS rejection.
+export async function assignWorksheetToChild(
+  templateId: string,
+  childId: string,
+  options: { instructions?: string; dueDate?: string } = {},
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: link } = await supabase
+    .from("parent_children")
+    .select("id")
+    .eq("parent_id", user.id)
+    .eq("child_id", childId)
+    .maybeSingle();
+  if (!link) return { error: "That isn't one of your children." };
+
+  // Own worksheets, or anything published to the library. is_public rows are
+  // readable by everyone through templates_public_select, so a parent can
+  // assign material a clinician shared without having to copy it first.
+  const { data: template } = await supabase
+    .from("templates")
+    .select("title, canvas, owner_id, is_public")
+    .eq("id", templateId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!template) return { error: "That worksheet could not be found." };
+  if (template.owner_id !== user.id && !template.is_public) {
+    return { error: "That worksheet isn't yours and isn't publicly shared." };
+  }
+
+  const { error } = await supabase.from("assignments").insert({
+    template_id: templateId,
+    clinician_id: null,
+    assigned_by: user.id,
+    patient_id: childId,
+    title: template.title,
+    instructions: options.instructions?.trim() || null,
+    due_date: options.dueDate || null,
+    // Snapshotted, exactly as clinician assignments are, so editing the
+    // worksheet later doesn't retroactively change work already sent.
+    canvas_snapshot: template.canvas,
+    status: "assigned",
+  });
+
+  if (error) return { error: error.message };
+
+  await notify(
+    supabase,
+    childId,
+    "new_assignment",
+    "New activity from home",
+    template.title,
+    "/patient",
+  );
+
+  revalidatePath("/parent/missions");
   revalidatePath("/parent/creator-hub");
   return { error: null };
 }

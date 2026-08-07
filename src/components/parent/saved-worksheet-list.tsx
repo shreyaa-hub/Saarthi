@@ -1,13 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
-import { Trash2, Loader2, Printer } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Trash2, Loader2, Printer, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { removeSavedWorksheet } from "@/lib/actions/parent";
+import { AssignToChildDialog } from "@/components/parent/assign-to-child-dialog";
+import type { ParentChild } from "@/lib/data/parent";
 import { formatDate } from "@/lib/utils";
 
 export type SavedWorksheet = {
@@ -21,9 +23,18 @@ export type SavedWorksheet = {
   } | null;
 };
 
-export function SavedWorksheetList({ saved }: { saved: SavedWorksheet[] }) {
+export function SavedWorksheetList({
+  saved,
+  childList,
+  selectedChildId,
+}: {
+  saved: SavedWorksheet[];
+  childList: ParentChild[];
+  selectedChildId: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [assigning, setAssigning] = useState<{ id: string; title: string } | null>(null);
 
   const remove = (id: string) => {
     startTransition(async () => {
@@ -68,6 +79,16 @@ export function SavedWorksheetList({ saved }: { saved: SavedWorksheet[] }) {
               <Button variant="outline" size="sm" onClick={() => window.print()} className="flex-1">
                 <Printer className="size-4" /> Print
               </Button>
+              {childList.length > 0 && row.templates && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssigning({ id: row.templates!.id, title: row.templates!.title })}
+                  aria-label={`Send ${row.templates.title} to your child`}
+                >
+                  <Send className="size-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -81,6 +102,17 @@ export function SavedWorksheetList({ saved }: { saved: SavedWorksheet[] }) {
           </CardContent>
         </Card>
       ))}
+
+      {assigning && (
+        <AssignToChildDialog
+          templateId={assigning.id}
+          templateTitle={assigning.title}
+          childList={childList}
+          defaultChildId={selectedChildId}
+          open={assigning !== null}
+          onOpenChange={(o) => !o && setAssigning(null)}
+        />
+      )}
     </div>
   );
 }
