@@ -11,6 +11,7 @@ import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } fr
 import { TEMPLATE_DOMAINS } from "@/lib/types/canvas";
 import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib/actions/templates";
 import { EditorSidebar } from "./editor-sidebar";
+import { SelectionToolbar } from "./selection-toolbar";
 import type { ElementSurface } from "@/lib/canvas/defaults";
 import { CanvasSurface } from "./canvas-surface";
 import { PropertiesPanel } from "./properties-panel";
@@ -317,8 +318,11 @@ export function CanvasEditor({
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
         <EditorSidebar store={store} surface={surface} />
-        <div className="flex-1 overflow-hidden">
-          <CanvasSurface store={store} />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <SelectionToolbar store={store} />
+          <div className="min-h-0 flex-1">
+            <CanvasSurface store={store} />
+          </div>
         </div>
         <PropertiesPanel store={store} />
       </motion.div>
