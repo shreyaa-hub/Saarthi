@@ -41,14 +41,26 @@ type TemplateRow = {
 // this editor wholesale rather than forking it: the surface narrows the
 // palette to worksheet-only tools, and the back link has to lead somewhere the
 // user can actually reach (a parent has no access to /clinician/studio).
+// `guest` turns the editor into a try-before-you-sign-up surface: nothing
+// touches the server, the canvas is kept in localStorage instead, and the
+// primary action asks for an account. Everything else — tools, undo/redo,
+// snapping, shortcuts, the properties panel — is the same editor, so a
+// visitor is genuinely trying the real thing rather than a mock of it.
+export type GuestHooks = {
+  persist: (canvas: TemplateCanvas, meta: { title: string; domain: string }) => void;
+  onSignUpPrompt: () => void;
+};
+
 export function CanvasEditor({
   template,
   surface = "activity",
   backHref = "/clinician/studio",
+  guest,
 }: {
   template: TemplateRow;
   surface?: ElementSurface;
   backHref?: string;
+  guest?: GuestHooks;
 }) {
   const router = useRouter();
   const store = useCanvasStoreInstance(template.canvas);
@@ -69,6 +81,18 @@ export function CanvasEditor({
   const attemptSave = async (force: boolean) => {
     setSaveState("saving");
     const canvas = store.getState().toCanvas();
+
+    // Guest mode never reaches the server: there is no template row to write
+    // to and no session to write it with. Persisting locally keeps the same
+    // "saved / unsaved" affordance honest instead of showing a save state
+    // that means nothing.
+    if (guest) {
+      guest.persist(canvas, { title, domain });
+      store.getState().markSaved();
+      setSaveState("saved");
+      return;
+    }
+
     let result: Awaited<ReturnType<typeof saveTemplateCanvas>>;
     try {
       result = await saveTemplateCanvas(template.id, canvas, lastKnownUpdatedAt.current, force);
@@ -200,6 +224,13 @@ export function CanvasEditor({
   }, [store]);
 
   const commitMeta = (fields: { title?: string; domain?: string }) => {
+    if (guest) {
+      guest.persist(store.getState().toCanvas(), {
+        title: fields.title ?? title,
+        domain: fields.domain ?? domain,
+      });
+      return;
+    }
     startTransition(async () => {
       await updateTemplateMeta(template.id, fields);
     });
@@ -279,7 +310,7 @@ export function CanvasEditor({
               </>
             ) : saveState === "saved" ? (
               <>
-                <Check className="size-3.5" /> All changes saved
+                <Check className="size-3.5" /> {guest ? "Saved on this device" : "All changes saved"}
               </>
             ) : saveState === "conflict" ? (
               <span className="flex items-center gap-1.5 text-destructive">
@@ -300,12 +331,20 @@ export function CanvasEditor({
           >
             <Keyboard className="size-4" />
           </button>
-          <Button size="sm" variant={status === "published" ? "outline" : "default"} onClick={togglePublish}>
-            {status === "published" ? "Unpublish" : "Publish"}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => router.push(backHref)}>
-            Done
-          </Button>
+          {guest ? (
+            <Button size="sm" onClick={guest.onSignUpPrompt}>
+              Save this
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant={status === "published" ? "outline" : "default"} onClick={togglePublish}>
+                {status === "published" ? "Unpublish" : "Publish"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => router.push(backHref)}>
+                Done
+              </Button>
+            </>
+          )}
         </div>
       </header>
 

@@ -81,7 +81,7 @@ const PARENT_SECTIONS: MapSection[] = [
     title: "Following your child",
     entries: [
       { icon: LayoutDashboard, href: "/parent", label: "Dashboard", body: "How your child is doing at a glance, and what's coming up." },
-      { icon: Send, href: "/parent/missions", label: "Missions", body: "Every activity their clinician has assigned. Your child completes these in their own account." },
+      { icon: Send, href: "/parent/missions", label: "Missions", body: "Every activity assigned to your child — by their clinician, and anything you send from the Creator Hub. Your child completes these in their own account." },
       { icon: TrendingUp, href: "/parent/progress", label: "Progress", body: "Accuracy over time plus any notes the clinician has left on an activity." },
       { icon: CalendarDays, href: "/parent/calendar", label: "Calendar", body: "Activity due dates laid out by month." },
       { icon: MessageSquare, href: "/parent/messages", label: "Messages", body: "Your own conversation with your child's clinician — separate from your child's." },
@@ -90,7 +90,7 @@ const PARENT_SECTIONS: MapSection[] = [
   {
     title: "Home practice and admin",
     entries: [
-      { icon: BookOpen, href: "/parent/creator-hub", label: "Creator Hub", body: "Browse printable worksheets clinicians have published, and save the ones you want for home practice." },
+      { icon: BookOpen, href: "/parent/creator-hub", label: "Creator Hub", body: "Make your own printable worksheets, browse ones clinicians have published, and send either to your child. Yours are shared publicly by default unless you keep them private." },
       { icon: Wallet, href: "/parent/finances", label: "Finances", body: "Statements your clinic has issued. A record only — no payment is taken here." },
     ],
   },

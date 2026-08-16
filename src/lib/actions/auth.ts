@@ -3,8 +3,31 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { homeForRole } from "@/lib/auth/session";
+import type { ProfileRole } from "@/lib/types/database";
 
 export type ActionState = { error: string | null; message?: string | null };
+
+// Where to land after authenticating. `next=claim` means the user came from
+// the public /try Studio with a worksheet waiting in their browser, so they
+// go straight to the screen that offers to keep it rather than to their
+// dashboard, where the offer would be nowhere in sight.
+function destinationFor(role: ProfileRole, next?: string | null): string {
+  if (next === "claim") {
+    if (role === "clinician") return "/clinician/studio";
+    if (role === "parent") return "/parent/creator-hub";
+  }
+  return homeForRole(role);
+}
+
+// The proxy bounces an unauthenticated request to /sign-in?redirect=<path>.
+// Honour it so signing in returns you to the page you actually asked for,
+// but only for same-origin absolute paths: anything else (a full URL, or a
+// protocol-relative "//evil.example") would be an open redirect.
+function safeRedirect(target?: string | null): string | null {
+  if (!target) return null;
+  if (!target.startsWith("/") || target.startsWith("//")) return null;
+  return target;
+}
 
 // Supabase surfaces a failure inside the handle_new_user() trigger as an
 // opaque auth error whose message can arrive empty or as a stringified empty
@@ -69,7 +92,9 @@ export async function signIn(
     .eq("id", data.user.id)
     .single();
 
-  redirect(homeForRole(profile?.role ?? "patient"));
+  const role = profile?.role ?? "patient";
+  const requested = safeRedirect(String(formData.get("redirect") || ""));
+  redirect(requested ?? destinationFor(role, String(formData.get("next") || "")));
 }
 
 export async function signUpClinician(
@@ -110,7 +135,7 @@ export async function signUpClinician(
     };
   }
 
-  redirect("/clinician");
+  redirect(destinationFor("clinician", String(formData.get("next") || "")));
 }
 
 export async function signUpPatient(
@@ -221,7 +246,7 @@ export async function signUpParent(
     }
   }
 
-  redirect("/parent");
+  redirect(destinationFor("parent", String(formData.get("next") || "")));
 }
 
 export async function signOut() {

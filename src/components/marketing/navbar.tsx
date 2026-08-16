@@ -62,6 +62,9 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           <Button variant="ghost" asChild>
+            <Link href="/try">Try the Studio</Link>
+          </Button>
+          <Button variant="ghost" asChild>
             <Link href="/sign-in">Sign in</Link>
           </Button>
           <Button asChild>
@@ -96,6 +99,9 @@ export function Navbar() {
             </Link>
           ))}
           <div className="mt-2 flex gap-2 px-3">
+            <Button variant="outline" asChild className="flex-1">
+              <Link href="/try">Try the Studio</Link>
+            </Button>
             <Button variant="outline" asChild className="flex-1">
               <Link href="/sign-in">Sign in</Link>
             </Button>

@@ -68,6 +68,50 @@ export async function createTemplateFromWizard(input: {
   redirect(`/clinician/studio/${data.id}`);
 }
 
+// Turns a guest draft (built at /try while logged out, held in localStorage)
+// into a real template owned by the user who just signed up. Works for both
+// clinicians and parents — ownership is templates.owner_id in either case, so
+// no role branching is needed beyond where we send them afterwards.
+//
+// Parent-authored worksheets are public by default, matching
+// createParentWorksheet; a clinician's start private, matching the Studio.
+export async function claimGuestDraft(input: {
+  title: string;
+  domain: string;
+  canvas: TemplateCanvas;
+}): Promise<{ error: string | null; templateId?: string; role?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const role = profile?.role ?? "patient";
+  if (role !== "clinician" && role !== "parent") {
+    return { error: "Only clinician and parent accounts can keep worksheets." };
+  }
+
+  const { data, error } = await supabase
+    .from("templates")
+    .insert({
+      owner_id: user.id,
+      title: input.title.trim() || "Untitled worksheet",
+      domain: input.domain,
+      medium: "print",
+      canvas: input.canvas,
+      is_public: role === "parent",
+      thumbnail_color: randomThumbnailColor(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { error: error?.message ?? "Could not save the worksheet." };
+
+  revalidatePath(role === "parent" ? "/parent/creator-hub" : "/clinician/studio");
+  return { error: null, templateId: data.id, role };
+}
+
 export async function saveTemplateCanvas(
   templateId: string,
   canvas: TemplateCanvas,

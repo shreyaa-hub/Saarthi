@@ -3,6 +3,7 @@ import { Trash2 } from "lucide-react";
 import { requireProfile } from "@/lib/auth/session";
 import { getTemplates } from "@/lib/data/clinician";
 import { StudioEntryCards } from "@/components/clinician/studio-entry-cards";
+import { ClaimDraftBanner } from "@/components/canvas/claim-draft-banner";
 import { TemplateGrid } from "@/components/clinician/template-grid";
 import { Reveal } from "@/components/motion/reveal";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,7 @@ export default async function StudioPage() {
       </Reveal>
 
       <Reveal delay={0.08}>
+        <ClaimDraftBanner />
         <StudioEntryCards />
       </Reveal>
 

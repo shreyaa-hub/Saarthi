@@ -5,6 +5,7 @@ import { WorksheetBrowser } from "@/components/parent/worksheet-browser";
 import { SavedWorksheetList, type SavedWorksheet } from "@/components/parent/saved-worksheet-list";
 import { MyWorksheetList, type MyWorksheet } from "@/components/parent/my-worksheet-list";
 import { CreateWorksheetDialog } from "@/components/parent/create-worksheet-dialog";
+import { ClaimDraftBanner } from "@/components/canvas/claim-draft-banner";
 
 export default async function ParentCreatorHubPage() {
   const { supabase, user, child, children: myChildren } = await getParentContext();
@@ -31,6 +32,8 @@ export default async function ParentCreatorHubPage() {
         </div>
         <CreateWorksheetDialog />
       </div>
+
+      <ClaimDraftBanner />
 
       <div>
         <h3 className="mb-3 text-lg font-semibold">Your worksheets ({mine.length})</h3>

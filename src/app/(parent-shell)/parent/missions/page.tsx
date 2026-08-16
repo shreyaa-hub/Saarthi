@@ -1,4 +1,4 @@
-import { ClipboardList, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ClipboardList, AlertTriangle, CheckCircle2, Home } from "lucide-react";
 import { getParentContext } from "@/lib/parent/context";
 import { getChildAssignments } from "@/lib/data/parent";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,8 +39,8 @@ export default async function ParentMissionsPage() {
       <div>
         <h2 className="font-display text-2xl font-semibold">Missions</h2>
         <p className="text-sm text-muted-foreground">
-          Everything {firstName}&apos;s clinician has assigned. Activities are completed by {firstName} in their
-          own account.
+          Everything assigned to {firstName} — by their clinician, and anything you&apos;ve sent from
+          the Creator Hub. {firstName} completes these in their own account.
         </p>
       </div>
 
@@ -67,9 +67,18 @@ export default async function ParentMissionsPage() {
                   <CardContent className="flex flex-col gap-3 pt-6">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium">{a.title}</p>
-                      <Badge variant={statusVariant[a.status] ?? "outline"}>
-                        {a.status.replace("_", " ")}
-                      </Badge>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {/* Sent from home rather than prescribed — the same
+                            distinction the clinician's own views draw. */}
+                        {a.clinician_id === null && (
+                          <Badge variant="outline" className="gap-1">
+                            <Home className="size-3" /> Home
+                          </Badge>
+                        )}
+                        <Badge variant={statusVariant[a.status] ?? "outline"}>
+                          {a.status.replace("_", " ")}
+                        </Badge>
+                      </div>
                     </div>
                     {a.instructions && <p className="text-sm text-muted-foreground">{a.instructions}</p>}
                     <p

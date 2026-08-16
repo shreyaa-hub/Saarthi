@@ -12,7 +12,7 @@ import { Loader2, Stethoscope, User, Users } from "lucide-react";
 
 const initialState: ActionState = { error: null };
 
-export function SignUpForm() {
+export function SignUpForm({ next }: { next?: string }) {
   const [clinicianState, clinicianAction, clinicianPending] = useActionState(
     signUpClinician,
     initialState,
@@ -48,6 +48,7 @@ export function SignUpForm() {
 
           <TabsContent value="clinician" className="pt-4">
             <form action={clinicianAction} className="flex flex-col gap-4">
+              <input type="hidden" name="next" value={next ?? ""} />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="c_full_name">Full name</Label>
                 <Input id="c_full_name" name="full_name" required autoComplete="name" />
@@ -86,6 +87,7 @@ export function SignUpForm() {
 
           <TabsContent value="patient" className="pt-4">
             <form action={patientAction} className="flex flex-col gap-4">
+              <input type="hidden" name="next" value={next ?? ""} />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="p_full_name">Full name</Label>
                 <Input id="p_full_name" name="full_name" required autoComplete="name" />
@@ -130,6 +132,7 @@ export function SignUpForm() {
           </TabsContent>
           <TabsContent value="parent" className="pt-4">
             <form action={parentAction} className="flex flex-col gap-4">
+              <input type="hidden" name="next" value={next ?? ""} />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="g_full_name">Full name</Label>
                 <Input id="g_full_name" name="full_name" required autoComplete="name" />

@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 
 const initialState: ActionState = { error: null };
 
-export function SignInForm() {
+export function SignInForm({ next, redirectTo }: { next?: string; redirectTo?: string }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
@@ -22,6 +22,8 @@ export function SignInForm() {
       </CardHeader>
       <CardContent>
         <form action={formAction} className="flex flex-col gap-4">
+          <input type="hidden" name="next" value={next ?? ""} />
+          <input type="hidden" name="redirect" value={redirectTo ?? ""} />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />
