@@ -27,11 +27,14 @@ Anthropic Claude (progress insights) · zustand (canvas editor state) · rechart
   panel that asks Claude to summarize recent attempts into strengths / concerns /
   recommendations for the clinician (never shown to the patient).
 
+- **Try before signing up** — `/try` opens the real Studio with no account. The worksheet is
+  kept in the browser and moved into your library when you create an account.
 - **Parent area** — a guardian links to an existing patient account with a clinician-issued
   guardian code (separate from the patient's own invite code, which would otherwise let a
   parent *become* the patient). Dashboard, missions, progress, calendar, a parent↔clinician
   message thread kept separate from the child's, a home-practice worksheet shortlist, and a
-  read-only statements view. A Child Selector switches between children.
+  read-only statements view. A Child Selector switches between children. Parents can also
+  author their own printable worksheets and send them to their child.
 
 Out of scope for this pass (present in the sitemap, not built): the Admin console,
 marketplace, wallets/points, gamification, and localization. Nav links to those areas render
@@ -60,6 +63,8 @@ payment processing anywhere in the product, and nothing charges a card.
    | --- | --- |
    | `0001_init.sql` | Tables, `handle_new_user` / `claim_invite`, and the clinician/patient RLS policies. |
    | `0002_parents.sql` | The `parent` role, guardian links, `claim_guardian_code`, invoices, and saved worksheets. |
+   | `0003_parent_assignments.sql` | Lets a parent assign work to their own child, and closes a hole that let any clinician assign to any patient. |
+   | `0004_clinician_sees_home_practice.sql` | Scopes clinician visibility by care relationship, so parent-assigned work appears in the patient's record. |
 
    Every file is idempotent, so re-running one is safe — that is also how you repair a
    database left in a partial state by a failed run.
@@ -74,6 +79,8 @@ payment processing anywhere in the product, and nothing charges a card.
    ```bash
    psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
    psql "$DATABASE_URL" -f supabase/migrations/0002_parents.sql
+   psql "$DATABASE_URL" -f supabase/migrations/0003_parent_assignments.sql
+   psql "$DATABASE_URL" -f supabase/migrations/0004_clinician_sees_home_practice.sql
    ```
 
    (`DATABASE_URL` is the connection string under **Project Settings → Database**.)
