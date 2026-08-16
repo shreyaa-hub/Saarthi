@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useEditorMode } from "./editor-mode";
 
 const BUCKET = "template-assets";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -13,6 +14,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export function ImageUploadButton({ onUploaded }: { onUploaded: (url: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const { guest } = useEditorMode();
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -52,6 +54,20 @@ export function ImageUploadButton({ onUploaded }: { onUploaded: (url: string) =>
     onUploaded(data.publicUrl);
     setUploading(false);
   };
+
+  // Uploads go to Supabase Storage under the signed-in user's own path, so
+  // there is nothing a signed-out visitor can upload to. Saying so before
+  // they pick a file is far better than a spinner that fails afterwards.
+  if (guest) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-3 text-center">
+        <p className="text-xs text-muted-foreground">
+          Uploading needs a free account. You can still paste an image address into{" "}
+          <span className="font-medium">Image URL</span> below.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>

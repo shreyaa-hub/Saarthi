@@ -25,6 +25,7 @@ import type { CanvasElementType, TextElement } from "@/lib/types/canvas";
 import { TEXT_PRESETS } from "./text-presets";
 import { LayersPanel } from "./layers-panel";
 import { ImageUploadButton } from "./image-upload-button";
+import { useEditorMode } from "./editor-mode";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<CanvasElementType, typeof Type> = {
@@ -70,6 +71,7 @@ export function EditorSidebar({
   surface?: ElementSurface;
 }) {
   const [tab, setTab] = useState<TabId>("elements");
+  const { guest } = useEditorMode();
   const width = useCanvasStore(store, (s) => s.width);
   const height = useCanvasStore(store, (s) => s.height);
   const elementCount = useCanvasStore(store, (s) => s.elements.length);
@@ -196,7 +198,9 @@ export function EditorSidebar({
         {tab === "uploads" && (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">
-              Add an image element, then upload a picture into it from the properties panel.
+              {guest
+                ? "Add an image element, then paste an image address into its Image URL field. Uploading your own pictures needs a free account."
+                : "Add an image element, then upload a picture into it from the properties panel."}
             </p>
             <button
               type="button"

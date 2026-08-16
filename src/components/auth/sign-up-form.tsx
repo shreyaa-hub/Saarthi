@@ -31,6 +31,18 @@ export function SignUpForm({ next }: { next?: string }) {
       <CardHeader>
         <CardTitle className="font-display text-2xl">Create your account</CardTitle>
         <CardDescription>Choose the account type that fits you.</CardDescription>
+        {next === "claim" && (
+          // The Patient tab is still offered — someone may genuinely be a
+          // patient — but claiming a worksheet needs a library to put it in,
+          // which only clinicians and parents have. Saying so here stops a
+          // patient signing up and silently finding their work gone. The
+          // draft itself is never discarded, so it is still there if they
+          // later create a parent or clinician account.
+          <p className="mt-2 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+            To keep the worksheet you just made, choose <strong>Clinician</strong> or{" "}
+            <strong>Parent</strong> — those accounts have a library to save it into.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="clinician">

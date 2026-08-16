@@ -6,6 +6,7 @@ import { Sparkles, Stethoscope, Users } from "lucide-react";
 import { CanvasEditor } from "@/components/canvas/canvas-editor";
 import { EMPTY_WORKSHEET_CANVAS, type TemplateCanvas } from "@/lib/types/canvas";
 import { readGuestDraft, writeGuestDraft } from "@/lib/canvas/guest-draft";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,7 +48,23 @@ export function GuestStudio() {
 
   const persist = useCallback(
     (canvas: TemplateCanvas, meta: { title: string; domain: string }) => {
-      writeGuestDraft({ canvas, title: meta.title, domain: meta.domain });
+      const result = writeGuestDraft({ canvas, title: meta.title, domain: meta.domain });
+      if (!result.ok) {
+        // Told once per failure rather than silently — losing an afternoon's
+        // work to a quota nobody mentioned is the worst outcome here.
+        toast.error(
+          result.reason === "quota"
+            ? "This page is too large to keep in your browser"
+            : "Your browser won't let this page be saved locally",
+          {
+            id: "guest-draft-write-failed",
+            description:
+              "Create a free account to store it properly. Large pasted images are the usual cause.",
+            duration: 10000,
+          },
+        );
+      }
+      return result.ok;
     },
     [],
   );

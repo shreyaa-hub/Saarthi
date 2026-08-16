@@ -63,33 +63,33 @@ export function parseGuestDraft(raw: string | null): GuestDraft | null {
 }
 
 export function readGuestDraft(): GuestDraft | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(GUEST_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as GuestDraft;
-    // Anything without a usable canvas is treated as absent rather than
-    // thrown at the caller — a corrupted or half-written entry must never
-    // block sign-in or leave a broken prompt on screen.
-    if (!parsed?.canvas || !Array.isArray(parsed.canvas.elements)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  return parseGuestDraft(getGuestDraftRaw());
 }
 
-export function writeGuestDraft(draft: Omit<GuestDraft, "savedAt">): void {
-  if (typeof window === "undefined") return;
+// Returns whether the draft actually persisted. The caller MUST NOT report
+// "saved" without checking: localStorage has a hard quota (~5MB in practice),
+// and a large pasted data-URI image can exceed it. Swallowing that error
+// would leave the editor claiming the work was safe while every write failed
+// and the whole draft vanished on reload — silent data loss, which is worse
+// than telling someone their page is too big.
+export type GuestWriteResult = { ok: true } | { ok: false; reason: "quota" | "unavailable" };
+
+export function writeGuestDraft(draft: Omit<GuestDraft, "savedAt">): GuestWriteResult {
+  if (typeof window === "undefined") return { ok: false, reason: "unavailable" };
   try {
     window.localStorage.setItem(
       GUEST_DRAFT_KEY,
       JSON.stringify({ ...draft, savedAt: new Date().toISOString() }),
     );
     notify();
-  } catch {
-    // Storage full or blocked (private mode). The canvas is still on screen;
-    // it just won't survive a reload, which is better than crashing the
-    // editor mid-edit.
+    return { ok: true };
+  } catch (err) {
+    // QuotaExceededError is the interesting one; anything else (private mode,
+    // storage disabled by policy) is reported as simply unavailable.
+    const quota =
+      err instanceof DOMException &&
+      (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    return { ok: false, reason: quota ? "quota" : "unavailable" };
   }
 }
 

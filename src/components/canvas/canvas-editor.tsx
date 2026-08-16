@@ -11,6 +11,7 @@ import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } fr
 import { TEMPLATE_DOMAINS } from "@/lib/types/canvas";
 import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib/actions/templates";
 import { EditorSidebar } from "./editor-sidebar";
+import { EditorModeContext } from "./editor-mode";
 import { SelectionToolbar } from "./selection-toolbar";
 import type { ElementSurface } from "@/lib/canvas/defaults";
 import { CanvasSurface } from "./canvas-surface";
@@ -47,7 +48,9 @@ type TemplateRow = {
 // snapping, shortcuts, the properties panel — is the same editor, so a
 // visitor is genuinely trying the real thing rather than a mock of it.
 export type GuestHooks = {
-  persist: (canvas: TemplateCanvas, meta: { title: string; domain: string }) => void;
+  // Returns false when the draft could not be stored, so the editor can show
+  // "unsaved" rather than a save state that isn't true.
+  persist: (canvas: TemplateCanvas, meta: { title: string; domain: string }) => boolean;
   onSignUpPrompt: () => void;
 };
 
@@ -87,7 +90,13 @@ export function CanvasEditor({
     // "saved / unsaved" affordance honest instead of showing a save state
     // that means nothing.
     if (guest) {
-      guest.persist(canvas, { title, domain });
+      const stored = guest.persist(canvas, { title, domain });
+      if (!stored) {
+        // Deliberately no markSaved(): the store stays dirty so the next edit
+        // retries, and the header keeps showing unsaved.
+        setSaveState("idle");
+        return;
+      }
       store.getState().markSaved();
       setSaveState("saved");
       return;
@@ -247,6 +256,7 @@ export function CanvasEditor({
   };
 
   return (
+    <EditorModeContext.Provider value={{ guest: Boolean(guest) }}>
     <div className="flex h-screen flex-col">
       <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -366,5 +376,6 @@ export function CanvasEditor({
         <PropertiesPanel store={store} />
       </motion.div>
     </div>
+    </EditorModeContext.Provider>
   );
 }
