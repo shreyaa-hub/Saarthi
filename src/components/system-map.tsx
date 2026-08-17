@@ -38,6 +38,7 @@ const CLINICIAN_SECTIONS: MapSection[] = [
       { icon: Users, href: "/clinician/caseload", label: "Caseload", body: "Invite and manage patients; open a patient's detail page for their assignments, attempts, and AI insights." },
       { icon: Send, href: "/clinician/assignments", label: "Assignments", body: "Every activity assigned across your whole caseload." },
       { icon: CalendarDays, href: "/clinician/schedule", label: "Scheduler", body: "Calendar view of upcoming and overdue assignment due dates." },
+      { icon: Wallet, href: "/clinician/billing", label: "Billing", body: "Issue statements to the guardians of your patients and mark them paid. A record only — no payment is taken." },
     ],
   },
   {

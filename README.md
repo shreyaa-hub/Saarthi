@@ -39,7 +39,8 @@ Anthropic Claude (progress insights) · zustand (canvas editor state) · rechart
 Out of scope for this pass (present in the sitemap, not built): the Admin console,
 marketplace, wallets/points, gamification, and localization. Nav links to those areas render
 a "coming soon" page rather than 404ing. Parent **Finances** is a record only — there is no
-payment processing anywhere in the product, and nothing charges a card.
+payment processing anywhere in the product, and nothing charges a card — clinicians issue
+statements from **Billing** and mark them paid once settled out of band.
 
 ## Prerequisites
 
@@ -65,6 +66,7 @@ payment processing anywhere in the product, and nothing charges a card.
    | `0002_parents.sql` | The `parent` role, guardian links, `claim_guardian_code`, invoices, and saved worksheets. |
    | `0003_parent_assignments.sql` | Lets a parent assign work to their own child, and closes a hole that let any clinician assign to any patient. |
    | `0004_clinician_sees_home_practice.sql` | Scopes clinician visibility by care relationship, so parent-assigned work appears in the patient's record. |
+   | `0005_clinician_billing.sql` | Lets a clinician see and bill the guardians of their own patients, scoped by `can_bill()`. |
 
    Every file is idempotent, so re-running one is safe — that is also how you repair a
    database left in a partial state by a failed run.
@@ -81,6 +83,7 @@ payment processing anywhere in the product, and nothing charges a card.
    psql "$DATABASE_URL" -f supabase/migrations/0002_parents.sql
    psql "$DATABASE_URL" -f supabase/migrations/0003_parent_assignments.sql
    psql "$DATABASE_URL" -f supabase/migrations/0004_clinician_sees_home_practice.sql
+   psql "$DATABASE_URL" -f supabase/migrations/0005_clinician_billing.sql
    ```
 
    (`DATABASE_URL` is the connection string under **Project Settings → Database**.)

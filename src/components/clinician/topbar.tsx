@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, MessageSquare, Map, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, Users, LayoutTemplate, Send, CalendarDays, MessageSquare, Map, LogOut, Wallet } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +28,7 @@ const links = [
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
   { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
+  { href: "/clinician/billing", label: "Billing", icon: Wallet },
 ];
 
 export function ClinicianTopbar({

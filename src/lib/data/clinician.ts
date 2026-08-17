@@ -354,3 +354,54 @@ export async function getPatientPerformanceData(
     weeklyTrend: buildTrend(analyticsAttempts, "week"),
   };
 }
+
+// --- Billing -----------------------------------------------------------
+
+// The guardians a clinician may bill: parents of patients on their own active
+// caseload. Scoped by RLS (profiles_select_my_patients_guardians and
+// parent_children_clinician_select), which is also exactly what can_bill()
+// enforces on write — so what this offers and what the database accepts
+// cannot drift apart.
+export type BillableParent = {
+  parentId: string;
+  parentName: string;
+  childId: string;
+  childName: string;
+};
+
+type GuardianRow = {
+  parent_id: string;
+  child_id: string;
+  profiles: { full_name: string } | null;
+  child: { full_name: string } | null;
+};
+
+export async function getBillableParents(supabase: Client): Promise<BillableParent[]> {
+  const { data, error } = await supabase
+    .from("parent_children")
+    .select(
+      "parent_id, child_id, " +
+        "profiles!parent_children_parent_id_fkey(full_name), " +
+        "child:profiles!parent_children_child_id_fkey(full_name)",
+    )
+    .order("created_at", { ascending: true });
+
+  logIfError("getBillableParents", error);
+  return ((data ?? []) as unknown as GuardianRow[]).map((row) => ({
+    parentId: row.parent_id,
+    parentName: row.profiles?.full_name ?? "Parent",
+    childId: row.child_id,
+    childName: row.child?.full_name ?? "Child",
+  }));
+}
+
+export async function getIssuedInvoices(supabase: Client, clinicianId: string) {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*, parent:profiles!invoices_parent_id_fkey(full_name)")
+    .eq("clinician_id", clinicianId)
+    .order("issued_at", { ascending: false });
+
+  logIfError("getIssuedInvoices", error);
+  return data ?? [];
+}

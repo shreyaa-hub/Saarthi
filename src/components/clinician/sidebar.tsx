@@ -13,6 +13,7 @@ import {
   CalendarDays,
   MessageSquare,
   LogOut,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const links = [
   { href: "/clinician/studio", label: "Template Studio", icon: LayoutTemplate },
   { href: "/clinician/assignments", label: "Assignments", icon: Send },
   { href: "/clinician/schedule", label: "Scheduler", icon: CalendarDays },
+  { href: "/clinician/billing", label: "Billing", icon: Wallet },
 ];
 
 export function ClinicianSidebar({

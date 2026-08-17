@@ -43,6 +43,7 @@ const CLINICIAN_ITEMS: StaticItem[] = [
   { id: "nav-studio", label: "Go to Template Studio", icon: LayoutTemplate, action: (r) => r.push("/clinician/studio") },
   { id: "nav-assignments", label: "Go to Assignments", icon: Send, action: (r) => r.push("/clinician/assignments") },
   { id: "nav-schedule", label: "Go to Scheduler", icon: CalendarDays, action: (r) => r.push("/clinician/schedule") },
+  { id: "nav-billing", label: "Go to Billing", icon: Wallet, action: (r) => r.push("/clinician/billing") },
   { id: "nav-trash", label: "Go to Trash", icon: Trash2, action: (r) => r.push("/clinician/studio/trash") },
   { id: "new-template", label: "New template", icon: FilePlus2, action: (r) => r.push("/clinician/studio/initialize?entry=blank") },
   { id: "new-worksheet", label: "Generate a worksheet", icon: Wand2, action: (r) => r.push("/clinician/studio/worksheet-generator") },
