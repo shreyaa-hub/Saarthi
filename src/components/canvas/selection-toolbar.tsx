@@ -2,6 +2,8 @@
 
 import {
   Bold,
+  Italic,
+  Underline,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -55,7 +57,8 @@ export function SelectionToolbar({ store }: { store: CanvasStoreApi }) {
             <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="blank">Unruled (blank)</SelectItem>
-              <SelectItem value="ruled">Ruled lines</SelectItem>
+              <SelectItem value="ruled">Ruled — no margin</SelectItem>
+              <SelectItem value="ruled-margin">Ruled — with margin</SelectItem>
               <SelectItem value="grid">Grid</SelectItem>
               <SelectItem value="dotted">Dotted</SelectItem>
             </SelectContent>
@@ -82,6 +85,20 @@ export function SelectionToolbar({ store }: { store: CanvasStoreApi }) {
             onClick={() => patch({ fontWeight: selected.fontWeight === "bold" ? "normal" : "bold" })}
           >
             <Bold className="size-4" />
+          </IconButton>
+          <IconButton
+            label="Italic"
+            active={Boolean(selected.italic)}
+            onClick={() => patch({ italic: !selected.italic })}
+          >
+            <Italic className="size-4" />
+          </IconButton>
+          <IconButton
+            label="Underline"
+            active={Boolean(selected.underline)}
+            onClick={() => patch({ underline: !selected.underline })}
+          >
+            <Underline className="size-4" />
           </IconButton>
           <Divider />
           {(["left", "center", "right"] as const).map((a) => (

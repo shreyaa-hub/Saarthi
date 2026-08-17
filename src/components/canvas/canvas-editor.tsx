@@ -13,6 +13,7 @@ import { saveTemplateCanvas, setTemplateStatus, updateTemplateMeta } from "@/lib
 import { EditorSidebar } from "./editor-sidebar";
 import { EditorModeContext } from "./editor-mode";
 import { SelectionToolbar } from "./selection-toolbar";
+import { PageBar } from "./page-bar";
 import type { ElementSurface } from "@/lib/canvas/defaults";
 import { CanvasSurface } from "./canvas-surface";
 import { PropertiesPanel } from "./properties-panel";
@@ -372,6 +373,9 @@ export function CanvasEditor({
           <div className="min-h-0 flex-1">
             <CanvasSurface store={store} />
           </div>
+          {/* Pages are a print concept — an interactive activity is one
+              screen, so the bar only appears on the worksheet surface. */}
+          {surface === "worksheet" && <PageBar store={store} />}
         </div>
         <PropertiesPanel store={store} />
       </motion.div>

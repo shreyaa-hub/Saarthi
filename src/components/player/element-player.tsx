@@ -29,6 +29,8 @@ export function ElementPlayer({
             fontSize: element.fontSize,
             fontWeight: element.fontWeight === "bold" ? 700 : element.fontWeight === "medium" ? 500 : 400,
             color: element.color,
+            fontStyle: element.italic ? "italic" : undefined,
+            textDecoration: element.underline ? "underline" : undefined,
             textAlign: element.align,
           }}
         >

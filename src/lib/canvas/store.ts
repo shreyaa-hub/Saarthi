@@ -1,7 +1,9 @@
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { useState } from "react";
-import type { CanvasElement, TemplateCanvas, PageStyle } from "@/lib/types/canvas";
+import { nanoid } from "nanoid";
+import type { CanvasElement, TemplateCanvas, PageStyle, CanvasPage } from "@/lib/types/canvas";
+import { allPages } from "@/lib/types/canvas";
 
 type Snapshot = {
   elements: CanvasElement[];
@@ -20,6 +22,14 @@ export type CanvasState = {
   background: string;
   pageStyle: PageStyle;
   elements: CanvasElement[];
+  // Every page of the document. `elements`/`pageStyle` above mirror
+  // pages[pageIndex] — they are the live copy being edited, and are folded
+  // back into `pages` whenever the page changes or the canvas is serialised.
+  // Keeping the live page at the top level is what lets addElement,
+  // updateElement, undo, snapping and every other existing action stay
+  // exactly as they were.
+  pages: CanvasPage[];
+  pageIndex: number;
   selectedIds: string[];
   dirty: boolean;
   past: Snapshot[];
@@ -39,6 +49,9 @@ export type CanvasActions = {
   setBackground: (color: string) => void;
   setSize: (width: number, height: number) => void;
   setPageStyle: (pageStyle: PageStyle) => void;
+  goToPage: (index: number) => void;
+  addPage: () => void;
+  removePage: (index: number) => void;
   markSaved: () => void;
   toCanvas: () => TemplateCanvas;
   undo: () => void;
@@ -46,6 +59,14 @@ export type CanvasActions = {
 };
 
 export type CanvasStore = CanvasState & CanvasActions;
+
+// Folds the live page back into the pages array. Called before anything that
+// reads or replaces the page set, so the page being edited is never stale.
+function syncCurrentPage(s: CanvasState): CanvasPage[] {
+  return s.pages.map((p, i) =>
+    i === s.pageIndex ? { ...p, elements: s.elements, pageStyle: s.pageStyle } : p,
+  );
+}
 
 function snapshotOf(s: CanvasState): Snapshot {
   return { elements: s.elements, background: s.background, width: s.width, height: s.height, pageStyle: s.pageStyle };
@@ -71,6 +92,8 @@ export function createCanvasStore(initial: TemplateCanvas) {
       background: initial.background,
       pageStyle: initial.pageStyle ?? "blank",
       elements: initial.elements,
+      pages: allPages(initial),
+      pageIndex: 0,
       selectedIds: [],
       dirty: false,
       past: [],
@@ -203,10 +226,67 @@ export function createCanvasStore(initial: TemplateCanvas) {
         checkpoint();
         set({ pageStyle, dirty: true });
       },
+
+      goToPage: (index) => {
+        const s = get();
+        if (index < 0 || index >= s.pages.length || index === s.pageIndex) return;
+        set({
+          pages: syncCurrentPage(s),
+          pageIndex: index,
+          elements: s.pages[index].elements,
+          pageStyle: s.pages[index].pageStyle,
+          selectedIds: [],
+        });
+      },
+
+      addPage: () => {
+        checkpoint(true);
+        const s = get();
+        const synced = syncCurrentPage(s);
+        // A new page inherits the current page's ruling, which is almost
+        // always what is wanted when continuing the same worksheet.
+        const page: CanvasPage = { id: nanoid(8), pageStyle: s.pageStyle, elements: [] };
+        set({
+          pages: [...synced, page],
+          pageIndex: synced.length,
+          elements: [],
+          selectedIds: [],
+          dirty: true,
+        });
+      },
+
+      removePage: (index) => {
+        const s = get();
+        // Never leave a document with no pages at all.
+        if (s.pages.length <= 1) return;
+        checkpoint(true);
+        const synced = syncCurrentPage(s);
+        const pages = synced.filter((_, i) => i !== index);
+        const nextIndex = Math.min(s.pageIndex > index ? s.pageIndex - 1 : s.pageIndex, pages.length - 1);
+        set({
+          pages,
+          pageIndex: nextIndex,
+          elements: pages[nextIndex].elements,
+          pageStyle: pages[nextIndex].pageStyle,
+          selectedIds: [],
+          dirty: true,
+        });
+      },
       markSaved: () => set({ dirty: false }),
       toCanvas: () => {
         const s = get();
-        return { width: s.width, height: s.height, background: s.background, pageStyle: s.pageStyle, elements: s.elements };
+        const pages = syncCurrentPage(s);
+        const [first, ...rest] = pages;
+        // Page 1 goes back into elements/pageStyle so every existing reader
+        // sees the shape it always has; pages 2+ only appear when they exist.
+        return {
+          width: s.width,
+          height: s.height,
+          background: s.background,
+          pageStyle: first.pageStyle,
+          elements: first.elements,
+          ...(rest.length > 0 ? { pages: rest } : {}),
+        };
       },
 
       undo: () =>

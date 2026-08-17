@@ -18,6 +18,10 @@ export type TextElement = ElementBase & {
   fontWeight: "normal" | "medium" | "bold";
   color: string;
   align: "left" | "center" | "right";
+  // Optional so every canvas authored before these existed still parses and
+  // renders identically — absent means off.
+  italic?: boolean;
+  underline?: boolean;
 };
 
 export type ImageElement = ElementBase & {
@@ -147,8 +151,19 @@ export function isInteractive(el: CanvasElement): boolean {
 // Whether the page itself carries a ruling behind the elements. Optional so
 // every canvas authored before worksheets existed still parses — absent means
 // "blank", which is what those canvases already rendered as.
-export const PAGE_STYLES = ["blank", "ruled", "grid", "dotted"] as const;
+export const PAGE_STYLES = ["blank", "ruled", "ruled-margin", "grid", "dotted"] as const;
 export type PageStyle = (typeof PAGE_STYLES)[number];
+
+// Additional pages, 2..n. Page 1 stays in `elements`/`pageStyle` above, so
+// every existing reader — the activity player, scoring, the printable report,
+// the blueprints — keeps working untouched and simply sees the first page.
+// Absent means a single-page document, which is what every canvas authored
+// before multi-page was added is.
+export type CanvasPage = {
+  id: string;
+  pageStyle: PageStyle;
+  elements: CanvasElement[];
+};
 
 export type TemplateCanvas = {
   width: number;
@@ -156,7 +171,18 @@ export type TemplateCanvas = {
   background: string;
   elements: CanvasElement[];
   pageStyle?: PageStyle;
+  pages?: CanvasPage[];
 };
+
+// The whole document as a flat list of pages, page 1 first. The one place
+// that knows how page 1 is stored differently from the rest, so nothing else
+// has to remember.
+export function allPages(canvas: TemplateCanvas): CanvasPage[] {
+  return [
+    { id: "page-1", pageStyle: canvas.pageStyle ?? "blank", elements: canvas.elements },
+    ...(canvas.pages ?? []),
+  ];
+}
 
 export const EMPTY_CANVAS: TemplateCanvas = {
   width: 900,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FilePlus2, MonitorSmartphone, Printer, Wand2 } from "lucide-react";
+import { FilePlus2, MonitorSmartphone, Printer, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { StaggerGroup, StaggerItem } from "@/components/motion/stagger-group";
 
@@ -26,9 +26,9 @@ const entries = [
   },
   {
     href: "/clinician/studio/worksheet-generator",
-    icon: Wand2,
-    title: "Worksheet Generator",
-    body: "Describe a topic and let AI draft a printable worksheet to refine.",
+    icon: FileText,
+    title: "Worksheet Creator",
+    body: "A printable page with text, lists, shapes, writing lines, page ruling and multiple pages.",
   },
 ];
 

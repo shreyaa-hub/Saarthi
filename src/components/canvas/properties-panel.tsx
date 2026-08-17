@@ -108,7 +108,8 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="blank">Unruled (blank)</SelectItem>
-              <SelectItem value="ruled">Ruled lines</SelectItem>
+              <SelectItem value="ruled">Ruled — no margin</SelectItem>
+              <SelectItem value="ruled-margin">Ruled — with margin</SelectItem>
               <SelectItem value="grid">Grid</SelectItem>
               <SelectItem value="dotted">Dotted</SelectItem>
             </SelectContent>
@@ -339,6 +340,27 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
             <Label htmlFor="case-sensitive" className="text-xs font-normal">Case sensitive</Label>
           </div>
         </>
+      )}
+
+      {selected.type === "text" && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="text-italic"
+              checked={Boolean(selected.italic)}
+              onCheckedChange={(v) => patch({ italic: Boolean(v) })}
+            />
+            <Label htmlFor="text-italic" className="text-xs font-normal">Italic</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="text-underline"
+              checked={Boolean(selected.underline)}
+              onCheckedChange={(v) => patch({ underline: Boolean(v) })}
+            />
+            <Label htmlFor="text-underline" className="text-xs font-normal">Underline</Label>
+          </div>
+        </div>
       )}
 
       {selected.type === "dragMatch" && <DragMatchFields element={selected} patch={patch} />}

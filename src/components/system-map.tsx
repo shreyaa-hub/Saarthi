@@ -45,7 +45,7 @@ const CLINICIAN_SECTIONS: MapSection[] = [
     title: "Template Studio",
     entries: [
       { icon: LayoutTemplate, href: "/clinician/studio", label: "Template Studio", body: "Build canvas-based therapy activities — text, images, audio, and interactive elements." },
-      { icon: Wand2, href: "/clinician/studio/worksheet-generator", label: "Worksheet Generator", body: "Describe a topic and let AI draft a printable worksheet to refine." },
+      { icon: Wand2, href: "/clinician/studio/worksheet-generator", label: "Worksheet Creator", body: "Build a printable worksheet on a canvas — text with bold/italic/underline, bullet and numbered lists, shapes, writing lines, page ruling, images, and as many pages as you need." },
       { icon: Trash2, href: "/clinician/studio/trash", label: "Trash", body: "Restore a deleted template, or remove it permanently." },
     ],
   },

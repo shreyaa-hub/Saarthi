@@ -28,5 +28,12 @@ export default async function TemplateEditorPage({
   }
   if (!template) notFound();
 
-  return <CanvasEditor template={template} />;
+  // Print templates ARE worksheets: worksheet-only tools, plus the page bar.
+  // Interactive and hybrid keep the full activity palette.
+  return (
+    <CanvasEditor
+      template={template}
+      surface={template.medium === "print" ? "worksheet" : "activity"}
+    />
+  );
 }

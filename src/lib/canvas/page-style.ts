@@ -2,6 +2,8 @@ import type { PageStyle } from "@/lib/types/canvas";
 
 const RULE = "#dfd8c9";
 const GAP = 32;
+const MARGIN_X = 64;
+const MARGIN_RULE = "#e6b8b8";
 
 // The page ruling, expressed as CSS gradients rather than an element, so it
 // sits behind everything the author places and never becomes selectable,
@@ -17,6 +19,17 @@ export function pageStyleBackground(
       return {
         background,
         backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${GAP - 1}px, ${RULE} ${GAP - 1}px ${GAP}px)`,
+      };
+    // Exercise-book ruling: the same horizontal lines plus a single vertical
+    // margin rule. The margin is drawn in a warmer tone, as on real paper, so
+    // it reads as a margin rather than as one more line.
+    case "ruled-margin":
+      return {
+        background,
+        backgroundImage:
+          `linear-gradient(to right, transparent 0 ${MARGIN_X - 1}px, ${MARGIN_RULE} ${MARGIN_X - 1}px ${MARGIN_X}px, transparent ${MARGIN_X}px),` +
+          `repeating-linear-gradient(to bottom, transparent 0 ${GAP - 1}px, ${RULE} ${GAP - 1}px ${GAP}px)`,
+        backgroundRepeat: "no-repeat, repeat",
       };
     case "grid":
       return {

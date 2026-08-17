@@ -1,7 +1,7 @@
 import { requireProfile } from "@/lib/auth/session";
-import { WorksheetGeneratorForm } from "@/components/clinician/worksheet-generator-form";
+import { WorksheetCreatorForm } from "@/components/clinician/worksheet-creator-form";
 
-export default async function WorksheetGeneratorPage() {
+export default async function WorksheetCreatorPage() {
   await requireProfile("clinician");
-  return <WorksheetGeneratorForm />;
+  return <WorksheetCreatorForm />;
 }

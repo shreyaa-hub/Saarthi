@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { EMPTY_CANVAS, type TemplateCanvas, type TemplateMedium } from "@/lib/types/canvas";
+import { EMPTY_CANVAS, EMPTY_WORKSHEET_CANVAS, type TemplateCanvas, type TemplateMedium } from "@/lib/types/canvas";
 import { getBlueprint } from "@/lib/canvas/blueprints";
 import { randomThumbnailColor } from "@/lib/canvas/colors";
 
@@ -110,6 +110,40 @@ export async function claimGuestDraft(input: {
 
   revalidatePath(role === "parent" ? "/parent/creator-hub" : "/clinician/studio");
   return { error: null, templateId: data.id, role };
+}
+
+export async function createClinicianWorksheet(
+  _prevState: { error: string | null },
+  formData: FormData,
+): Promise<{ error: string | null }> {
+  const title = String(formData.get("title") || "").trim();
+  const domain = String(formData.get("domain") || "General");
+
+  if (!title) return { error: "Give your worksheet a name." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data, error } = await supabase
+    .from("templates")
+    .insert({
+      owner_id: user.id,
+      title,
+      domain,
+      medium: "print",
+      canvas: EMPTY_WORKSHEET_CANVAS,
+      thumbnail_color: randomThumbnailColor(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { error: error?.message ?? "Could not create the worksheet." };
+
+  revalidatePath("/clinician/studio");
+  redirect(`/clinician/studio/${data.id}`);
 }
 
 export async function saveTemplateCanvas(
