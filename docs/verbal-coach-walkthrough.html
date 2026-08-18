@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Verbal Coach — Application Walkthrough</title>
+<style>
+  @page { size: A4 landscape; margin: 14mm 14mm 12mm 14mm; }
+
+  :root {
+    --ink: #16191d;
+    --muted: #5a6472;
+    --rule: #d4d9e0;
+    --accent: #1f3a5f;
+    --tint: #f4f6f9;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10pt;
+  }
+
+  .sheet {
+    page-break-after: always;
+    break-after: page;
+    height: 178mm;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Not :last-child — the scripts are the last children of body, so it would
+     never match and the final sheet would force a trailing blank page. */
+  .sheet.final { page-break-after: auto; break-after: auto; }
+
+  .head {
+    border-top: 3pt solid var(--accent);
+    padding-top: 8pt;
+    margin-bottom: 6pt;
+    flex: 0 0 auto;
+  }
+  .eyebrow {
+    font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 3pt;
+  }
+  h1 { font-size: 15pt; margin: 0 0 3pt; color: var(--accent); }
+  .sub { margin: 0; color: var(--muted); font-size: 9pt; }
+
+  .diagram {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding-top: 4pt;
+  }
+  .diagram svg { display: block; }
+
+  /* Cover page */
+  .cover {
+    height: 178mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+    break-after: page;
+  }
+  .cover .bar { border-top: 4pt solid var(--accent); width: 90mm; margin-bottom: 16pt; }
+  .cover h1 { font-size: 30pt; margin: 0 0 8pt; }
+  .cover p.lede { font-size: 12pt; color: var(--muted); margin: 0 0 22pt; max-width: 170mm; }
+  .toc { border-top: 0.75pt solid var(--rule); padding-top: 12pt; }
+  .toc table { border-collapse: collapse; font-size: 10pt; }
+  .toc td { padding: 4pt 22pt 4pt 0; vertical-align: top; }
+  .toc td:first-child { color: var(--accent); font-weight: 700; white-space: nowrap; }
+  .toc td:last-child { color: var(--muted); }
+
+  .legend {
+    flex: 0 0 auto;
+    border-top: 0.75pt solid var(--rule);
+    padding-top: 5pt;
+    margin-top: 4pt;
+    font-size: 7.5pt;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div class="bar"></div>
+  <p class="eyebrow">Application Walkthrough</p>
+  <h1>Verbal Coach</h1>
+  <p class="lede">
+    Every path through the platform, from a first-time visitor with no account
+    to a completed activity appearing in a clinician's analytics.
+  </p>
+  <div class="toc">
+    <table>
+      <tr><td>1</td><td>Entry and account creation — how each of the three roles gets in</td></tr>
+      <tr><td>2</td><td>Clinician walkthrough — caseload, authoring, assigning, reviewing, billing</td></tr>
+      <tr><td>3</td><td>Patient walkthrough — receiving, completing, and being scored on an activity</td></tr>
+      <tr><td>4</td><td>Parent walkthrough — following a child and authoring home practice</td></tr>
+      <tr><td>5</td><td>Activity lifecycle — how a template becomes data a clinician can act on</td></tr>
+      <tr><td>6</td><td>Messaging and notifications — the communication layer across all roles</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ 1. ENTRY ============ -->
+<div class="sheet">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 1 of 6</p>
+    <h1>Entry and account creation</h1>
+    <p class="sub">A visitor can use the canvas and browse the library before deciding to register. Patients and parents join by code; clinicians register directly.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+  V(["Visitor arrives<br/>no account"]):::start
+
+  V --> M["Marketing site<br/><small>home · features · workflow · about</small>"]:::pub
+  V --> L["Global Library<br/><small>templates · worksheets · assets</small>"]:::pub
+  V --> T["Try the Studio<br/><small>full canvas, no sign-in</small>"]:::pub
+
+  T --> BUILD["Builds an activity<br/>on the canvas"]:::pub
+  BUILD --> DRAFT[("Draft held<br/>on device")]:::store
+  DRAFT --> PROMPT{"Prompted to<br/>create an account"}:::dec
+
+  M --> SU["Sign up"]:::act
+  L --> SU
+  PROMPT --> SU
+
+  SU --> ROLE{"Which role?"}:::dec
+
+  ROLE -->|Clinician| RC["Register directly"]:::act
+  ROLE -->|Patient| RP["Enter invite code<br/><small>issued by their clinician</small>"]:::act
+  ROLE -->|Parent| RG["Enter guardian code<br/><small>issued by the clinic</small>"]:::act
+
+  RP --> LINKP["Linked to that<br/>clinician's caseload"]:::act
+  RG --> LINKG["Linked to their<br/>child's record"]:::act
+
+  RC --> CD(["Clinician<br/>Dashboard"]):::endc
+  LINKP --> PD(["My Missions"]):::endp
+  LINKG --> GD(["Parent<br/>Dashboard"]):::endg
+
+  DRAFT -. "claimed into the<br/>new account" .-> CD
+  DRAFT -. "claimed into the<br/>new account" .-> GD
+
+  classDef start fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+  classDef pub fill:#eef2f7,stroke:#93a4bb,color:#16191d
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef store fill:#f0ece6,stroke:#a89880,color:#16191d
+  classDef endc fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+  classDef endp fill:#2f6b4f,stroke:#2f6b4f,color:#ffffff,font-weight:bold
+  classDef endg fill:#6b3f6b,stroke:#6b3f6b,color:#ffffff,font-weight:bold
+    </pre>
+  </div>
+  <div class="legend">
+    Navy = clinician destination · Green = patient destination · Purple = parent destination · Amber = decision point · Grey = public, no account required
+  </div>
+</div>
+
+<!-- ============ 2. CLINICIAN ============ -->
+<div class="sheet">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 2 of 6</p>
+    <h1>Clinician walkthrough</h1>
+    <p class="sub">From dashboard to every working area of the practice: building a caseload, authoring activities, assigning them, reviewing results, and billing.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+  CD(["Clinician<br/>Dashboard"]):::start
+
+  subgraph S1 ["1 · Build the caseload"]
+    direction TB
+    CL["Caseload"]:::act
+    INV["Invite a patient<br/><small>generate invite code</small>"]:::act
+    ACC["Patient joins and<br/>is linked"]:::act
+    CL --> INV --> ACC
+  end
+
+  subgraph S2 ["2 · Author the activity"]
+    direction TB
+    ST["Template Studio"]:::act
+    NEW{"Which<br/>medium?"}:::dec
+    EDIT["Canvas editor<br/><small>text · shapes · images · audio<br/>lists · writing lines · interactions</small>"]:::act
+    RULES["Updated<br/><small>team standards</small>"]:::rule
+    SAVE["Save template"]:::act
+    PUB{"Publish?"}:::dec
+    ST --> NEW
+    NEW -->|Interactive / hybrid| EDIT
+    NEW -->|Printable worksheet| EDIT
+    RULES -. "apply" .-> EDIT
+    EDIT --> SAVE --> PUB
+  end
+
+  subgraph S3 ["3 · Assign and track"]
+    direction TB
+    ASG["Assign to a patient<br/><small>instructions · due date</small>"]:::act
+    ALL["All assignments"]:::act
+    SCH["Scheduler<br/><small>due and overdue</small>"]:::act
+    ASG --> ALL
+    ASG --> SCH
+  end
+
+  subgraph S4 ["4 · Review the result"]
+    direction TB
+    ATT["Attempt history"]:::act
+    ANA["Performance analytics<br/><small>accuracy · domains · ranking</small>"]:::act
+    AI["AI clinical insights"]:::ai
+    REP["Printable performance report"]:::act
+    ATT --> ANA
+    ANA --> AI
+    ANA --> REP
+  end
+
+  subgraph S5 ["5 · Practice admin"]
+    direction TB
+    BILL["Billing<br/><small>issue statement · mark paid</small>"]:::act
+    MSG["Messages"]:::act
+    TRASH["Trash<br/><small>restore or delete</small>"]:::act
+  end
+
+  CD --> CL
+  CD --> ST
+  CD --> BILL
+  ACC --> ASG
+  SAVE --> ASG
+  PUB -->|Yes| LIB[("Global Library")]:::store
+  PUB -->|No| PRIV[("Private to you")]:::store
+  LIB --> ASG
+  ASG --> PT(["Patient completes it"]):::endp
+  PT --> ATT
+  BILL --> GUARD(["Guardian's Finances"]):::endg
+
+  classDef start fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef store fill:#f0ece6,stroke:#a89880,color:#16191d
+  classDef ai fill:#eaf0fa,stroke:#4a6fa5,color:#16191d
+  classDef rule fill:#f3eef7,stroke:#8a6ba5,color:#16191d
+  classDef endp fill:#2f6b4f,stroke:#2f6b4f,color:#ffffff,font-weight:bold
+  classDef endg fill:#6b3f6b,stroke:#6b3f6b,color:#ffffff,font-weight:bold
+    </pre>
+  </div>
+  <div class="legend">
+    Blue = AI-assisted · Purple = shared authoring standards · Beige = stored state · Amber = decision point
+  </div>
+</div>
+
+<!-- ============ 3. PATIENT ============ -->
+<div class="sheet">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 3 of 6</p>
+    <h1>Patient walkthrough</h1>
+    <p class="sub">The patient sees one list of work regardless of who sent it, completes it in the player, and their result flows back to both the clinician and the parent.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+  SI(["Patient signs in"]):::start --> MM["My Missions<br/><small>everything assigned, from either source</small>"]:::act
+
+  CLIN[/"Assigned by clinician"/]:::src --> MM
+  PAR[/"Sent by parent"/]:::src --> MM
+
+  MM --> PICK{"Open an<br/>activity"}:::dec
+  PICK --> PLAY["Activity player<br/><small>opens the canvas snapshot<br/>taken when it was assigned</small>"]:::act
+
+  PLAY --> KIND{"Activity<br/>type"}:::dec
+  KIND -->|Interactive| RESP["Taps, types, and drags<br/>on screen"]:::act
+  KIND -->|Hybrid| MIX["On-screen work plus<br/>hands-on practice"]:::act
+  KIND -->|Printable| PRINT["Prints the worksheet<br/>and completes on paper"]:::act
+
+  RESP --> SUB["Submits"]:::act
+  MIX --> SUB
+  PRINT --> SUB
+
+  SUB --> SCORE["Responses scored<br/>and recorded"]:::act
+  SCORE --> DONE["Marked complete"]:::act
+
+  DONE --> PROG["Progress<br/><small>accuracy trend · clinician notes</small>"]:::act
+  DONE --> NOTIFY(["Clinician and parent<br/>notified"]):::endc
+
+  MM --> MSGS["Messages<br/><small>thread with their clinician</small>"]:::act
+
+  classDef start fill:#2f6b4f,stroke:#2f6b4f,color:#ffffff,font-weight:bold
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef src fill:#eef2f7,stroke:#93a4bb,color:#16191d
+  classDef endc fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+    </pre>
+  </div>
+  <div class="legend">
+    The activity opens from a snapshot taken at the moment it was assigned, so later edits to a template never change work already sent.
+  </div>
+</div>
+
+<!-- ============ 4. PARENT ============ -->
+<div class="sheet">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 4 of 6</p>
+    <h1>Parent and guardian walkthrough</h1>
+    <p class="sub">A guardian follows their child's therapy and contributes home practice of their own, authored on the same canvas the clinician uses.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+  GD(["Parent<br/>Dashboard"]):::start
+  SEL{"More than<br/>one child?"}:::dec
+  GD --> SEL
+  SEL -->|Yes| PICK["Child selector<br/><small>choice is remembered</small>"]:::act
+  SEL -->|No| ONE["Single child in view"]:::act
+
+  subgraph FOLLOW ["Following the child"]
+    direction TB
+    MIS["Missions<br/><small>everything assigned, either source</small>"]:::act
+    PRG["Progress<br/><small>clinician therapy and home practice<br/>reported separately</small>"]:::act
+    CAL["Calendar<br/><small>due dates by month</small>"]:::act
+    MSG["Messages<br/><small>own thread with the clinician</small>"]:::act
+  end
+
+  subgraph HUB ["Creator Hub"]
+    direction TB
+    NEW{"Build or<br/>browse?"}:::dec
+    BUILD["Choose a type<br/><small>interactive · hybrid · printable</small>"]:::act
+    CANVAS["Canvas editor<br/><small>same editor clinicians use</small>"]:::act
+    VIS{"Visibility"}:::dec
+    PUBL[("Public<br/><small>listed in the library</small>")]:::store
+    PRIV[("Private<br/><small>kept to themselves</small>")]:::store
+    BROWSE["Browse the library"]:::act
+    SAVED["Save for later"]:::act
+    NEW --> BUILD --> CANVAS --> VIS
+    VIS -->|Default| PUBL
+    VIS -->|Opt out| PRIV
+    NEW --> BROWSE --> SAVED
+  end
+
+  PICK --> MIS
+  ONE --> MIS
+  GD --> HUB
+  GD --> FIN["Finances<br/><small>statements from the clinic</small>"]:::act
+
+  PUBL --> SEND["Send to their child"]:::act
+  PRIV --> SEND
+  SAVED --> SEND
+  SEND --> CHILD(["Appears in the child's<br/>My Missions"]):::endp
+  CHILD -.-> PRG
+  SEND -.-> VISIBLE(["Visible to the<br/>treating clinician"]):::endc
+
+  classDef start fill:#6b3f6b,stroke:#6b3f6b,color:#ffffff,font-weight:bold
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef store fill:#f0ece6,stroke:#a89880,color:#16191d
+  classDef endp fill:#2f6b4f,stroke:#2f6b4f,color:#ffffff,font-weight:bold
+  classDef endc fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+    </pre>
+  </div>
+  <div class="legend">
+    Sending to your own child is independent of visibility — a private activity can still be assigned. Public means listed in the shared library.
+  </div>
+</div>
+
+<!-- ============ 5. LIFECYCLE ============ -->
+<div class="sheet">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 5 of 6</p>
+    <h1>Activity lifecycle</h1>
+    <p class="sub">How an authored template becomes recorded evidence a clinician can act on, and where each piece of data comes to rest.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+  A["Template authored<br/><small>clinician or parent</small>"]:::act
+  A --> B[("Saved to the<br/>templates table")]:::store
+  B --> C{"Published?"}:::dec
+  C -->|Yes| D[("Global Library<br/><small>visible to everyone</small>")]:::store
+  C -->|No| E[("Private to<br/>the author")]:::store
+
+  B --> F["Assigned to a patient"]:::act
+  D --> F
+  F --> G[("Assignment row<br/><small>+ canvas snapshot</small>")]:::store
+  G --> H["Patient completes it"]:::act
+  H --> I[("Attempt row<br/><small>responses and score</small>")]:::store
+
+  I --> J["Analytics layer<br/><small>accuracy · trends · domains · rankings</small>"]:::act
+  J --> K["Clinical Pulse<br/><small>caseload level</small>"]:::out
+  J --> L["Patient analytics<br/><small>individual level</small>"]:::out
+  J --> M["AI clinical insights"]:::ai
+  J --> N["Printable performance report"]:::out
+  J --> O["Parent progress view<br/><small>clinician work and home practice split</small>"]:::out
+
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef store fill:#f0ece6,stroke:#a89880,color:#16191d
+  classDef ai fill:#eaf0fa,stroke:#4a6fa5,color:#16191d
+  classDef out fill:#eef4ef,stroke:#6f9a80,color:#16191d
+    </pre>
+  </div>
+  <div class="legend">
+    Beige = stored data · Green = reporting output · Blue = AI-assisted · Every table is governed by row-level security, so each role sees only what it is entitled to.
+  </div>
+</div>
+
+<!-- ============ 6. MESSAGING ============ -->
+<div class="sheet final">
+  <div class="head">
+    <p class="eyebrow">Walkthrough · 6 of 6</p>
+    <h1>Messaging and notifications</h1>
+    <p class="sub">The communication layer running underneath every role, delivered live rather than on refresh.</p>
+  </div>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+  subgraph THREADS ["Conversation threads"]
+    direction LR
+    T1["Clinician ↔ Patient"]:::act
+    T2["Clinician ↔ Parent<br/><small>separate from the child's thread</small>"]:::act
+  end
+
+  SEND["Message sent"]:::act --> STORE[("Stored and published<br/>to the realtime channel")]:::store
+  THREADS --> SEND
+
+  STORE --> LIVE["Delivered live to<br/>the other party"]:::act
+  STORE --> NOTE["Notification created"]:::act
+
+  LIVE --> UI1["Thread updates<br/>in place"]:::out
+  LIVE --> UI2["Conversation list<br/>reorders"]:::out
+  LIVE --> UI3["Unread badge<br/>increments"]:::out
+
+  NOTE --> BELL["Notification bell<br/><small>live, with unread count</small>"]:::out
+
+  EV1[/"Activity assigned"/]:::src --> NOTE
+  EV2[/"Activity completed"/]:::src --> NOTE
+  EV3[/"Clinician note added"/]:::src --> NOTE
+
+  DROP{"Connection<br/>dropped?"}:::dec
+  LIVE --> DROP
+  DROP -->|Yes| RECON["Reconnect reconciliation<br/><small>missed messages fetched and merged</small>"]:::act
+  RECON --> UI1
+  DROP -->|No| OK(["Thread stays current"]):::endc
+
+  classDef act fill:#ffffff,stroke:#5a6472,color:#16191d
+  classDef dec fill:#fdf3e3,stroke:#c79a4a,color:#16191d
+  classDef store fill:#f0ece6,stroke:#a89880,color:#16191d
+  classDef out fill:#eef4ef,stroke:#6f9a80,color:#16191d
+  classDef src fill:#eef2f7,stroke:#93a4bb,color:#16191d
+  classDef endc fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold
+    </pre>
+  </div>
+  <div class="legend">
+    Messages survive a dropped connection: on reconnect, anything missed is fetched and merged into the thread in the correct order.
+  </div>
+</div>
+
+<!-- Rendering requires mermaid locally:  npm i -g mermaid  &&  cp $(npm root -g)/mermaid/dist/mermaid.min.js docs/_mermaid.min.js  -->
+<script src="_mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    flowchart: { curve: 'basis', nodeSpacing: 32, rankSpacing: 46, padding: 8, htmlLabels: true },
+    themeVariables: {
+      fontFamily: 'Liberation Sans, Arial, sans-serif',
+      fontSize: '13px',
+      lineColor: '#8a94a3',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#16191d',
+      primaryBorderColor: '#5a6472',
+      clusterBkg: '#fbfcfd',
+      clusterBorder: '#c6cedb',
+      titleColor: '#1f3a5f',
+    },
+  });
+  // Mermaid stamps an inline max-width equal to the diagram's natural size,
+  // which leaves a complex diagram floating small in the middle of a page.
+  // Scale each one to the largest size that still fits its box in BOTH
+  // directions, so every sheet is filled without anything being cropped.
+  function fitDiagrams() {
+    document.querySelectorAll('.diagram').forEach((box) => {
+      const svg = box.querySelector('svg');
+      if (!svg) return;
+      const vb = svg.viewBox.baseVal;
+      const w = vb && vb.width ? vb.width : svg.getBoundingClientRect().width;
+      const h = vb && vb.height ? vb.height : svg.getBoundingClientRect().height;
+      if (!w || !h) return;
+      const scale = Math.min(box.clientWidth / w, box.clientHeight / h);
+      svg.style.maxWidth = 'none';
+      svg.style.width = (w * scale) + 'px';
+      svg.style.height = (h * scale) + 'px';
+    });
+  }
+
+  window.mermaid.run({ querySelector: '.mermaid' }).then(() => {
+    fitDiagrams();
+    window.__diagramsReady = true;
+  });
+</script>
+</body>
+</html>

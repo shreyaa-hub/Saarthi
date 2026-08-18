@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Vendored only while regenerating the walkthrough diagrams
+docs/_mermaid.min.js
