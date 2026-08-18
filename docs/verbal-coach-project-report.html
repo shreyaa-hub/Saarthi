@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Verbal Coach — Project Report</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 18mm 18mm;
+  }
+
+  :root {
+    --ink: #16191d;
+    --muted: #5a6472;
+    --rule: #d4d9e0;
+    --accent: #1f3a5f;
+    --tint: #f4f6f9;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0;
+    font-family: "Liberation Serif", "DejaVu Serif", Georgia, serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--ink);
+    /* No single line of a paragraph left stranded either side of a break. */
+    orphans: 3;
+    widows: 3;
+  }
+  /* A bullet may fall on either page, but never be sliced down the middle. */
+  li { break-inside: avoid; page-break-inside: avoid; }
+
+  h1, h2, h3, h4, .sans {
+    font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  }
+
+  /* ---------- Title block ---------- */
+  .titleblock {
+    border-top: 3pt solid var(--accent);
+    padding-top: 14pt;
+    margin-bottom: 22pt;
+  }
+  .eyebrow {
+    font-family: "Liberation Sans", Arial, sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 6pt;
+  }
+  h1 {
+    font-size: 24pt;
+    line-height: 1.15;
+    margin: 0 0 10pt;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .meta {
+    display: flex;
+    gap: 26pt;
+    border-top: 0.75pt solid var(--rule);
+    padding-top: 9pt;
+    margin-top: 12pt;
+  }
+  .meta div { flex: 0 0 auto; }
+  .meta .k {
+    font-family: "Liberation Sans", Arial, sans-serif;
+    font-size: 7.5pt;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 2pt;
+  }
+  .meta .v {
+    font-family: "Liberation Sans", Arial, sans-serif;
+    font-size: 10pt;
+    font-weight: 600;
+  }
+
+  /* ---------- Headings ---------- */
+  h2 {
+    font-size: 13.5pt;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 22pt 0 8pt;
+    padding-bottom: 4pt;
+    border-bottom: 0.75pt solid var(--rule);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 14pt 0 5pt;
+    color: var(--ink);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  p { margin: 0 0 8pt; }
+  p.lead { font-size: 11pt; }
+
+  /* ---------- Lists ---------- */
+  ul { margin: 0 0 10pt; padding-left: 15pt; }
+  li { margin-bottom: 3.5pt; }
+  ol { margin: 0 0 10pt; padding-left: 16pt; }
+  ol li { margin-bottom: 4pt; }
+
+  strong { font-weight: 700; }
+
+  /* ---------- Tables ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8pt 0 12pt;
+    font-family: "Liberation Sans", Arial, sans-serif;
+    font-size: 9pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  th {
+    background: var(--tint);
+    text-align: left;
+    font-weight: 700;
+    padding: 6pt 8pt;
+    border-bottom: 1pt solid var(--accent);
+    vertical-align: bottom;
+  }
+  td {
+    padding: 6pt 8pt;
+    border-bottom: 0.5pt solid var(--rule);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 0.75pt solid var(--rule); }
+
+  table.facts { width: 76%; }
+  table.facts td:first-child { color: var(--muted); width: 46%; }
+  table.facts td:last-child { font-weight: 600; text-align: right; white-space: nowrap; }
+
+  table.timeline td:first-child {
+    white-space: nowrap;
+    font-weight: 600;
+    width: 26%;
+  }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    background: var(--tint);
+    border-left: 2.5pt solid var(--accent);
+    padding: 9pt 12pt;
+    margin: 12pt 0;
+    font-family: "Liberation Sans", Arial, sans-serif;
+    font-size: 9.5pt;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  section { break-inside: auto; }
+  .keep { break-inside: avoid; page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<div class="titleblock">
+  <p class="eyebrow">Project Report</p>
+  <h1>Verbal Coach</h1>
+  <p style="margin:0; color:var(--muted); font-size:11pt;">
+    A therapy activity authoring and progress-tracking platform for speech
+    and occupational therapy practices.
+  </p>
+  <div class="meta">
+    <div><span class="k">Internship Period</span><span class="v">10 May – 3 July 2026</span></div>
+    <div><span class="k">Status</span><span class="v">All work completed</span></div>
+  </div>
+</div>
+
+<section>
+<h2>1. Overview</h2>
+<p class="lead">
+  Verbal Coach is a web platform for speech and occupational therapy practices. It supports the
+  complete therapy workflow: clinicians author therapy activities on a visual canvas, assign them
+  to patients, and review the results; patients complete the work in their own accounts; and
+  parents follow their child's progress and contribute home practice of their own.
+</p>
+<p>
+  The platform serves three signed-in roles across 42 routes, backed by a PostgreSQL database
+  with row-level security governing every table.
+</p>
+
+<table class="facts">
+  <tr><td>Signed-in roles</td><td>3 — clinician, patient, parent</td></tr>
+  <tr><td>Routes</td><td>42</td></tr>
+  <tr><td>Database migrations</td><td>6</td></tr>
+  <tr><td>Application code</td><td>~23,800 lines</td></tr>
+  <tr><td>Automated unit tests</td><td>71, across 9 suites</td></tr>
+</table>
+
+<div class="callout">
+  <p>All planned work for the internship period has been completed and delivered.</p>
+</div>
+</section>
+
+<section class="keep">
+<h2>2. The core workflow</h2>
+<ol>
+  <li>A clinician builds an activity on a canvas — interactive, hybrid, or printable.</li>
+  <li>They assign it to a patient on their caseload, with instructions and a due date.</li>
+  <li>The patient completes it in their own account; responses are scored and recorded.</li>
+  <li>The clinician reviews accuracy trends, adds notes, and adjusts what comes next.</li>
+  <li>The parent follows all of this, and can send home practice of their own.</li>
+</ol>
+<p>
+  Around this loop sit messaging between all three roles, a shared library of published material,
+  performance analytics, and clinic billing records.
+</p>
+</section>
+
+<section>
+<h2>3. Clinician features</h2>
+
+<h3>Practice management</h3>
+<ul>
+  <li>Dashboard with caseload summary and a Clinical Pulse activity band</li>
+  <li>Caseload management with code-based patient invitations</li>
+  <li>Per-patient detail pages showing assignments, attempt history, performance analytics, and AI insights</li>
+  <li>Consolidated assignments view across the entire caseload</li>
+  <li>Scheduler presenting upcoming and overdue due dates in a calendar layout</li>
+  <li>Billing module for issuing statements to guardians and recording payment</li>
+  <li>Printable Patient Performance Report</li>
+</ul>
+
+<h3>Template Studio</h3>
+<ul>
+  <li>Canvas-based authoring across three mediums: interactive, hybrid, and print</li>
+  <li>Full element library — text, images, audio, shapes, bulleted and numbered lists, writing lines, and interactive response elements</li>
+  <li>Canva-style workspace with a contextual selection toolbar, layers panel, properties panel, multi-select, element locking, duplication, and full undo/redo history</li>
+  <li>Worksheet Creator for multi-page printable documents, with page ruling options (blank, ruled, ruled with margin), bold/italic/underline formatting, shapes, colour control, and image upload from the user's device</li>
+  <li>Trash with restore and permanent deletion</li>
+  <li>Publication of finished templates to the Global Library</li>
+  <li><strong>Updated</strong> — a shared set of authoring standards applied across the clinical team, seeded with fifteen baseline rules spanning safety, privacy, instructional clarity, accessibility, and language. Clinicians add and remove rules for the whole team; platform defaults are protected at the database level. Parents see the list read-only, since they author material under the same standards.</li>
+</ul>
+
+<h3>Analytics and reporting</h3>
+<ul>
+  <li>Clinical Pulse providing caseload-wide activity and trend visibility</li>
+  <li>Per-patient performance analytics covering accuracy over time, domain breakdown, ranking context, and a status model that carries an explicit reason for each classification</li>
+  <li>AI-generated clinical insights derived from patient attempt history</li>
+</ul>
+</section>
+
+<section class="keep">
+<h2>4. Patient features</h2>
+<ul>
+  <li>My Missions, presenting all assigned activities from both clinician and parent</li>
+  <li>Activity player with response scoring and completion tracking</li>
+  <li>Progress view showing accuracy trends alongside clinician notes</li>
+  <li>Direct messaging with their clinician</li>
+</ul>
+</section>
+
+<section class="keep">
+<h2>5. Parent and guardian features</h2>
+<ul>
+  <li>Dashboard summarising the child's current status</li>
+  <li>Missions view covering everything assigned to the child from either source</li>
+  <li>Progress reporting that presents clinician-assigned therapy and home practice as separate figures, so parent and clinician always work from consistent numbers</li>
+  <li>Calendar of activity due dates by month</li>
+  <li>A dedicated message thread with the clinician, held separately from the child's own</li>
+  <li>Creator Hub for authoring interactive, hybrid, and printable material on the same canvas clinicians use, browsing and saving published work, and sending any of it to the child</li>
+  <li>Public and private visibility control on all authored material</li>
+  <li>Finances view listing statements issued by the practice</li>
+  <li>Child selector for guardians linked to more than one child</li>
+</ul>
+</section>
+
+<section class="keep">
+<h2>6. Platform-wide features</h2>
+<ul>
+  <li><strong>Global Library</strong> — publicly browsable templates, worksheets, and reusable assets</li>
+  <li><strong>Public Studio</strong> — the full canvas available without an account, with drafts preserved locally and transferred to the user's account on registration</li>
+  <li><strong>Real-time messaging</strong> across all roles, with unread badges, live conversation ordering, reconnect reconciliation, and relative timestamp formatting</li>
+  <li><strong>Live notifications</strong> for assignments, completions, clinician notes, and messages</li>
+  <li><strong>Command palette</strong> offering keyboard-driven navigation and quick actions</li>
+  <li><strong>Light and dark themes</strong>, persisted across sessions</li>
+  <li><strong>System Map</strong> documenting every feature location, tailored per role</li>
+  <li><strong>Marketing site</strong> — home, about, features, workflow, marketplace, and contact pages</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Technical foundation</h2>
+<table>
+  <tr><th style="width:26%">Area</th><th>Detail</th></tr>
+  <tr>
+    <td>Framework</td>
+    <td>Next.js 16 with React 19 and TypeScript, using Server Components and Server Actions throughout</td>
+  </tr>
+  <tr>
+    <td>Data &amp; authentication</td>
+    <td>Supabase — PostgreSQL, authentication, real-time delivery, and file storage</td>
+  </tr>
+  <tr>
+    <td>Security</td>
+    <td>Authorisation enforced in the database through row-level security policies rather than in application code, so access rules apply consistently regardless of the calling path. Cross-role access is mediated by dedicated helper functions, keeping read and write rules aligned. All migrations are idempotent and safe to re-run.</td>
+  </tr>
+  <tr>
+    <td>Interface</td>
+    <td>Tailwind CSS v4 with Radix UI primitives, Framer Motion, Recharts for data visualisation, and Zustand for canvas editor state</td>
+  </tr>
+  <tr>
+    <td>AI</td>
+    <td>Anthropic Claude API, powering clinical insight generation</td>
+  </tr>
+  <tr>
+    <td>Quality assurance</td>
+    <td>71 automated unit tests, static type checking, linting, database security policies verified directly against a live PostgreSQL instance, and browser verification of interface changes against production builds</td>
+  </tr>
+</table>
+</section>
+
+<section>
+<h2>8. Delivery timeline</h2>
+<table class="timeline">
+  <tr><th>Period</th><th>Delivered</th></tr>
+  <tr>
+    <td>10 – 24 May</td>
+    <td>Core platform — authentication, role-based access, Template Studio with canvas authoring, caseload management, assignment workflow, patient activity player, and the public marketing site</td>
+  </tr>
+  <tr>
+    <td>25 May – 7 June</td>
+    <td>Messaging across all roles — clinician inbox, patient messaging, real-time delivery, unread badges, live conversation ordering, reconnect reconciliation, and relative timestamp formatting</td>
+  </tr>
+  <tr>
+    <td>8 – 21 June</td>
+    <td>Analytics and reporting — analytics layer, Clinical Pulse, per-patient performance analytics, AI clinical insights, and the printable Patient Performance Report</td>
+  </tr>
+  <tr>
+    <td>22 June – 3 July</td>
+    <td>Parent and guardian portal; Canva-style Studio workspace; public no-account Studio access; clinician billing; Worksheet Creator with multi-page authoring; <strong>Updated</strong> authoring standards; and parent authoring extended to interactive and hybrid activities</td>
+  </tr>
+</table>
+</section>
+
+<section class="keep">
+<h2>9. Handover</h2>
+<p>The following are ready for transfer:</p>
+<ul>
+  <li><strong>Source repository</strong> — complete codebase with full commit history and documentation</li>
+  <li><strong>Database</strong> — schema and all six migrations, each idempotent and safe to re-run</li>
+  <li><strong>Setup documentation</strong> — README covering environment configuration and migration order</li>
+</ul>
+<p>Hosting credentials are required from your side to complete the deployment transfer.</p>
+</section>
+
+</body>
+</html>
