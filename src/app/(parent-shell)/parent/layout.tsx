@@ -1,5 +1,6 @@
 import { getMyNotifications, getUnreadNotificationCount } from "@/lib/data/notifications";
 import { getUnreadCounts } from "@/lib/data/messages";
+import { getBlueprintRules } from "@/lib/data/blueprint-rules";
 import { ParentSidebar } from "@/components/parent/sidebar";
 import { ParentTopbar } from "@/components/parent/topbar";
 import { MessagingRealtimeProvider } from "@/lib/realtime/messaging-provider";
@@ -8,10 +9,11 @@ import { getParentContext } from "@/lib/parent/context";
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
   const { supabase, profile, user, children: myChildren, child } = await getParentContext();
 
-  const [notifications, unreadCount, unreadMessageCounts] = await Promise.all([
+  const [notifications, unreadCount, unreadMessageCounts, blueprintRules] = await Promise.all([
     getMyNotifications(supabase, user.id),
     getUnreadNotificationCount(supabase, user.id),
     getUnreadCounts(supabase, user.id),
+    getBlueprintRules(supabase),
   ]);
 
   return (
@@ -26,6 +28,7 @@ export default async function ParentLayout({ children }: { children: React.React
             unreadCount={unreadCount}
             childList={myChildren}
             selectedChildId={child?.childId ?? null}
+            blueprintRules={blueprintRules}
           />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>

@@ -368,6 +368,28 @@ export type Database = {
           },
         ];
       };
+      blueprint_rules: {
+        Row: {
+          id: string;
+          body: string;
+          created_by: string | null;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["blueprint_rules"]["Row"]> & {
+          body: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["blueprint_rules"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "blueprint_rules_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       parent_children: {
         Row: {
           id: string;

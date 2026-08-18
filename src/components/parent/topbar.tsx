@@ -15,12 +15,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
+import { BlueprintRulesDialog } from "@/components/clinician/blueprint-rules-dialog";
 import { ChildSelector } from "@/components/parent/child-selector";
 import { PARENT_LINKS } from "@/components/parent/sidebar";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import type { Database } from "@/lib/types/database";
 import type { ParentChild } from "@/lib/data/parent";
+import type { BlueprintRule } from "@/lib/data/blueprint-rules";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -31,6 +33,7 @@ export function ParentTopbar({
   unreadCount,
   childList,
   selectedChildId,
+  blueprintRules,
 }: {
   fullName: string;
   userId: string;
@@ -38,6 +41,7 @@ export function ParentTopbar({
   unreadCount: number;
   childList: ParentChild[];
   selectedChildId: string | null;
+  blueprintRules: BlueprintRule[];
 }) {
   const pathname = usePathname();
   const current = PARENT_LINKS.find((l) =>
@@ -79,6 +83,9 @@ export function ParentTopbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Read-only here: parents author worksheets, so they need to see the
+            standards, but setting them is the clinical team's call. */}
+        <BlueprintRulesDialog rules={blueprintRules} canEdit={false} />
         <CommandPalette role="parent" />
         <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />

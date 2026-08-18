@@ -15,6 +15,7 @@ import {
   Moon,
   MessageSquare,
   Wallet,
+  ScrollText,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -110,9 +111,27 @@ const EVERYWHERE: MapEntry[] = [
   { icon: Moon, label: "Theme toggle", body: "Top bar — switch between light and dark, persisted across visits." },
 ];
 
+// Placed with the top-bar tools rather than under a role's own section: the
+// rules are one shared list, and only who may edit it differs by role.
+const BLUEPRINT_RULES: Record<"clinician" | "patient" | "parent", MapEntry | null> = {
+  clinician: {
+    icon: ScrollText,
+    label: "Blueprint Rules",
+    body: "Top bar, left of the search box — the standards every clinician follows when building activities. Add your own; they apply team-wide. Platform defaults can't be removed.",
+  },
+  parent: {
+    icon: ScrollText,
+    label: "Blueprint Rules",
+    body: "Top bar, left of the search box — the authoring standards set by the clinical team. These apply to worksheets you make too.",
+  },
+  patient: null,
+};
+
 export function SystemMap({ role }: { role: "clinician" | "patient" | "parent" }) {
   const sections =
     role === "clinician" ? CLINICIAN_SECTIONS : role === "parent" ? PARENT_SECTIONS : PATIENT_SECTIONS;
+  const blueprintRules = BLUEPRINT_RULES[role];
+  const everywhere = blueprintRules ? [blueprintRules, ...EVERYWHERE] : EVERYWHERE;
 
   return (
     <div className="flex flex-col gap-8">
@@ -139,7 +158,7 @@ export function SystemMap({ role }: { role: "clinician" | "patient" | "parent" }
           Available everywhere
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {EVERYWHERE.map((entry) => (
+          {everywhere.map((entry) => (
             <EntryCard key={entry.label} entry={entry} />
           ))}
         </div>

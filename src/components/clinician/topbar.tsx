@@ -15,9 +15,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
+import { BlueprintRulesDialog } from "@/components/clinician/blueprint-rules-dialog";
 import { initials } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import type { Database } from "@/lib/types/database";
+import type { BlueprintRule } from "@/lib/data/blueprint-rules";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -37,12 +39,14 @@ export function ClinicianTopbar({
   userId,
   notifications,
   unreadCount,
+  blueprintRules,
 }: {
   fullName: string;
   headline?: string | null;
   userId: string;
   notifications: NotificationRow[];
   unreadCount: number;
+  blueprintRules: BlueprintRule[];
 }) {
   const pathname = usePathname();
   const current = links.find((l) =>
@@ -70,6 +74,7 @@ export function ClinicianTopbar({
       </div>
 
       <div className="flex items-center gap-2">
+        <BlueprintRulesDialog rules={blueprintRules} canEdit />
         <CommandPalette role="clinician" />
         <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />
