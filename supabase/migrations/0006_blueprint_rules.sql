@@ -117,14 +117,22 @@ create policy "blueprint_rules_clinician_delete" on public.blueprint_rules
 -- from the real damage. Dollar quoting removes the escape entirely, so the
 -- text below can be edited without knowing any of that.
 -- ---------------------------------------------------------------------------
--- Held in a temp table so the list is written once and used twice: to retire
--- superseded defaults, and to upsert the current ones. Without the first step
--- a reworded rule would leave its old phrasing behind as an orphan, since the
--- upsert keys on the text itself.
-drop table if exists pg_temp.baseline_rules;
-create temporary table baseline_rules (pos integer, body text);
-
-insert into baseline_rules (pos, body) values
+-- The list is written once and used twice: to retire superseded defaults, and
+-- to upsert the current ones. Without the first step a reworded rule would
+-- leave its old phrasing behind as an orphan, since the upsert keys on the
+-- text itself.
+--
+-- A CTE rather than a temp table, so this creates nothing. A temp table lives
+-- in pg_temp and no client can reach it, but Supabase's editor cannot tell
+-- that from the statement alone and warns that a table is being created
+-- without RLS - and a migration should not need you to click past a security
+-- warning to run it.
+--
+-- The delete and the insert see the same snapshot, which is safe here because
+-- they touch disjoint rows: the delete only takes defaults absent from the
+-- list, the upsert only touches ones present in it.
+with baseline (pos, body) as (
+  values
   (10, $rule$Use of inappropriate language in text boxes is not allowed.$rule$),
   (20, $rule$Use of explicit (18+) images is prohibited.$rule$),
   (30, $rule$Activities must be age-appropriate for the patient they are assigned to.$rule$),
@@ -139,22 +147,22 @@ insert into baseline_rules (pos, body) values
   (120, $rule$Do not use colour alone to carry meaning. Pair it with a label, a shape, or a position.$rule$),
   (130, $rule$Give every image that carries meaning a caption or a text alternative.$rule$),
   (140, $rule$Have translated text checked by a fluent speaker before assigning it to a patient.$rule$),
-  (150, $rule$Use names, objects, and examples a child in the patient's own setting would recognise.$rule$);
-
+  (150, $rule$Use names, objects, and examples a child in the patient's own setting would recognise.$rule$)
+),
 -- Retire any baseline rule this migration no longer lists - a reworded one,
 -- say. Scoped to is_default, so a rule a clinician wrote is never touched.
-delete from public.blueprint_rules r
-where r.is_default
-  and not exists (select 1 from baseline_rules b where b.body = r.body);
-
+retired as (
+  delete from public.blueprint_rules r
+  where r.is_default
+    and not exists (select 1 from baseline b where b.body = r.body)
+  returning r.id
+)
 insert into public.blueprint_rules (body, is_default, sort_order)
 select b.body, true, b.pos
-from baseline_rules b
+from baseline b
 on conflict (body) do update
   set is_default = true,
       sort_order = excluded.sort_order;
-
-drop table baseline_rules;
 
 -- ---------------------------------------------------------------------------
 -- PostgREST answers the app's queries from a cached copy of the schema, and a
