@@ -34,9 +34,11 @@ import { formatDate } from "@/lib/utils";
 export function BlueprintRulesDialog({
   rules,
   canEdit,
+  loadFailed = false,
 }: {
   rules: BlueprintRule[];
   canEdit: boolean;
+  loadFailed?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -123,9 +125,24 @@ export function BlueprintRulesDialog({
 
           <div className="flex max-h-[45vh] flex-col gap-2 overflow-y-auto pr-1">
             {rules.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No rules yet.
-              </p>
+              // An empty list and a failed read look identical from here, so
+              // they are said differently — the second one is not something
+              // adding a rule will fix.
+              <div className="flex flex-col gap-1 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {loadFailed
+                    ? "Couldn't load the rules."
+                    : canEdit
+                      ? "No rules yet — add the first one below."
+                      : "No rules have been set yet."}
+                </p>
+                {loadFailed && (
+                  <p className="text-xs text-muted-foreground">
+                    The blueprint_rules table is missing or unreadable. Applying
+                    migration 0006 sets it up with the baseline rules.
+                  </p>
+                )}
+              </div>
             ) : (
               rules.map((rule, i) => (
                 <div
@@ -175,7 +192,9 @@ export function BlueprintRulesDialog({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={2}
                 maxLength={500}
-                placeholder="e.g. Every activity must state its goal in the first text box."
+                // Deliberately not one of the seeded rules, so it still reads
+                // as an example of writing a new one.
+                placeholder="e.g. Play every audio clip through to the end before assigning it."
                 aria-label="New rule"
               />
               <div className="flex items-center justify-between gap-2">

@@ -26,7 +26,8 @@ export default async function ClinicianLayout({ children }: { children: React.Re
             userId={user.id}
             notifications={notifications}
             unreadCount={unreadCount}
-            blueprintRules={blueprintRules}
+            blueprintRules={blueprintRules.rules}
+            blueprintRulesFailed={blueprintRules.failed}
           />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>

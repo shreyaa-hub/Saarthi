@@ -28,7 +28,8 @@ export default async function ParentLayout({ children }: { children: React.React
             unreadCount={unreadCount}
             childList={myChildren}
             selectedChildId={child?.childId ?? null}
-            blueprintRules={blueprintRules}
+            blueprintRules={blueprintRules.rules}
+            blueprintRulesFailed={blueprintRules.failed}
           />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>

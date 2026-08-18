@@ -24,7 +24,14 @@ export async function addBlueprintRule(body: string) {
     .from("blueprint_rules")
     .insert({ body: trimmed, created_by: user.id });
 
-  if (error) return { error: error.message };
+  if (error) {
+    // 23505 is the unique violation on body — the rule is already on the list,
+    // which is worth saying plainly rather than surfacing the raw constraint.
+    if (error.code === "23505") {
+      return { error: "That rule is already on the list." };
+    }
+    return { error: error.message };
+  }
 
   // Rules are shown platform-wide, so every surface that renders them is
   // refreshed rather than just the page the clinician happened to be on.

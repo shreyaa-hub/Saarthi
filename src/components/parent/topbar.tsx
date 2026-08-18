@@ -34,6 +34,7 @@ export function ParentTopbar({
   childList,
   selectedChildId,
   blueprintRules,
+  blueprintRulesFailed,
 }: {
   fullName: string;
   userId: string;
@@ -42,6 +43,7 @@ export function ParentTopbar({
   childList: ParentChild[];
   selectedChildId: string | null;
   blueprintRules: BlueprintRule[];
+  blueprintRulesFailed: boolean;
 }) {
   const pathname = usePathname();
   const current = PARENT_LINKS.find((l) =>
@@ -85,7 +87,11 @@ export function ParentTopbar({
       <div className="flex items-center gap-2">
         {/* Read-only here: parents author worksheets, so they need to see the
             standards, but setting them is the clinical team's call. */}
-        <BlueprintRulesDialog rules={blueprintRules} canEdit={false} />
+        <BlueprintRulesDialog
+          rules={blueprintRules}
+          canEdit={false}
+          loadFailed={blueprintRulesFailed}
+        />
         <CommandPalette role="parent" />
         <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />

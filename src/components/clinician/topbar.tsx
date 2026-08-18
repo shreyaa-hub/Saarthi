@@ -40,6 +40,7 @@ export function ClinicianTopbar({
   notifications,
   unreadCount,
   blueprintRules,
+  blueprintRulesFailed,
 }: {
   fullName: string;
   headline?: string | null;
@@ -47,6 +48,7 @@ export function ClinicianTopbar({
   notifications: NotificationRow[];
   unreadCount: number;
   blueprintRules: BlueprintRule[];
+  blueprintRulesFailed: boolean;
 }) {
   const pathname = usePathname();
   const current = links.find((l) =>
@@ -74,7 +76,7 @@ export function ClinicianTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <BlueprintRulesDialog rules={blueprintRules} canEdit />
+        <BlueprintRulesDialog rules={blueprintRules} canEdit loadFailed={blueprintRulesFailed} />
         <CommandPalette role="clinician" />
         <NotificationBell userId={userId} initialNotifications={notifications} initialUnreadCount={unreadCount} />
         <ThemeToggle />

@@ -374,6 +374,7 @@ export type Database = {
           body: string;
           created_by: string | null;
           is_default: boolean;
+          sort_order: number;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["blueprint_rules"]["Row"]> & {
