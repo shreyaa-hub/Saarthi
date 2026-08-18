@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Compass, Menu, X, ChevronDown } from "lucide-react";
+import { Compass, Menu, X, ChevronDown, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { homeForRole } from "@/lib/auth/roles";
+import type { ProfileRole } from "@/lib/types/database";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +28,14 @@ const libraryLinks = [
   { href: "/marketplace", label: "Marketplace" },
 ];
 
-export function Navbar() {
+// The Global Library lives in this layout and is deliberately reachable
+// without an account, so a signed-in user browsing it still gets this bar.
+// `role` is resolved in the layout: without it the bar offered "Sign in" and
+// "Get started" to somebody already signed in, and pointed at the guest
+// Studio when they have the real one.
+export function Navbar({ role }: { role: ProfileRole | null }) {
   const [open, setOpen] = useState(false);
+  const dashboardHref = role ? homeForRole(role) : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
@@ -61,15 +69,25 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" asChild>
-            <Link href="/try">Try the Studio</Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/sign-in">Sign in</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/sign-up">Get started</Link>
-          </Button>
+          {dashboardHref ? (
+            <Button asChild>
+              <Link href={dashboardHref}>
+                <LayoutDashboard className="size-4" /> Back to dashboard
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/try">Try the Studio</Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link href="/sign-in">Sign in</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/sign-up">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -99,15 +117,25 @@ export function Navbar() {
             </Link>
           ))}
           <div className="mt-2 flex gap-2 px-3">
-            <Button variant="outline" asChild className="flex-1">
-              <Link href="/try">Try the Studio</Link>
-            </Button>
-            <Button variant="outline" asChild className="flex-1">
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-            <Button asChild className="flex-1">
-              <Link href="/sign-up">Get started</Link>
-            </Button>
+            {dashboardHref ? (
+              <Button asChild className="flex-1" onClick={() => setOpen(false)}>
+                <Link href={dashboardHref}>
+                  <LayoutDashboard className="size-4" /> Back to dashboard
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" asChild className="flex-1">
+                  <Link href="/try">Try the Studio</Link>
+                </Button>
+                <Button variant="outline" asChild className="flex-1">
+                  <Link href="/sign-in">Sign in</Link>
+                </Button>
+                <Button asChild className="flex-1">
+                  <Link href="/sign-up">Get started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </nav>
       </div>
