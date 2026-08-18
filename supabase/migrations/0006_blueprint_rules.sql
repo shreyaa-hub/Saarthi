@@ -1,4 +1,4 @@
--- Saarthi Coach — Blueprint Rules
+-- Saarthi Coach - Blueprint Rules
 --
 -- Shared authoring standards every clinician follows when building activities
 -- for patients. Deliberately platform-wide rather than per-clinician: a rule
@@ -11,7 +11,7 @@
 do $$
 begin
   if to_regclass('public.profiles') is null then
-    raise exception 'public.profiles is missing — apply 0001_init.sql first.';
+    raise exception 'public.profiles is missing - apply 0001_init.sql first.';
   end if;
 end $$;
 
@@ -48,7 +48,7 @@ create index if not exists blueprint_rules_created_idx
 
 -- No update grant, and deliberately no update policy: a rule is added or
 -- retired, never edited in place. That also closes a two-step route around the
--- delete policy below — without UPDATE, nobody can flip is_default to false
+-- delete policy below - without UPDATE, nobody can flip is_default to false
 -- and then delete a platform default.
 grant select, insert, delete on public.blueprint_rules to authenticated;
 revoke update on public.blueprint_rules from authenticated;
@@ -74,7 +74,7 @@ create policy "blueprint_rules_clinician_insert" on public.blueprint_rules
 -- Any clinician may remove any rule: these are collective standards, not one
 -- clinician's property, so ownership-scoped deletion would leave a rule
 -- nobody could retire once its author left. The seeded baseline rules are
--- excluded — those are the platform's safety floor, not a colleague's
+-- excluded - those are the platform's safety floor, not a colleague's
 -- suggestion, and are not one clinician's to delete for everyone.
 drop policy if exists "blueprint_rules_clinician_delete" on public.blueprint_rules;
 create policy "blueprint_rules_clinician_delete" on public.blueprint_rules
@@ -91,7 +91,7 @@ create policy "blueprint_rules_clinician_delete" on public.blueprint_rules
 --
 -- These do double duty: they are the standards themselves, and they are the
 -- worked examples a clinician reads before writing their own. So each one is
--- written the way a good rule reads — one specific, checkable instruction,
+-- written the way a good rule reads - one specific, checkable instruction,
 -- phrased as something you either did or did not do. "Keep activities
 -- appropriate" would fail that test; "Do not depict violence, self-harm, or
 -- frightening imagery" passes it.
@@ -99,44 +99,66 @@ create policy "blueprint_rules_clinician_delete" on public.blueprint_rules
 -- Keyed on their own text, so re-running this migration tops up anything
 -- missing and repairs the ordering of what is already there, without
 -- duplicating anything or touching a rule a clinician wrote.
+--
+-- Positions run in tens so a rule can be slotted between two others later
+-- without renumbering the whole list. They group as:
+--
+--     10- 40  safety and appropriateness
+--     50- 70  privacy
+--     80-100  instructional clarity
+--    110-130  accessibility
+--    140-150  language
+--
+-- Every rule is dollar-quoted rather than single-quoted, and no comment sits
+-- inside the statement. Both are deliberate: an apostrophe in a rule would
+-- otherwise need doubling, and a single '' flattened to ' anywhere along the
+-- way - a copy-paste through an editor that rewrites quotes, say - silently
+-- inverts which half of the file is string and which is code, failing far
+-- from the real damage. Dollar quoting removes the escape entirely, so the
+-- text below can be edited without knowing any of that.
 -- ---------------------------------------------------------------------------
+-- Held in a temp table so the list is written once and used twice: to retire
+-- superseded defaults, and to upsert the current ones. Without the first step
+-- a reworded rule would leave its old phrasing behind as an orphan, since the
+-- upsert keys on the text itself.
+drop table if exists pg_temp.baseline_rules;
+create temporary table baseline_rules (pos integer, body text);
+
+insert into baseline_rules (pos, body) values
+  (10, $rule$Use of inappropriate language in text boxes is not allowed.$rule$),
+  (20, $rule$Use of explicit (18+) images is prohibited.$rule$),
+  (30, $rule$Activities must be age-appropriate for the patient they are assigned to.$rule$),
+  (40, $rule$Do not depict violence, self-harm, or frightening imagery in activity artwork.$rule$),
+  (50, $rule$Do not include a patient's full name or other identifying details on a shared template.$rule$),
+  (60, $rule$Do not upload a photograph of a patient, or of any other identifiable person, without written consent from their guardian.$rule$),
+  (70, $rule$Keep diagnoses and clinical notes out of anything the patient will open themselves.$rule$),
+  (80, $rule$State what the activity practises in its first text box, so anyone opening it knows the goal.$rule$),
+  (90, $rule$Write instructions to the patient in short sentences and plain words. "Say each word out loud" beats clinical shorthand.$rule$),
+  (100, $rule$Target one skill per activity. If it practises two, split it into two.$rule$),
+  (110, $rule$Keep body text at 16px or larger, and do not place text over a busy background image.$rule$),
+  (120, $rule$Do not use colour alone to carry meaning. Pair it with a label, a shape, or a position.$rule$),
+  (130, $rule$Give every image that carries meaning a caption or a text alternative.$rule$),
+  (140, $rule$Have translated text checked by a fluent speaker before assigning it to a patient.$rule$),
+  (150, $rule$Use names, objects, and examples a child in the patient's own setting would recognise.$rule$);
+
+-- Retire any baseline rule this migration no longer lists - a reworded one,
+-- say. Scoped to is_default, so a rule a clinician wrote is never touched.
+delete from public.blueprint_rules r
+where r.is_default
+  and not exists (select 1 from baseline_rules b where b.body = r.body);
+
 insert into public.blueprint_rules (body, is_default, sort_order)
-select v.body, true, v.pos
-from (values
-  -- Safety and appropriateness
-  (10, 'Use of inappropriate language in text boxes is not allowed.'),
-  (20, 'Use of explicit (18+) images is prohibited.'),
-  (30, 'Activities must be age-appropriate for the patient they are assigned to.'),
-  (40, 'Do not depict violence, self-harm, or frightening imagery in activity artwork.'),
-
-  -- Privacy
-  (50, 'Do not include a patient''s full name or other identifying details on a shared template.'),
-  (60, 'Do not upload a photograph of a patient, or of any other identifiable person, without written consent from their guardian.'),
-  (70, 'Keep diagnoses and clinical notes out of anything the patient will open themselves.'),
-
-  -- Instructional clarity
-  (80, 'State what the activity practises in its first text box, so anyone opening it knows the goal.'),
-  (90, 'Write instructions to the patient in short sentences and plain words — "Say each word out loud", not clinical shorthand.'),
-  (100, 'Target one skill per activity. If it practises two, split it into two.'),
-
-  -- Accessibility
-  (110, 'Keep body text at 16px or larger, and do not place text over a busy background image.'),
-  (120, 'Do not use colour alone to carry meaning — pair it with a label, a shape, or a position.'),
-  (130, 'Give every image that carries meaning a caption or a text alternative.'),
-
-  -- Language
-  (140, 'Have translated text checked by a fluent speaker before assigning it to a patient.'),
-  (150, 'Use names, objects, and examples a child in the patient''s own setting would recognise.')
-) as v(pos, body)
--- Gaps of ten so a rule can be slotted between two others later without
--- renumbering the whole list.
+select b.body, true, b.pos
+from baseline_rules b
 on conflict (body) do update
   set is_default = true,
       sort_order = excluded.sort_order;
 
+drop table baseline_rules;
+
 -- ---------------------------------------------------------------------------
 -- PostgREST answers the app's queries from a cached copy of the schema, and a
--- brand-new table stays invisible to it until that cache is refreshed —
+-- brand-new table stays invisible to it until that cache is refreshed -
 -- surfacing as "Could not find the table 'public.blueprint_rules' in the
 -- schema cache" even though the table is right there. Ask for the reload
 -- rather than waiting for one.
