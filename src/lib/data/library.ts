@@ -8,6 +8,23 @@ function logIfError(context: string, error: PostgrestError | null) {
   if (error) console.error(`[data/library] ${context}:`, error.message, error.details);
 }
 
+// One published item in full, including its canvas, for the preview.
+// Deliberately separate from getPublicTemplates: the grid lists dozens of
+// cards and has no use for their canvases, so they are fetched only when
+// somebody actually opens a preview.
+export async function getPublicTemplateDetail(supabase: Client, templateId: string) {
+  const { data, error } = await supabase
+    .from("templates")
+    .select("id, title, description, domain, medium, canvas, updated_at")
+    .eq("id", templateId)
+    .eq("is_public", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  logIfError("getPublicTemplateDetail", error);
+  return data;
+}
+
 export async function getPublicTemplates(
   supabase: Client,
   opts: { medium?: TemplateMedium; query?: string } = {},

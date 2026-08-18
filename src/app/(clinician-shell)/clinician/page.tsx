@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CountUp } from "@/components/motion/count-up";
 import { ClinicalPulse } from "@/components/clinician/pulse/clinical-pulse";
+import { GlobalLibraryCard } from "@/components/library/global-library-card";
 import type { PatientRefMap } from "@/components/clinician/pulse/types";
 import { initials, formatDate } from "@/lib/utils";
 
@@ -89,6 +90,8 @@ export default async function ClinicianDashboardPage() {
           </Button>
         </div>
       </div>
+
+      <GlobalLibraryCard role="clinician" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((s) => (

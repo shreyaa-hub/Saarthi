@@ -36,16 +36,20 @@ export async function requireProfile(role?: Profile["role"]) {
   return { supabase, user, profile };
 }
 
-// Non-redirecting variant for public pages (the Global Library) that render
-// differently for a signed-in clinician but must still work for logged-out
-// visitors — unlike requireProfile(), this never redirects.
-export async function getOptionalClinician() {
+// Non-redirecting variant for public pages (the Global Library), which render
+// differently per role but must still work for a logged-out visitor — unlike
+// requireProfile(), this never redirects.
+//
+// Returns the role rather than a single boolean: the library now offers
+// something different to each of the three roles, and a caller that only knew
+// "is a clinician" could not tell a parent from a stranger.
+export async function getOptionalViewer() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { supabase, clinicianId: null };
+  if (!user) return { supabase, userId: null, role: null };
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return { supabase, clinicianId: profile?.role === "clinician" ? user.id : null };
+  return { supabase, userId: user.id, role: profile?.role ?? null };
 }

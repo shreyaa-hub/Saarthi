@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
-import { toast } from "sonner";
-import { Search, LayoutTemplate, Download } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, LayoutTemplate, Eye } from "lucide-react";
+import { loadTemplatePreview } from "@/lib/actions/library";
 import { StaggerGroup, StaggerItem } from "@/components/motion/stagger-group";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { importTemplate } from "@/lib/actions/library";
+import {
+  TemplatePreviewDialog,
+  type ViewerRole,
+  type PreviewDetail,
+} from "@/components/library/template-preview-dialog";
 
 type LibraryTemplate = {
   id: string;
@@ -20,30 +23,54 @@ type LibraryTemplate = {
   updated_at: string;
 };
 
+const ACTION_LABEL: Record<string, string> = {
+  clinician: "Preview and import",
+  parent: "Preview and import",
+  patient: "Preview and try",
+};
+
 export function LibraryTemplateGrid({
   templates,
-  canImport,
+  role,
 }: {
   templates: LibraryTemplate[];
-  canImport: boolean;
+  role: ViewerRole;
 }) {
   const [query, setQuery] = useState("");
-  const [, startTransition] = useTransition();
+  const [previewing, setPreviewing] = useState<LibraryTemplate | null>(null);
+  const [detail, setDetail] = useState<PreviewDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Canvases are fetched one at a time, on the click that asks to see one.
+  // The grid lists dozens of cards and loading every canvas up front to
+  // populate previews nobody opened would be most of the payload wasted.
+  const openPreview = async (t: LibraryTemplate) => {
+    setPreviewing(t);
+    setDetail(null);
+    setFailed(false);
+    setLoading(true);
+    try {
+      const res = await loadTemplatePreview(t.id);
+      if (res.error || !res.detail) setFailed(true);
+      else setDetail(res.detail as unknown as PreviewDetail);
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return templates;
     return templates.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.domain.toLowerCase().includes(q),
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.domain.toLowerCase().includes(q) ||
+        t.medium.toLowerCase().includes(q),
     );
   }, [templates, query]);
-
-  const handleImport = (id: string) => {
-    startTransition(async () => {
-      const result = await importTemplate(id);
-      if (result?.error) toast.error(result.error);
-    });
-  };
 
   if (templates.length === 0) {
     return (
@@ -54,7 +81,8 @@ export function LibraryTemplateGrid({
           </span>
           <p className="font-medium">Nothing published here yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Clinicians can share a template to this library from the Template Studio.
+            Clinicians and parents can share what they build to this library from their own
+            workspace.
           </p>
         </CardContent>
       </Card>
@@ -68,13 +96,15 @@ export function LibraryTemplateGrid({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by title or domain…"
+          placeholder="Search by title, area, or type…"
           className="pl-9"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No matches for &ldquo;{query}&rdquo;.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No matches for &ldquo;{query}&rdquo;.
+        </p>
       ) : (
         <StaggerGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((t) => (
@@ -94,20 +124,32 @@ export function LibraryTemplateGrid({
                       <Badge variant="secondary">{t.medium}</Badge>
                     </div>
                   </div>
-                  {canImport ? (
-                    <Button size="sm" variant="outline" onClick={() => handleImport(t.id)}>
-                      <Download className="size-3.5" /> Import to my Studio
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href="/sign-up">Sign up to import</Link>
-                    </Button>
-                  )}
+                  {/* One entry point for everyone. What the preview then
+                      offers depends on who is looking, so the card does not
+                      have to carry three different buttons. */}
+                  <Button size="sm" variant="outline" onClick={() => openPreview(t)}>
+                    <Eye className="size-3.5" />
+                    {role ? ACTION_LABEL[role] ?? "Preview" : "Preview"}
+                  </Button>
                 </CardContent>
               </Card>
             </StaggerItem>
           ))}
         </StaggerGroup>
+      )}
+
+      {previewing && (
+        <TemplatePreviewDialog
+          key={previewing.id}
+          templateId={previewing.id}
+          title={previewing.title}
+          role={role}
+          detail={detail}
+          loading={loading}
+          failed={failed}
+          open={previewing !== null}
+          onOpenChange={(o) => !o && setPreviewing(null)}
+        />
       )}
     </div>
   );

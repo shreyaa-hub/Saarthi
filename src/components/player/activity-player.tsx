@@ -14,16 +14,27 @@ import { ElementPlayer } from "./element-player";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
+// `practice` runs the same player over a library item the patient chose
+// themselves. It scores and shows the result, but records nothing: an attempt
+// row belongs to an assignment, and self-selected practice folded into the
+// clinical record would move the accuracy trends a clinician reads without
+// them ever having prescribed the work.
 export function ActivityPlayer({
   assignmentId,
   title,
   canvas,
   alreadyCompleted,
+  practice = false,
+  backHref = "/patient",
+  backLabel = "my missions",
 }: {
   assignmentId: string;
   title: string;
   canvas: TemplateCanvas;
   alreadyCompleted: boolean;
+  practice?: boolean;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const router = useRouter();
   const [responses, setResponses] = useState<Responses>({});
@@ -67,18 +78,23 @@ export function ActivityPlayer({
     if (locked || submitting) return;
     setSubmitting(true);
     const { correct, total } = scoreCanvas(canvas, responses);
-    const durationSeconds = Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000);
-    const { error } = await submitAttempt(assignmentId, {
-      responses,
-      correctCount: correct,
-      totalCount: total,
-      durationSeconds,
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error);
-      return;
+
+    if (!practice) {
+      const durationSeconds = Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000);
+      const { error } = await submitAttempt(assignmentId, {
+        responses,
+        correctCount: correct,
+        totalCount: total,
+        durationSeconds,
+      });
+      if (error) {
+        setSubmitting(false);
+        toast.error(error);
+        return;
+      }
     }
+
+    setSubmitting(false);
     setResult({ correct, total });
     setLocked(true);
   };
@@ -94,7 +110,28 @@ export function ActivityPlayer({
         <p className="text-muted-foreground">
           You scored {result.correct} out of {result.total} ({pct}%) on &ldquo;{title}&rdquo;.
         </p>
-        <Button onClick={() => router.push("/patient")}>Back to my missions</Button>
+        {practice && (
+          <p className="max-w-sm text-sm text-muted-foreground">
+            This was practice you picked yourself, so it stays with you — it is not added to
+            your progress or sent to your clinician.
+          </p>
+        )}
+        <div className="flex flex-wrap justify-center gap-2">
+          {practice && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setResponses({});
+                setResult(null);
+                setLocked(false);
+                startedAt.current = Date.now();
+              }}
+            >
+              <RotateCcw className="size-4" /> Try again
+            </Button>
+          )}
+          <Button onClick={() => router.push(backHref)}>Back to {backLabel}</Button>
+        </div>
       </div>
     );
   }
@@ -103,7 +140,7 @@ export function ActivityPlayer({
     <div className="flex h-screen flex-col">
       <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/patient" className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+          <Link href={backHref} className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <ArrowLeft className="size-4" />
           </Link>
           <h1 className="truncate font-semibold">{title}</h1>
@@ -118,7 +155,7 @@ export function ActivityPlayer({
             </div>
           )}
           {locked ? (
-            <Button variant="outline" size="sm" onClick={() => router.push("/patient")}>
+            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>
               <RotateCcw className="size-4" /> Done
             </Button>
           ) : (

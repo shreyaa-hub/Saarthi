@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CountUp } from "@/components/motion/count-up";
 import { LinkChildCard } from "@/components/parent/link-child-card";
 import { NoChildState } from "@/components/parent/no-child-state";
+import { GlobalLibraryCard } from "@/components/library/global-library-card";
 import { formatDate, pluralize, cn } from "@/lib/utils";
 
 function isOverdue(dueDate: string | null, status: string) {
@@ -89,6 +90,8 @@ export default async function ParentDashboardPage() {
           {child.clinicianName ? `Working with ${child.clinicianName}` : "Not currently on a clinician's caseload"}
         </p>
       </div>
+
+      <GlobalLibraryCard role="parent" />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (

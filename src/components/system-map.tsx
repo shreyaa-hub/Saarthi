@@ -53,7 +53,7 @@ const CLINICIAN_SECTIONS: MapSection[] = [
   {
     title: "Global Library (shared across roles)",
     entries: [
-      { icon: BookOpen, href: "/library/templates", label: "Template Library", body: "Browse templates other clinicians have published; import a copy into your own Studio." },
+      { icon: BookOpen, href: "/library/templates", label: "Global Library", body: "Everything clinicians and families have published. Preview any of it, then import a private copy into your own Studio \u2014 editing your copy never changes theirs." },
       { icon: BookOpen, href: "/library/worksheets", label: "Worksheet Library", body: "Same idea, filtered to printable worksheets." },
       { icon: ImageIcon, href: "/library/assets", label: "Asset Library", body: "Publish or reuse standalone images across the whole platform." },
     ],
@@ -71,7 +71,7 @@ const PATIENT_SECTIONS: MapSection[] = [
   {
     title: "Global Library (shared across roles)",
     entries: [
-      { icon: BookOpen, href: "/library/templates", label: "Template Library", body: "Browse what clinicians are publishing platform-wide." },
+      { icon: BookOpen, href: "/library/templates", label: "Global Library", body: "Everything shared platform-wide. Preview anything, then try an activity and see how you scored. Practice you pick yourself is not added to your progress." },
       { icon: BookOpen, href: "/library/worksheets", label: "Worksheet Library", body: "Printable worksheets published by clinicians." },
       { icon: ImageIcon, href: "/library/assets", label: "Asset Library", body: "Images shared across the platform." },
     ],
@@ -100,7 +100,7 @@ const PARENT_SECTIONS: MapSection[] = [
     title: "Switching between children",
     entries: [
       { icon: Users, label: "Child Selector", body: "Top bar — if you're linked to more than one child, switch which one every screen is showing. Your choice is remembered." },
-      { icon: BookOpen, href: "/library/templates", label: "Global Library", body: "Everything clinicians have published platform-wide." },
+      { icon: BookOpen, href: "/library/templates", label: "Global Library", body: "Everything clinicians and families have published. Preview any of it, then import a private copy into your Creator Hub \u2014 editing your copy never changes theirs." },
     ],
   },
 ];

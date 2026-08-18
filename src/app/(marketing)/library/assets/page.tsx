@@ -1,10 +1,10 @@
-import { getOptionalClinician } from "@/lib/auth/session";
+import { getOptionalViewer } from "@/lib/auth/session";
 import { getPublicAssets } from "@/lib/data/library";
 import { LibraryAssetGrid } from "@/components/marketing/library-asset-grid";
 import { Reveal } from "@/components/motion/reveal";
 
 export default async function AssetLibraryPage() {
-  const { supabase, clinicianId } = await getOptionalClinician();
+  const { supabase, userId, role } = await getOptionalViewer();
   const assets = await getPublicAssets(supabase);
 
   return (
@@ -17,7 +17,7 @@ export default async function AssetLibraryPage() {
       </Reveal>
 
       <div className="mt-10">
-        <LibraryAssetGrid assets={assets} viewerId={clinicianId} />
+        <LibraryAssetGrid assets={assets} viewerId={role === "clinician" ? userId : null} />
       </div>
     </div>
   );

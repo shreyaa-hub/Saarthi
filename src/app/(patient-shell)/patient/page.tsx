@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth/session";
 import { getMyAssignments, getMyClinician } from "@/lib/data/patient";
 import { ClaimInviteCard } from "@/components/patient/claim-invite-card";
+import { GlobalLibraryCard } from "@/components/library/global-library-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ export default async function PatientDashboardPage() {
           <p className="text-sm text-muted-foreground">Not yet connected to a clinician.</p>
         )}
       </div>
+
+      <GlobalLibraryCard role="patient" />
 
       {!clinician && <ClaimInviteCard />}
 
