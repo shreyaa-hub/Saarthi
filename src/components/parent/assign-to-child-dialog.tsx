@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { assignWorksheetToChild } from "@/lib/actions/parent";
+import { assignTemplateToChild } from "@/lib/actions/parent";
 import type { ParentChild } from "@/lib/data/parent";
 
 export function AssignToChildDialog({
@@ -46,7 +46,7 @@ export function AssignToChildDialog({
       return;
     }
     startTransition(async () => {
-      const { error } = await assignWorksheetToChild(templateId, childId, { instructions, dueDate });
+      const { error } = await assignTemplateToChild(templateId, childId, { instructions, dueDate });
       if (error) {
         toast.error(error);
         return;

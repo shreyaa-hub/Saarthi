@@ -73,8 +73,8 @@ export async function createTemplateFromWizard(input: {
 // clinicians and parents — ownership is templates.owner_id in either case, so
 // no role branching is needed beyond where we send them afterwards.
 //
-// Parent-authored worksheets are public by default, matching
-// createParentWorksheet; a clinician's start private, matching the Studio.
+// Parent-authored work is public by default, matching createParentTemplate;
+// a clinician's starts private, matching the Studio.
 export async function claimGuestDraft(input: {
   title: string;
   domain: string;

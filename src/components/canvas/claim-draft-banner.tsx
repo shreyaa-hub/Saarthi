@@ -53,7 +53,7 @@ export function ClaimDraftBanner() {
       // draft where it is so the offer can be made again.
       clearGuestDraft();
       toast.success("Saved to your library");
-      router.push(role === "parent" ? `/parent/worksheets/${templateId}` : `/clinician/studio/${templateId}`);
+      router.push(role === "parent" ? `/parent/studio/${templateId}` : `/clinician/studio/${templateId}`);
     });
   };
 

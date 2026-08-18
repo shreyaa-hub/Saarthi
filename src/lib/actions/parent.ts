@@ -5,7 +5,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/actions/auth";
-import { EMPTY_WORKSHEET_CANVAS } from "@/lib/types/canvas";
+import {
+  EMPTY_CANVAS,
+  EMPTY_WORKSHEET_CANVAS,
+  TEMPLATE_MEDIUMS,
+  type TemplateMedium,
+} from "@/lib/types/canvas";
 import { randomThumbnailColor } from "@/lib/canvas/colors";
 import { notify } from "@/lib/actions/notifications";
 import { SELECTED_CHILD_COOKIE } from "@/lib/parent/selected-child";
@@ -40,20 +45,31 @@ export async function selectChild(childId: string) {
   revalidatePath("/parent", "layout");
 }
 
-// Parent-authored worksheets are public by default, per the product decision
-// that parents share what they make with the community unless they opt out.
-// This is the opposite default from clinician templates, which start private —
-// so it is set explicitly here rather than relying on the column default,
-// which stays false for clinicians.
-export async function createParentWorksheet(
+function asMedium(value: FormDataEntryValue | null): TemplateMedium {
+  const candidate = String(value ?? "");
+  return (TEMPLATE_MEDIUMS as readonly string[]).includes(candidate)
+    ? (candidate as TemplateMedium)
+    : "print";
+}
+
+// Parents author the same thing clinicians do — a template — not a lesser
+// kind of it. An interactive or hybrid medium gets the activity canvas; print
+// gets the worksheet canvas, exactly as the Studio decides it.
+//
+// Public by default, per the product decision that parents share what they
+// make unless they opt out. This is the opposite default from clinician
+// templates, which start private, so it is set explicitly here rather than
+// relying on the column default, which stays false for clinicians.
+export async function createParentTemplate(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const title = String(formData.get("title") || "").trim();
   const domain = String(formData.get("domain") || "General");
+  const medium = asMedium(formData.get("medium"));
   const keepPrivate = formData.get("keep_private") === "on";
 
-  if (!title) return { error: "Give your worksheet a name." };
+  if (!title) return { error: "Give it a name." };
 
   const supabase = await createClient();
   const {
@@ -67,21 +83,21 @@ export async function createParentWorksheet(
       owner_id: user.id,
       title,
       domain,
-      medium: "print",
-      canvas: EMPTY_WORKSHEET_CANVAS,
+      medium,
+      canvas: medium === "print" ? EMPTY_WORKSHEET_CANVAS : EMPTY_CANVAS,
       is_public: !keepPrivate,
       thumbnail_color: randomThumbnailColor(),
     })
     .select("id")
     .single();
 
-  if (error || !data) return { error: error?.message ?? "Could not create the worksheet." };
+  if (error || !data) return { error: error?.message ?? "Could not create it." };
 
   revalidatePath("/parent/creator-hub");
-  redirect(`/parent/worksheets/${data.id}`);
+  redirect(`/parent/studio/${data.id}`);
 }
 
-export async function setParentWorksheetVisibility(templateId: string, isPublic: boolean) {
+export async function setParentTemplateVisibility(templateId: string, isPublic: boolean) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -100,7 +116,7 @@ export async function setParentWorksheetVisibility(templateId: string, isPublic:
   return { error: null };
 }
 
-export async function deleteParentWorksheet(templateId: string) {
+export async function deleteParentTemplate(templateId: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -130,7 +146,7 @@ export async function deleteParentWorksheet(templateId: string) {
 // assignments_assigner_insert policy, which requires can_assign_to(patient_id).
 // The child_id check below exists so a mistake surfaces as a clear message
 // rather than an opaque RLS rejection.
-export async function assignWorksheetToChild(
+export async function assignTemplateToChild(
   templateId: string,
   childId: string,
   options: { instructions?: string; dueDate?: string } = {},
@@ -159,9 +175,9 @@ export async function assignWorksheetToChild(
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (!template) return { error: "That worksheet could not be found." };
+  if (!template) return { error: "That could not be found." };
   if (template.owner_id !== user.id && !template.is_public) {
-    return { error: "That worksheet isn't yours and isn't publicly shared." };
+    return { error: "That isn't yours and isn't publicly shared." };
   }
 
   const { error } = await supabase.from("assignments").insert({
