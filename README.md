@@ -90,6 +90,14 @@ statements from **Billing** and mark them paid once settled out of band.
 
    (`DATABASE_URL` is the connection string under **Project Settings → Database**.)
 
+   If a feature reports **"Could not find the table 'public.…' in the schema cache"**, the
+   table exists but PostgREST is still serving a cached schema that predates it. Re-running
+   the migration that created it fixes this — or, on its own:
+
+   ```sql
+   notify pgrst, 'reload schema';
+   ```
+
    The policies were exercised against a local Postgres instance during development
    (clinician/patient data isolation, cross-tenant access denial, invite-claim flow) — see
    each migration file's comments for what its policies do.

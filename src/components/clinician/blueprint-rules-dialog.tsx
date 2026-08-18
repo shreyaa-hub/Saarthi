@@ -138,8 +138,9 @@ export function BlueprintRulesDialog({
                 </p>
                 {loadFailed && (
                   <p className="text-xs text-muted-foreground">
-                    The blueprint_rules table is missing or unreadable. Applying
-                    migration 0006 sets it up with the baseline rules.
+                    The blueprint_rules table is missing, or not yet visible to
+                    the API. Running migration 0006 creates it, seeds the
+                    baseline rules, and refreshes the schema cache.
                   </p>
                 )}
               </div>

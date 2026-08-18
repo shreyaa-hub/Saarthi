@@ -6,6 +6,15 @@
 --
 -- Safe to re-run.
 
+-- Fail with something readable rather than a bare foreign-key error if this
+-- is run against a database that never got 0001.
+do $$
+begin
+  if to_regclass('public.profiles') is null then
+    raise exception 'public.profiles is missing — apply 0001_init.sql first.';
+  end if;
+end $$;
+
 create table if not exists public.blueprint_rules (
   id uuid primary key default gen_random_uuid(),
   body text not null check (char_length(btrim(body)) between 1 and 500),
@@ -124,3 +133,20 @@ from (values
 on conflict (body) do update
   set is_default = true,
       sort_order = excluded.sort_order;
+
+-- ---------------------------------------------------------------------------
+-- PostgREST answers the app's queries from a cached copy of the schema, and a
+-- brand-new table stays invisible to it until that cache is refreshed —
+-- surfacing as "Could not find the table 'public.blueprint_rules' in the
+-- schema cache" even though the table is right there. Ask for the reload
+-- rather than waiting for one.
+-- ---------------------------------------------------------------------------
+notify pgrst, 'reload schema';
+
+-- Runs last so the SQL editor shows it: a successful apply is visible rather
+-- than assumed. Expect 15 baseline rules.
+select
+  count(*) filter (where is_default) as baseline_rules,
+  count(*) filter (where not is_default) as clinician_rules,
+  count(*) as total
+from public.blueprint_rules;
