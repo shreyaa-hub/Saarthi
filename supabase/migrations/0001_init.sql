@@ -122,6 +122,10 @@ create index if not exists templates_public_idx on public.templates (is_public) 
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+-- Pinned like every other function here. Not security definer, so the
+-- exposure is small, but a trigger resolving now() through a caller-supplied
+-- search_path is resolving a name it did not have to.
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
