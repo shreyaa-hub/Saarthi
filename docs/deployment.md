@@ -33,7 +33,29 @@ ANTHROPIC_MODEL=claude-sonnet-5  # optional, this is the default
 The two `NEXT_PUBLIC_` values are baked in at build time, so they must be present
 **before** `npm run build`, not just before `npm start`.
 
-## 3. Which BigRock product will work
+## 3. What this project actually has (checked August 2026)
+
+| Asset | State |
+|---|---|
+| `telepractice.in` | Domain, registered to 21 Aug 2028 |
+| `telepractice.info` | Domain, **expired 21 Aug 2026** unless renewed |
+| Multi Domain Linux Hosting (USA-TX) | cPanel shared hosting, paid to 19 May 2028 |
+
+**The shared hosting cannot run this application.** Its cPanel Software section offers
+WordPress, Softaculous, Perl modules, MultiPHP Manager and MultiPHP INI Editor — a PHP
+stack. There is no *Setup Node.js App*, so there is no Node runtime to run a Next.js
+server on. (`Application Manager` is present, which is cPanel's Passenger front-end and
+can in principle host Node apps, but on a PHP-only server there is usually no Node
+runtime behind it, and where there is, it predates Node 20.)
+
+So the working plan is **Option C**: keep the domains and the cPanel account where they
+are, and run the application on a host that supports Node. The cPanel account still earns
+its keep — email on `telepractice.in`, and a static landing page if one is wanted.
+
+Note also that the hosting is in **USA-TX**. If the practice is in India, every request
+crosses the Pacific; worth weighing against the region of whichever platform replaces it.
+
+## 4. Which BigRock product will work
 
 BigRock sells several things, and only some of them can run this.
 
@@ -44,13 +66,16 @@ BigRock sells several things, and only some of them can run this.
 | **VPS hosting** (root access) | Works properly. This is the option to pick if the app must live on BigRock. |
 | **Dedicated server** | Works, and is more than this needs. |
 
-**Ask BigRock support these three questions before choosing:**
+For the plan this project already owns, §3 settles it: no Node runtime, so Option C.
+
+If a different BigRock plan is ever considered, three questions decide it before any
+money changes hands:
 
 1. Does the plan include cPanel's *Setup Node.js App* (CloudLinux Node.js Selector / Passenger)?
 2. Which Node.js versions are available? (Needs **20 or newer**.)
 3. Are long-running processes and outbound HTTPS to third-party APIs permitted?
 
-If the answer to any is no, you need the VPS.
+Any "no" means the VPS.
 
 ---
 
@@ -180,27 +205,34 @@ If it fights you, that is the hosting, not the app. Move to Option A or C.
 
 ---
 
-## Option C — Domain at BigRock, application hosted elsewhere
+## Option C — Domain at BigRock, application hosted elsewhere · **use this one**
 
-The least painful route, and worth stating plainly: BigRock is a strong registrar and a
-weak fit for a Node application. You can keep the domain exactly where it is.
+The route this project should take, per §3, and worth stating plainly: BigRock is a
+strong registrar and a weak fit for a Node application. Nothing has to move — the
+domains, the mailboxes and the cPanel account all stay exactly where they are.
 
 1. Deploy the repository to a platform that runs Next.js natively (Vercel, Netlify,
    Render, Railway — Vercel is the reference implementation for Next.js).
 2. Add the environment variables from §2 in that platform's dashboard.
-3. In **BigRock → DNS management**, replace the A records with whatever the platform
-   gives you, typically:
+3. In **BigRock → Manage `telepractice.in` → DNS management**, replace the A record
+   with whatever the platform gives you. For Vercel that is currently:
 
 ```
 A      @      76.76.21.21
 CNAME  www    cname.vercel-dns.com
 ```
 
+   Confirm the exact values in your platform's dashboard rather than copying these —
+   they do change.
+
+Changing these records only moves the website. Email on `telepractice.in` is governed by
+the **MX** records, so leave those alone and the cPanel mailboxes keep working.
+
 DNS changes take up to 24–48 hours to propagate fully.
 
 ---
 
-## 4. After deploying — do not skip this
+## 5. After deploying — do not skip this
 
 **Apply the database migrations.** In the Supabase SQL editor, run in order:
 
