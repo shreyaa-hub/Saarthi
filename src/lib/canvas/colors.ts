@@ -1,12 +1,18 @@
 // Shared palette for randomly-assigned template thumbnail accents — kept in
-// the "Moss & Clay" family (see globals.css) rather than arbitrary hues.
+// the "Voltage" family (see globals.css) rather than arbitrary hues, so a
+// grid of templates reads as one set instead of a colour swatch.
+//
+// These are literals rather than theme tokens on purpose: the chosen value is
+// written into templates.thumbnail_color at creation time and stored, so it
+// has to be a real colour and not a var() that means different things in
+// light and dark mode. Each is picked to sit legibly on both.
 export const THUMBNAIL_COLORS = [
-  "#3b5544", // moss (primary)
-  "#a85a39", // clay (accent)
-  "#8b5f72", // mauve
-  "#b8923f", // ochre
-  "#4c7a52", // fern
-  "#6b7fa0", // dusty slate
+  "#7c3aed", // violet (primary)
+  "#0891b2", // cyan (accent)
+  "#db2777", // pink
+  "#ea580c", // orange
+  "#059669", // emerald
+  "#4f46e5", // indigo
 ];
 
 export function randomThumbnailColor(): string {

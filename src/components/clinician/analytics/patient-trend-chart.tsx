@@ -7,7 +7,7 @@ import type { TrendPoint } from "@/lib/analytics/types";
 
 // Same line language as the other charts in the app (color, themed axes,
 // tooltip), with the corrected Y-axis (full percentages, not a clipped "%").
-const LINE_COLOR = "#3b5544";
+const LINE_COLOR = "#7c3aed";
 
 type Mode = "attempt" | "week";
 

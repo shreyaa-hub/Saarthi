@@ -26,7 +26,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Articulation",
     medium: "interactive",
     description: "Pick the picture that matches the target sound.",
-    thumbnailColor: "#3b5544",
+    thumbnailColor: "#7c3aed",
     canvas: base({
       elements: [
         {
@@ -78,7 +78,7 @@ export const BLUEPRINTS: Blueprint[] = [
     domain: "Social / Pragmatics",
     medium: "interactive",
     description: "A quick emotional check-in to open a session.",
-    thumbnailColor: "#a85a39",
+    thumbnailColor: "#0891b2",
     canvas: base({
       elements: [
         {

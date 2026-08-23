@@ -10,7 +10,7 @@ import type { TrendPoint } from "@/lib/analytics/types";
 // TrendPoint[] instead of raw attempts. Days with no accuracy-countable
 // activity (averageAccuracy === null) are dropped rather than drawn as a
 // dip to zero.
-const LINE_COLOR = "#3b5544";
+const LINE_COLOR = "#7c3aed";
 
 export function CaseloadTrendChart({ points }: { points: TrendPoint[] }) {
   const data = points

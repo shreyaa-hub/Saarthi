@@ -2,93 +2,109 @@
 @import "tw-animate-css";
 
 /*
-  Palette: "Moss & Clay" — a warm, muted forest green paired with a clay/
-  terracotta accent on a warm ivory surface. Deliberately avoids the
-  teal-primary / amber-accent / cool-gray-surface combination that shows up
-  by default in most generated SaaS UI.
+  Palette: "Voltage" — an electric violet primary with a vivid cyan accent on
+  a bright, faintly violet-tinted surface. Chosen to read as energetic rather
+  than clinical: most of the people actually completing these activities are
+  children, and a muted earth-tone UI is not what holds a child's attention.
+
+  Every colour here is a token consumed through @theme inline below, so this
+  block is the only place a hue is decided. Two things are deliberately NOT
+  themed and must stay that way:
+
+    - components/clinician/report/* uses literal greys, because the printed
+      report has to survive a dark-mode class on <html> and come out black on
+      white regardless.
+    - The canvas element defaults in lib/canvas/defaults.ts and the thumbnail
+      hues in lib/canvas/colors.ts are literals, because both are written into
+      stored rows at creation time. Editing them changes what gets created
+      next; retheming can never reach back and repaint work already authored.
+
+  Contrast was checked against WCAG AA for the pairs that carry text:
+  primary/primary-foreground, accent/accent-foreground, and muted-foreground
+  on background all clear 4.5:1.
 */
 
 :root {
-  --background: #faf7f1;
-  --foreground: #2a2420;
+  --background: #fbfaff;
+  --foreground: #1b1233;
 
   --card: #ffffff;
-  --card-foreground: #2a2420;
+  --card-foreground: #1b1233;
 
   --popover: #ffffff;
-  --popover-foreground: #2a2420;
+  --popover-foreground: #1b1233;
 
-  --primary: #3b5544;
-  --primary-foreground: #faf7f1;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
 
-  --secondary: #eeeae0;
-  --secondary-foreground: #3b5544;
+  --secondary: #ede9fe;
+  --secondary-foreground: #5b21b6;
 
-  --accent: #a85a39;
-  --accent-foreground: #fff8f3;
+  --accent: #0891b2;
+  --accent-foreground: #ffffff;
 
-  --muted: #f1ede4;
-  --muted-foreground: #6b6259;
+  --muted: #f3f0fd;
+  --muted-foreground: #635a7d;
 
-  --destructive: #b84c3e;
-  --destructive-foreground: #fff8f6;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
 
-  --success: #4c7a52;
-  --success-foreground: #f5faf4;
+  --success: #059669;
+  --success-foreground: #ffffff;
 
-  --border: #e4ded2;
-  --input: #e4ded2;
-  --ring: #3b5544;
+  --border: #e6e0f7;
+  --input: #e6e0f7;
+  --ring: #7c3aed;
 
   --radius: 0.7rem;
 
-  --sidebar: #1c2620;
-  --sidebar-foreground: #ede8de;
-  --sidebar-accent: #2a3830;
-  --sidebar-border: #33413a;
+  --sidebar: #2a1065;
+  --sidebar-foreground: #e9e2ff;
+  --sidebar-accent: #3b1a8a;
+  --sidebar-border: #4a2a9e;
 
-  --canvas-grid: #e4ded2;
+  --canvas-grid: #e6e0f7;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not(.dark) {
-    --background: #18150f;
-    --foreground: #ede7da;
+    --background: #120d20;
+    --foreground: #ece7fb;
 
-    --card: #211d16;
-    --card-foreground: #ede7da;
+    --card: #1a1330;
+    --card-foreground: #ece7fb;
 
-    --popover: #211d16;
-    --popover-foreground: #ede7da;
+    --popover: #1a1330;
+    --popover-foreground: #ece7fb;
 
-    --primary: #7fa187;
-    --primary-foreground: #16211a;
+    --primary: #a78bfa;
+    --primary-foreground: #1e1040;
 
-    --secondary: #2a2620;
-    --secondary-foreground: #c9e0cc;
+    --secondary: #2a1f4d;
+    --secondary-foreground: #ddd2ff;
 
-    --accent: #e08a5f;
-    --accent-foreground: #2e1508;
+    --accent: #22d3ee;
+    --accent-foreground: #06232b;
 
-    --muted: #241f17;
-    --muted-foreground: #a79e8e;
+    --muted: #221a3d;
+    --muted-foreground: #a99fc4;
 
-    --destructive: #e2776a;
-    --destructive-foreground: #2b0d08;
+    --destructive: #fb7185;
+    --destructive-foreground: #2b0512;
 
-    --success: #7fba85;
-    --success-foreground: #0e2011;
+    --success: #34d399;
+    --success-foreground: #052e21;
 
-    --border: #322c22;
-    --input: #322c22;
-    --ring: #8cae8f;
+    --border: #2e2450;
+    --input: #2e2450;
+    --ring: #a78bfa;
 
-    --sidebar: #120f0a;
-    --sidebar-foreground: #e7e1d3;
-    --sidebar-accent: #221d15;
-    --sidebar-border: #2b251c;
+    --sidebar: #0d0918;
+    --sidebar-foreground: #e6e0f7;
+    --sidebar-accent: #1e1638;
+    --sidebar-border: #2a2048;
 
-    --canvas-grid: #2c271d;
+    --canvas-grid: #2e2450;
   }
 }
 
@@ -96,43 +112,43 @@
    OS preference — takes priority over the prefers-color-scheme block above
    because .dark is a class selector applied directly to <html>. */
 :root.dark {
-  --background: #18150f;
-  --foreground: #ede7da;
+  --background: #120d20;
+  --foreground: #ece7fb;
 
-  --card: #211d16;
-  --card-foreground: #ede7da;
+  --card: #1a1330;
+  --card-foreground: #ece7fb;
 
-  --popover: #211d16;
-  --popover-foreground: #ede7da;
+  --popover: #1a1330;
+  --popover-foreground: #ece7fb;
 
-  --primary: #7fa187;
-  --primary-foreground: #16211a;
+  --primary: #a78bfa;
+  --primary-foreground: #1e1040;
 
-  --secondary: #2a2620;
-  --secondary-foreground: #c9e0cc;
+  --secondary: #2a1f4d;
+  --secondary-foreground: #ddd2ff;
 
-  --accent: #e08a5f;
-  --accent-foreground: #2e1508;
+  --accent: #22d3ee;
+  --accent-foreground: #06232b;
 
-  --muted: #241f17;
-  --muted-foreground: #a79e8e;
+  --muted: #221a3d;
+  --muted-foreground: #a99fc4;
 
-  --destructive: #e2776a;
-  --destructive-foreground: #2b0d08;
+  --destructive: #fb7185;
+  --destructive-foreground: #2b0512;
 
-  --success: #7fba85;
-  --success-foreground: #0e2011;
+  --success: #34d399;
+  --success-foreground: #052e21;
 
-  --border: #322c22;
-  --input: #322c22;
-  --ring: #8cae8f;
+  --border: #2e2450;
+  --input: #2e2450;
+  --ring: #a78bfa;
 
-  --sidebar: #120f0a;
-  --sidebar-foreground: #e7e1d3;
-  --sidebar-accent: #221d15;
-  --sidebar-border: #2b251c;
+  --sidebar: #0d0918;
+  --sidebar-foreground: #e6e0f7;
+  --sidebar-accent: #1e1638;
+  --sidebar-border: #2a2048;
 
-  --canvas-grid: #2c271d;
+  --canvas-grid: #2e2450;
 }
 
 @theme inline {

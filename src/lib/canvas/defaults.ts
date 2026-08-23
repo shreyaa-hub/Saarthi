@@ -53,8 +53,12 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         w: 160,
         h: 160,
         shape: "rectangle",
-        fill: "#eeeae0",
-        stroke: "#3b5544",
+        // Literals, not theme tokens: this value is written into the stored
+        // canvas the moment a shape is added, so it must be a real colour.
+        // Changing it restyles shapes added from now on and deliberately
+        // leaves every already-authored activity exactly as its author left it.
+        fill: "#ede9fe",
+        stroke: "#7c3aed",
         strokeWidth: 2,
       } satisfies ShapeElement;
 
