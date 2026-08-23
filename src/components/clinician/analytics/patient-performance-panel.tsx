@@ -60,13 +60,20 @@ export function PatientPerformancePanel({
       <PatientActivitySummary
         summary={analytics.summary}
         status={analytics.status}
+        // AI insights are optional and off unless a key is configured. This
+        // is a Server Component, so the check happens on the server and the
+        // trigger is simply never sent to the browser — rather than shipping
+        // a button that always fails. A deployment without the key gets a
+        // product with one fewer feature, not a visibly broken one.
         headerAction={
-          <AiInsightsTrigger
-            clinicianPatientId={clinicianPatientId}
-            patientId={patientId}
-            initialInsight={initialInsight}
-            attemptCount={attemptCount}
-          />
+          process.env.ANTHROPIC_API_KEY ? (
+            <AiInsightsTrigger
+              clinicianPatientId={clinicianPatientId}
+              patientId={patientId}
+              initialInsight={initialInsight}
+              attemptCount={attemptCount}
+            />
+          ) : null
         }
       />
 
