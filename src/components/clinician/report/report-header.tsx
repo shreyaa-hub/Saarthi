@@ -24,7 +24,7 @@ export function ReportHeader({
 
   return (
     <header className="break-inside-avoid border-b border-gray-300 pb-5">
-      <p className="text-xs font-medium uppercase tracking-widest text-gray-400">Saarthi Coach</p>
+      <p className="text-xs font-medium uppercase tracking-widest text-gray-400">Verbal Coach</p>
       <h1 className="mt-1 text-2xl font-semibold text-black">Patient Performance Report</h1>
       <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
         <div>

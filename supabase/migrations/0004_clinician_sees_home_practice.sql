@@ -1,4 +1,4 @@
--- Saarthi Coach — clinicians see home practice
+-- Verbal Coach — clinicians see home practice
 --
 -- A parent-assigned worksheet was previously invisible to the child's
 -- clinician: 0003 scoped clinician visibility to `clinician_id = auth.uid()`,

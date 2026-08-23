@@ -1,4 +1,4 @@
--- Saarthi Coach - Blueprint Rules
+-- Verbal Coach - Blueprint Rules
 --
 -- Shared authoring standards every clinician follows when building activities
 -- for patients. Deliberately platform-wide rather than per-clinician: a rule

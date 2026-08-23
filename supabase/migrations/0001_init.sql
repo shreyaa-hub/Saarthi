@@ -1,4 +1,4 @@
--- Saarthi Coach — Therapy Authoring Studio
+-- Verbal Coach — Therapy Authoring Studio
 -- Initial schema: profiles, clinician-patient links, templates, assignments,
 -- activity attempts, and cached AI insights.
 --

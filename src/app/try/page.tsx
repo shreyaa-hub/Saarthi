@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { GuestStudio } from "@/components/canvas/guest-studio";
 
 export const metadata: Metadata = {
-  title: "Try the Studio — Saarthi Coach",
+  title: "Try the Studio — Verbal Coach",
   description:
     "Build a printable therapy worksheet in your browser. No account needed to start.",
 };

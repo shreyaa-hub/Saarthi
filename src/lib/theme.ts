@@ -1,6 +1,6 @@
 export type Theme = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "saarthi-theme";
+export const THEME_STORAGE_KEY = "verbalcoach-theme";
 
 // Inlined into a blocking <script> in the root layout so the correct class
 // is set before first paint — avoids a flash of the wrong theme on reload.

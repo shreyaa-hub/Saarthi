@@ -44,7 +44,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Compass className="size-4" />
           </span>
-          Saarthi Coach
+          Verbal Coach
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">

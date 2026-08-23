@@ -36,7 +36,7 @@ export function Footer() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Compass className="size-4" />
             </span>
-            Saarthi Coach
+            Verbal Coach
           </Link>
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
             A canvas-based therapy authoring studio for clinicians — build activities,
@@ -62,7 +62,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Saarthi Coach. All rights reserved.
+        © {new Date().getFullYear()} Verbal Coach. All rights reserved.
       </div>
     </footer>
   );

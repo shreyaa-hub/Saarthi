@@ -21,7 +21,7 @@ const fontDisplay = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Saarthi Coach — Therapy Authoring Studio",
+  title: "Verbal Coach — Therapy Authoring Studio",
   description:
     "Build canvas-based therapy activities, assign them to patients, and monitor progress with AI-powered insights.",
 };

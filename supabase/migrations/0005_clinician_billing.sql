@@ -1,4 +1,4 @@
--- Saarthi Coach — clinician-side billing
+-- Verbal Coach — clinician-side billing
 --
 -- 0002 created the invoices table and the parent's read-only Finances view,
 -- but nothing could create a row: there was no clinician UI, and more

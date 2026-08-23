@@ -78,7 +78,7 @@ export default function HomePage() {
             </StaggerItem>
             <StaggerItem>
               <p className="mt-6 max-w-2xl text-lg text-muted-foreground text-balance">
-                Saarthi Coach gives clinicians a drag-and-drop studio for authoring interactive
+                Verbal Coach gives clinicians a drag-and-drop studio for authoring interactive
                 activities, a simple way to assign them to patients, and an AI assistant that
                 turns attempt data into clinical insight.
               </p>

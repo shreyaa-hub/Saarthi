@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Compass className="size-5" />
           </span>
-          <span className="text-lg">Saarthi Coach</span>
+          <span className="text-lg">Verbal Coach</span>
         </Link>
 
         <div>
@@ -40,7 +40,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <p className="text-xs text-sidebar-foreground/50">
-          © {new Date().getFullYear()} Saarthi Coach
+          © {new Date().getFullYear()} Verbal Coach
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Compass className="size-5" />
             </span>
-            <span className="text-lg font-semibold">Saarthi Coach</span>
+            <span className="text-lg font-semibold">Verbal Coach</span>
           </Link>
           {children}
         </div>

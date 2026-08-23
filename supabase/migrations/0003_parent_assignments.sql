@@ -1,4 +1,4 @@
--- Saarthi Coach — parent-assigned activities
+-- Verbal Coach — parent-assigned activities
 --
 -- Lets a parent push a worksheet they own (or one published to the library)
 -- into their own child's mission list, and closes a pre-existing hole in the

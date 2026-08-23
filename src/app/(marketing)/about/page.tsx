@@ -30,11 +30,10 @@ export default function AboutPage() {
           A therapy authoring studio, from the ground up
         </h1>
         <p className="mt-4 max-w-2xl text-muted-foreground">
-          Saarthi Coach — &ldquo;saarthi&rdquo; means guide or charioteer — started from a simple
-          observation: clinicians build the same kinds of activities over and over in tools
-          never designed for therapy work, and patients lose the thread between sessions. The
-          Studio puts a canvas-based authoring tool, an assignment workflow, and progress
-          monitoring in one place.
+          Verbal Coach started from a simple observation: clinicians build the same kinds of
+          activities over and over in tools never designed for therapy work, and patients lose
+          the thread between sessions. The Studio puts a canvas-based authoring tool, an
+          assignment workflow, and progress monitoring in one place.
         </p>
       </Reveal>
 

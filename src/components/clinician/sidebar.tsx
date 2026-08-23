@@ -85,7 +85,7 @@ export function ClinicianSidebar({
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Compass className="size-4" />
         </span>
-        Saarthi Coach
+        Verbal Coach
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {links.map((l) => {

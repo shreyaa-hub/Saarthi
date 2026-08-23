@@ -59,7 +59,7 @@ export default async function ParentFinancesPage() {
           <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             Payments are arranged directly with your clinic — this page is a record only, and no payment is
-            taken through Saarthi Coach. A statement is marked paid here once your clinician records it.
+            taken through Verbal Coach. A statement is marked paid here once your clinician records it.
           </p>
         </CardContent>
       </Card>

@@ -33,7 +33,7 @@ export default async function BillingPage() {
         <CardContent className="flex items-start gap-2.5 pt-6 text-sm text-muted-foreground">
           <Info className="mt-0.5 size-4 shrink-0" />
           <p>
-            Saarthi Coach does not process payments. These are a record only — arrange payment with
+            Verbal Coach does not process payments. These are a record only — arrange payment with
             the family directly, then mark the statement paid here so it shows as settled on their
             side. Outstanding:{" "}
             <span className="font-medium text-foreground">

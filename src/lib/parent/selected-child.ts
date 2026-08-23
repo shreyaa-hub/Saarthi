@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 // The value is only ever a hint: resolveSelectedChild() validates it against
 // the parent's own linked children on each read, so a stale or hand-edited
 // cookie degrades to "first child" instead of showing nothing.
-export const SELECTED_CHILD_COOKIE = "saarthi-child";
+export const SELECTED_CHILD_COOKIE = "verbalcoach-child";
 
 export async function readSelectedChildId(): Promise<string | undefined> {
   const store = await cookies();

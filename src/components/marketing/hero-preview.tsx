@@ -16,7 +16,7 @@ export function HeroPreview() {
           <span className="size-2.5 rounded-full bg-accent/60" />
           <span className="size-2.5 rounded-full bg-success/60" />
           <span className="ml-3 truncate rounded-md bg-background px-3 py-1 text-xs text-muted-foreground">
-            saarthicoach.app/clinician/studio
+            verbalcoach.app/clinician/studio
           </span>
         </div>
 

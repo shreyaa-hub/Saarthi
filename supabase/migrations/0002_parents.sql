@@ -1,4 +1,4 @@
--- Saarthi Coach — Parent / Guardian area
+-- Verbal Coach — Parent / Guardian area
 --
 -- Phase P1: the guardian model. A parent is a third role whose account links
 -- to one or more existing patient accounts through a clinician-issued

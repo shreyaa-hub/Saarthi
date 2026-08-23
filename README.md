@@ -1,4 +1,4 @@
-# Saarthi Coach — Therapy Authoring Studio
+# Verbal Coach — Therapy Authoring Studio
 
 Project contributors: Trilochan P, Abhinav Y, Rahul Anand Y, Shreya S, B. V. A. S. Kowshik
 

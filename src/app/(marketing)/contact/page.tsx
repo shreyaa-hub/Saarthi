@@ -20,7 +20,7 @@ export default function ContactPage() {
             <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-primary">
               <Mail className="size-4" />
             </span>
-            <span className="text-muted-foreground">hello@saarthicoach.app</span>
+            <span className="text-muted-foreground">hello@verbalcoach.app</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-primary">

@@ -4,7 +4,15 @@ import type { TemplateCanvas } from "@/lib/types/canvas";
 // it survives the round trip through sign-up — the whole point of letting
 // people try the Studio first is that they don't lose the thing they made
 // when they finally create an account.
-export const GUEST_DRAFT_KEY = "saarthi-guest-draft";
+export const GUEST_DRAFT_KEY = "verbalcoach-guest-draft";
+
+// The key this used to live under, before the product was renamed. A guest
+// draft is somebody's unsaved work, so the rename must not throw it away:
+// reads fall back to the old key, and the next write or clear removes it.
+// Reads deliberately do NOT migrate, because getGuestDraftRaw is a
+// useSyncExternalStore snapshot and writing to storage during render is a
+// side effect in the wrong place.
+const LEGACY_GUEST_DRAFT_KEY = "saarthi-guest-draft";
 
 export type GuestDraft = {
   title: string;
@@ -39,7 +47,10 @@ function notify() {
 export function getGuestDraftRaw(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(GUEST_DRAFT_KEY);
+    return (
+      window.localStorage.getItem(GUEST_DRAFT_KEY) ??
+      window.localStorage.getItem(LEGACY_GUEST_DRAFT_KEY)
+    );
   } catch {
     return null;
   }
@@ -81,6 +92,9 @@ export function writeGuestDraft(draft: Omit<GuestDraft, "savedAt">): GuestWriteR
       GUEST_DRAFT_KEY,
       JSON.stringify({ ...draft, savedAt: new Date().toISOString() }),
     );
+    // Only once the new key holds the draft, so a failed write above never
+    // destroys the old copy on its way out.
+    window.localStorage.removeItem(LEGACY_GUEST_DRAFT_KEY);
     notify();
     return { ok: true };
   } catch (err) {
@@ -97,6 +111,7 @@ export function clearGuestDraft(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(GUEST_DRAFT_KEY);
+    window.localStorage.removeItem(LEGACY_GUEST_DRAFT_KEY);
     notify();
   } catch {
     // Nothing to do — a draft we can't clear is re-offered once more at
