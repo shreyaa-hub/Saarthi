@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verbal Coach — Therapy Authoring Studio</title>
+<meta name="description" content="Build interactive therapy activities, assign them to patients, and follow progress — for speech and occupational therapy practices.">
+
+<!--
+  Landing page for telepractice.in, served from BigRock's cPanel hosting.
+
+  Deliberately one self-contained file with no build step, no framework and no
+  external requests: that hosting is a PHP stack with no Node runtime, and the
+  whole point of this page is that it works there with nothing installed.
+  Upload it to public_html and it is live.
+
+  The button points at the app, which runs on a host that can serve Next.js.
+  Set that URL in one place -> the APP_URL constant at the bottom.
+-->
+
+<style>
+  :root {
+    --violet: #7c3aed;
+    --violet-dark: #5b21b6;
+    --cyan: #0891b2;
+    --ink: #1b1233;
+    --muted: #635a7d;
+    --bg: #fbfaff;
+    --card: #ffffff;
+    --border: #e6e0f7;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --violet: #a78bfa;
+      --violet-dark: #8b5cf6;
+      --cyan: #22d3ee;
+      --ink: #ece7fb;
+      --muted: #a99fc4;
+      --bg: #120d20;
+      --card: #1a1330;
+      --border: #2e2450;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Soft violet wash behind the hero, drawn with gradients so the page still
+     needs no image files. */
+  .hero {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    background:
+      radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--violet) 14%, transparent), transparent),
+      radial-gradient(40rem 24rem at 85% 100%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent);
+  }
+
+  .inner { width: 100%; max-width: 680px; text-align: center; }
+
+  .mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 32px;
+  }
+  .mark .badge {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--violet);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--violet);
+    background: color-mix(in srgb, var(--violet) 12%, transparent);
+    padding: 6px 13px;
+    border-radius: 999px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(30px, 6vw, 46px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+  }
+
+  .lede {
+    font-size: clamp(16px, 2.4vw, 18px);
+    color: var(--muted);
+    max-width: 30em;
+    margin: 0 auto 34px;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 46px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 15px 30px;
+    border-radius: 11px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+  }
+  .btn-primary {
+    background: var(--violet);
+    color: #fff;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--violet) 32%, transparent);
+  }
+  .btn-primary:hover {
+    background: var(--violet-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--violet) 40%, transparent);
+  }
+  .btn-secondary {
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { transform: translateY(-1px); }
+
+  .btn:focus-visible {
+    outline: 3px solid var(--cyan);
+    outline-offset: 3px;
+  }
+
+  .roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    text-align: left;
+  }
+  .role {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 17px 18px;
+  }
+  .role h2 { font-size: 15px; margin-bottom: 5px; }
+  .role p { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+
+  footer {
+    padding: 22px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+    .btn:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<main class="hero">
+  <div class="inner">
+    <div class="mark">
+      <span class="badge" aria-hidden="true">◎</span>
+      Verbal Coach
+    </div>
+
+    <span class="eyebrow">Therapy Authoring Studio</span>
+
+    <h1>Therapy activities your patients actually finish.</h1>
+
+    <p class="lede">
+      Build interactive activities on a canvas, assign them in a click, and follow
+      every attempt as it happens — for speech and occupational therapy practices.
+    </p>
+
+    <div class="cta-row">
+      <!-- The requirement: one button into the app. href is set by the script
+           at the bottom so the URL lives in exactly one place. -->
+      <a class="btn btn-primary" id="launch" href="#" rel="noopener">
+        Launch Verbal Coach →
+      </a>
+      <a class="btn btn-secondary" id="try" href="#" rel="noopener">
+        Try it without an account
+      </a>
+    </div>
+
+    <div class="roles">
+      <div class="role">
+        <h2>Clinicians</h2>
+        <p>Author activities, manage a caseload, assign work, and review accuracy over time.</p>
+      </div>
+      <div class="role">
+        <h2>Patients</h2>
+        <p>Complete assigned activities on screen and see how each attempt scored.</p>
+      </div>
+      <div class="role">
+        <h2>Parents</h2>
+        <p>Follow your child's progress, message their clinician, and send home practice.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  &copy; <span id="year"></span> Verbal Coach · telepractice.in
+</footer>
+
+<script>
+  // ---------------------------------------------------------------------
+  // SET THIS to wherever the app is hosted, with no trailing slash.
+  // Using a subdomain of this same domain is strongly preferred over a
+  // vercel.app address: visitors stay on telepractice.in, which matters for
+  // a product handling patient information.
+  // ---------------------------------------------------------------------
+  var APP_URL = "https://app.telepractice.in";
+
+  document.getElementById("launch").href = APP_URL + "/sign-in";
+  document.getElementById("try").href = APP_URL + "/try";
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>
