@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { homeForRole } from "@/lib/auth/session";
+import { safeRedirect } from "@/lib/auth/redirects";
 import type { ProfileRole } from "@/lib/types/database";
 
 export type ActionState = { error: string | null; message?: string | null };
@@ -20,13 +22,36 @@ function destinationFor(role: ProfileRole, next?: string | null): string {
 }
 
 // The proxy bounces an unauthenticated request to /sign-in?redirect=<path>.
-// Honour it so signing in returns you to the page you actually asked for,
-// but only for same-origin absolute paths: anything else (a full URL, or a
-// protocol-relative "//evil.example") would be an open redirect.
-function safeRedirect(target?: string | null): string | null {
-  if (!target) return null;
-  if (!target.startsWith("/") || target.startsWith("//")) return null;
-  return target;
+// safeRedirect (lib/auth/redirects) honours it for same-origin absolute paths
+// only, so signing in returns you to the page you actually asked for without
+// becoming an open redirect. Shared with the email-link route handler, which
+// has the identical problem with its own ?next= parameter.
+
+// The reset link Supabase emails has to point back at *this* deployment, and
+// a Server Action has no window.location to read it from. The request headers
+// are the only thing that know whether this request arrived at the custom
+// domain, a vercel.app preview, or localhost — hardcoding any one of them
+// would silently break the other two.
+//
+// Origin and Host are both client-controllable, so on its own this would be a
+// way to make Supabase mail somebody a link pointing at an attacker's site.
+// It is not one here, because Supabase refuses to put any redirect_to in an
+// email that is not in the project's Redirect URLs allowlist — that allowlist
+// is the guard designed for precisely this, which is why it is worth keeping
+// tight rather than setting it to a bare wildcard.
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+
+  // Server Actions are POSTed by the browser, so Origin is normally present
+  // and is the most precise answer.
+  const origin = h.get("origin");
+  if (origin) return origin;
+
+  // Behind Vercel's proxy the original host survives as x-forwarded-host;
+  // plain `host` is the platform's internal one.
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
 }
 
 // Supabase surfaces a failure inside the handle_new_user() trigger as an
@@ -247,6 +272,104 @@ export async function signUpParent(
   }
 
   redirect(destinationFor("parent", String(formData.get("next") || "")));
+}
+
+// Said whether or not the address belongs to an account. A form that
+// confirmed "no such user" would be a way for anyone to test which email
+// addresses are registered here, and for a product holding patient
+// information the membership list is itself worth protecting.
+//
+// Worth being straight about the limit of that: sign-up still rejects an
+// existing address with "User already registered", because email confirmation
+// is switched off, so the same question can be asked there and answered more
+// plainly. Closing that properly means turning confirmations on, which is a
+// separate decision with its own consequences. This is one hole covered, not
+// the class of them.
+const RESET_SENT =
+  "If an account exists for that address, a reset link is on its way. " +
+  "Check your inbox, and your spam folder.";
+
+export async function requestPasswordReset(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim();
+
+  if (!email) return { error: "Enter your email address." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${await siteOrigin()}/auth/confirm?next=/reset-password`,
+  });
+
+  if (error) {
+    // Logged rather than shown: whatever went wrong, the visitor must not be
+    // able to tell a delivery failure from a nonexistent account.
+    console.error("[actions/auth] requestPasswordReset failed:", error);
+
+    // The one exception. A rate-limited request sends no email at all, so the
+    // neutral message above would be an outright lie and the user would sit
+    // waiting for something that is never coming. This does leak a little —
+    // Supabase only spends the per-address limit when the address exists — but
+    // a dead-end form is a certain harm and this is a weaker signal than the
+    // sign-up route already gives away.
+    if (error.status === 429) {
+      return { error: "Too many reset requests for now. Wait a few minutes and try again." };
+    }
+  }
+
+  return { error: null, message: RESET_SENT };
+}
+
+// Reached only with a session, which the recovery link established by way of
+// /auth/confirm. That session is what authorises the change, so there is no
+// token to re-check here — if getUser() comes back empty the link was never
+// verified, or it expired before the form was submitted.
+export async function updatePassword(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const password = String(formData.get("password") || "");
+  const confirm = String(formData.get("confirm_password") || "");
+
+  // Same floor as every sign-up path, so a reset cannot be used to sneak
+  // below the rule the account was created under.
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+  if (password !== confirm) {
+    return { error: "Those two passwords don't match." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: "That reset link has expired or was already used. Request a new one.",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  // Surfaced as-is: these are Supabase's own rules about the password itself
+  // ("should be different from the old password", a strength requirement if
+  // one is configured), and every one of them is something the user can act
+  // on by typing a different password.
+  if (error) return { error: error.message };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  // Straight to their dashboard rather than back to sign-in. updateUser keeps
+  // the session alive, so bouncing them to a login form would mean asking for
+  // the password they just set while they are already holding a valid session.
+  redirect(homeForRole(profile?.role ?? "patient"));
 }
 
 export async function signOut() {

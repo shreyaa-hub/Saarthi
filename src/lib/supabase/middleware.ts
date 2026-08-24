@@ -3,7 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ROLE_ROUTE_PREFIXES, asProfileRole, homeForRole } from "@/lib/auth/roles";
 import type { Database } from "@/lib/types/database";
 
-const AUTH_PATHS = ["/sign-in", "/sign-up"];
+// Pages that a signed-in user has no business being on, so they get bounced
+// to their dashboard instead.
+//
+// /reset-password is deliberately NOT here, and must never be added. A
+// recovery link signs the user in and only then sends them to that page, so
+// they arrive holding a valid session by design. Treating it as an auth page
+// would redirect away every single person who successfully clicked a reset
+// link — the flow would fail precisely when it worked.
+const AUTH_PATHS = ["/sign-in", "/sign-up", "/forgot-password"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
