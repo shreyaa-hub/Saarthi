@@ -99,6 +99,18 @@ describe("isElementCorrect: dragMatch", () => {
   it("treats a missing response as no matches made", () => {
     expect(isElementCorrect(el, null)).toBe(false);
   });
+
+  it("scores the same way whether or not a pair carries a photo", () => {
+    const withPhotos: DragMatchElement = {
+      ...el,
+      pairs: [
+        { id: "p1", left: "Dog", right: "🐶", leftImage: "https://example.com/dog.png" },
+        { id: "p2", left: "Cat", right: "🐱", rightImage: "https://example.com/cat.png" },
+      ],
+    };
+    expect(isElementCorrect(withPhotos, { p1: "p1", p2: "p2" })).toBe(true);
+    expect(isElementCorrect(withPhotos, { p1: "p2", p2: "p1" })).toBe(false);
+  });
 });
 
 describe("isElementCorrect: sequence", () => {

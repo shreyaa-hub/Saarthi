@@ -78,6 +78,13 @@ export type MatchPair = {
   id: string;
   left: string;
   right: string;
+  // Optional photo for either side, independent of the other — a clinician
+  // can build a picture-to-word pair (leftImage set, right plain text), a
+  // picture-to-picture pair (both set), or leave both unset for the
+  // text-only pair this type has always supported. Never required, so
+  // every dragMatch element authored before this still parses unchanged.
+  leftImage?: string;
+  rightImage?: string;
 };
 
 export type DragMatchElement = ElementBase & {

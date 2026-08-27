@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Copy, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
 import { ImageUploadButton } from "./image-upload-button";
+import { PairImagePicker } from "./pair-image-picker";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -575,17 +576,44 @@ function DragMatchFields({
       </Field>
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Pairs</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Add a photo to either side for picture matching — the word alone still works if you skip it.
+        </p>
         {element.pairs.map((p, i) => (
-          <div key={p.id} className="flex items-center gap-2">
-            <Input value={p.left} onChange={(e) => update(i, { left: e.target.value })} placeholder="Left" />
-            <Input value={p.right} onChange={(e) => update(i, { right: e.target.value })} placeholder="Right" />
-            <button
-              type="button"
-              onClick={() => patch({ pairs: element.pairs.filter((_, idx) => idx !== i) })}
-              className="text-muted-foreground hover:text-destructive cursor-pointer"
-            >
-              <Trash2 className="size-4" />
-            </button>
+          <div key={p.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <PairImagePicker
+                src={p.leftImage}
+                onChange={(v) => update(i, { leftImage: v })}
+                label="left"
+              />
+              <Input
+                value={p.left}
+                onChange={(e) => update(i, { left: e.target.value })}
+                placeholder="Left"
+                className="flex-1"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <PairImagePicker
+                src={p.rightImage}
+                onChange={(v) => update(i, { rightImage: v })}
+                label="right"
+              />
+              <Input
+                value={p.right}
+                onChange={(e) => update(i, { right: e.target.value })}
+                placeholder="Right"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ pairs: element.pairs.filter((_, idx) => idx !== i) })}
+                className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
           </div>
         ))}
         <Button

@@ -129,15 +129,29 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
           <div className="grid flex-1 grid-cols-2 gap-2 overflow-hidden text-xs">
             <div className="flex flex-col gap-1">
               {element.pairs.map((p) => (
-                <div key={p.id} className="truncate rounded-md border border-border px-2 py-1">
-                  {p.left}
+                <div
+                  key={p.id}
+                  className="flex items-center gap-1.5 truncate rounded-md border border-border px-2 py-1"
+                >
+                  {p.leftImage && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.leftImage} alt="" className="size-4 shrink-0 rounded object-cover" />
+                  )}
+                  <span className="truncate">{p.left}</span>
                 </div>
               ))}
             </div>
             <div className="flex flex-col gap-1">
               {element.pairs.map((p) => (
-                <div key={p.id} className="truncate rounded-md border border-border bg-secondary px-2 py-1">
-                  {p.right}
+                <div
+                  key={p.id}
+                  className="flex items-center gap-1.5 truncate rounded-md border border-border bg-secondary px-2 py-1"
+                >
+                  {p.rightImage && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.rightImage} alt="" className="size-4 shrink-0 rounded object-cover" />
+                  )}
+                  <span className="truncate">{p.right}</span>
                 </div>
               ))}
             </div>

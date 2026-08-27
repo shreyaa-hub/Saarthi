@@ -239,7 +239,7 @@ function DragMatchPlayer({
                 disabled={locked}
                 onClick={() => pickLeft(p.id)}
                 className={cn(
-                  "rounded-md border px-2 py-1.5 text-left transition-colors",
+                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
                   activeLeft === p.id && "border-primary bg-secondary",
                   isMatched && !locked && "border-primary/60",
                   isCorrect && "border-success bg-success/10",
@@ -247,33 +247,38 @@ function DragMatchPlayer({
                   !isMatched && activeLeft !== p.id && "border-border hover:bg-muted",
                 )}
               >
-                {p.left}
+                {p.leftImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.leftImage} alt="" className="size-6 shrink-0 rounded object-cover" />
+                )}
+                <span className="truncate">{p.left}</span>
                 {isMatched && !locked && " ✓"}
               </button>
             );
           })}
         </div>
         <div className="flex flex-col gap-1.5">
-          {[...element.pairs]
-            .map((p) => p.right)
-            .map((right, idx) => {
-              const pairId = element.pairs[idx].id;
-              const takenBy = Object.entries(pairs).find(([, r]) => r === pairId)?.[0];
-              return (
-                <button
-                  key={pairId}
-                  type="button"
-                  disabled={locked || Boolean(takenBy)}
-                  onClick={() => pickRight(pairId)}
-                  className={cn(
-                    "rounded-md border px-2 py-1.5 text-left transition-colors",
-                    takenBy ? "border-primary/60 bg-secondary" : "border-border hover:bg-muted",
-                  )}
-                >
-                  {right}
-                </button>
-              );
-            })}
+          {element.pairs.map((p) => {
+            const takenBy = Object.entries(pairs).find(([, r]) => r === p.id)?.[0];
+            return (
+              <button
+                key={p.id}
+                type="button"
+                disabled={locked || Boolean(takenBy)}
+                onClick={() => pickRight(p.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  takenBy ? "border-primary/60 bg-secondary" : "border-border hover:bg-muted",
+                )}
+              >
+                {p.rightImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.rightImage} alt="" className="size-6 shrink-0 rounded object-cover" />
+                )}
+                <span className="truncate">{p.right}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
