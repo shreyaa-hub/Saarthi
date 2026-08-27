@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Volume2, Check, X, Brain } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
-import { shuffle } from "@/lib/canvas/shuffle";
+import { seededShuffle } from "@/lib/canvas/shuffle";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
 import { cn } from "@/lib/utils";
@@ -262,6 +262,19 @@ function DragMatchPlayer({
     setDragOverRight(null);
   };
 
+  // The right-hand options are shuffled. Without this they rendered in the
+  // same order as the left, so the answer was always "row 1 to row 1" — the
+  // activity could be completed top-to-bottom without reading a single word,
+  // which makes the score meaningless as a measure of anything.
+  //
+  // Display order only: the response maps left pair id to right pair id, and
+  // scoring compares those ids, so shuffling what the patient sees can never
+  // change what counts as correct.
+  const rights = useMemo(
+    () => seededShuffle(element.pairs, `${element.id}:right`),
+    [element.pairs, element.id],
+  );
+
   return (
     <div
       className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
@@ -270,15 +283,24 @@ function DragMatchPlayer({
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
       </p>
-      <div className="grid flex-1 grid-cols-2 gap-3" style={textStyle(element)}>
-        <div className="flex flex-col gap-1.5">
-          {element.pairs.map((p) => {
-            const isMatched = Boolean(pairs[p.id]);
-            const isCorrect = locked && pairs[p.id] === p.id;
-            const isWrong = locked && isMatched && pairs[p.id] !== p.id;
-            return (
+      {/* One grid holding both columns, cells interleaved left/right, rather
+          than two independent stacked columns. A column that sized itself
+          left a tall cell (one with a photo in it) unaligned with whatever
+          sat beside it; grid rows are a shared height across both columns,
+          so the two sides always line up however big the images are. */}
+      <div className="grid flex-1 auto-rows-min grid-cols-2 gap-x-3 gap-y-1.5" style={textStyle(element)}>
+        {element.pairs.map((p, i) => {
+          const isMatched = Boolean(pairs[p.id]);
+          const isCorrect = locked && pairs[p.id] === p.id;
+          const isWrong = locked && isMatched && pairs[p.id] !== p.id;
+
+          const r = rights[i];
+          const takenBy = Object.entries(pairs).find(([, id]) => id === r.id)?.[0];
+          const canDrop = !locked && !takenBy && Boolean(dragLeft);
+
+          return (
+            <Fragment key={p.id}>
               <button
-                key={p.id}
                 type="button"
                 disabled={locked}
                 draggable={!locked}
@@ -294,7 +316,7 @@ function DragMatchPlayer({
                 }}
                 onClick={() => pickLeft(p.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
                   !locked && "cursor-grab active:cursor-grabbing",
                   dragLeft === p.id && "opacity-50",
                   activeLeft === p.id && "border-primary bg-secondary",
@@ -314,18 +336,10 @@ function DragMatchPlayer({
                   />
                 )}
                 <span className="truncate">{p.left}</span>
-                {isMatched && !locked && " ✓"}
+                {isMatched && !locked && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
               </button>
-            );
-          })}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {element.pairs.map((p) => {
-            const takenBy = Object.entries(pairs).find(([, r]) => r === p.id)?.[0];
-            const canDrop = !locked && !takenBy && Boolean(dragLeft);
-            return (
+
               <button
-                key={p.id}
                 type="button"
                 disabled={locked || Boolean(takenBy)}
                 onDragOver={(e) => {
@@ -334,36 +348,36 @@ function DragMatchPlayer({
                   // drop target" and the drop event never fires at all.
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
-                  setDragOverRight(p.id);
+                  setDragOverRight(r.id);
                 }}
-                onDragLeave={() => setDragOverRight((c) => (c === p.id ? null : c))}
+                onDragLeave={() => setDragOverRight((c) => (c === r.id ? null : c))}
                 onDrop={(e) => {
                   if (!canDrop) return;
                   e.preventDefault();
-                  dropOnRight(p.id);
+                  dropOnRight(r.id);
                 }}
-                onClick={() => pickRight(p.id)}
+                onClick={() => pickRight(r.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
-                  dragOverRight === p.id && "border-primary bg-secondary ring-2 ring-primary/40",
-                  canDrop && dragOverRight !== p.id && "border-dashed border-primary/50",
+                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  dragOverRight === r.id && "border-primary bg-secondary ring-2 ring-primary/40",
+                  canDrop && dragOverRight !== r.id && "border-dashed border-primary/50",
                   takenBy ? "border-primary/60 bg-secondary" : "border-border hover:bg-muted",
                 )}
               >
-                {p.rightImage && (
+                {r.rightImage && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={p.rightImage}
+                    src={r.rightImage}
                     alt=""
                     className="shrink-0 rounded object-cover"
                     style={imageStyle(element)}
                   />
                 )}
-                <span className="truncate">{p.right}</span>
+                <span className="truncate">{r.right}</span>
               </button>
-            );
-          })}
-        </div>
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );
@@ -389,11 +403,24 @@ function SequencePlayer({
     }
   };
 
+  // Shuffled, because the authored order IS the answer: items carry an
+  // `order` field and scoring sorts by it, so rendering element.items as
+  // authored showed the patient the steps already in the right sequence and
+  // the whole task collapsed into tapping top to bottom.
+  //
+  // Display order only — the response is the sequence of ids the patient
+  // tapped, and scoring compares that against the `order` field, so what
+  // counts as correct is untouched.
+  const items = useMemo(
+    () => seededShuffle(element.items, `${element.id}:sequence`),
+    [element.items, element.id],
+  );
+
   return (
     <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
       <p className="text-sm font-semibold">{element.prompt}</p>
       <div className="flex flex-col gap-1.5">
-        {element.items.map((item) => {
+        {items.map((item) => {
           const position = order.indexOf(item.id);
           return (
             <button
@@ -402,14 +429,14 @@ function SequencePlayer({
               disabled={locked}
               onClick={() => toggle(item.id)}
               className={cn(
-                "flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition-colors",
+                "flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition-colors",
                 position >= 0 ? "border-primary bg-secondary" : "border-border hover:bg-muted",
               )}
             >
               <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 {position >= 0 ? position + 1 : ""}
               </span>
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </button>
           );
         })}
@@ -635,20 +662,20 @@ function MemoryMatchPlayer({
   onChange: (value: string[]) => void;
   locked: boolean;
 }) {
-  // Shuffled once per mount, not on every render: element.pairs comes from
-  // the template's frozen canvas_snapshot and is a stable reference for the
-  // lifetime of one attempt, so this genuinely runs once per play session —
-  // the way a real deck of cards is shuffled once at the start of a game,
-  // not reshuffled between every move.
+  // Seeded from the element's own id rather than Math.random(): this is a
+  // Client Component that Next.js still server-renders, and a random shuffle
+  // produced a different deck on the server than on the client, failing
+  // hydration. Seeding makes both passes agree. See lib/canvas/shuffle.ts.
   const cards = useMemo(
     () =>
-      shuffle(
+      seededShuffle(
         element.pairs.flatMap((p) => [
           { id: `${p.id}-a`, pairKey: p.id, label: p.label, image: p.image },
           { id: `${p.id}-b`, pairKey: p.id, label: p.label, image: p.image },
         ]),
+        `${element.id}:cards`,
       ),
-    [element.pairs],
+    [element.pairs, element.id],
   );
 
   // The two currently face-up cards pending a match check — transient,

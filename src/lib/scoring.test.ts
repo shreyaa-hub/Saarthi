@@ -102,6 +102,23 @@ describe("isElementCorrect: dragMatch", () => {
     expect(isElementCorrect(el, null)).toBe(false);
   });
 
+  it("scores by pair id, so shuffling the displayed right column is safe", () => {
+    // The player renders the right-hand options in a shuffled order (they
+    // used to render in the same order as the left, making every answer
+    // "row 1 to row 1"). Correctness is a pair-id comparison, so the same
+    // response scores identically no matter what order the element's own
+    // pairs array happens to be in.
+    const reordered: DragMatchElement = {
+      ...el,
+      pairs: [
+        { id: "p2", left: "Cat", right: "🐱" },
+        { id: "p1", left: "Dog", right: "🐶" },
+      ],
+    };
+    expect(isElementCorrect(reordered, { p1: "p1", p2: "p2" })).toBe(true);
+    expect(isElementCorrect(reordered, { p1: "p2", p2: "p1" })).toBe(false);
+  });
+
   it("scores the same way whether or not a pair carries a photo", () => {
     const withPhotos: DragMatchElement = {
       ...el,
@@ -133,6 +150,23 @@ describe("isElementCorrect: sequence", () => {
 
   it("is wrong out of order", () => {
     expect(isElementCorrect(el, ["s2", "s1", "s3"])).toBe(false);
+  });
+
+  it("scores by the authored `order` field, not the array order", () => {
+    // The player shuffles what the patient sees (otherwise the steps appear
+    // already sorted and the task is just "tap top to bottom"). Correctness
+    // has to come from `order`, so that an element whose items array is in a
+    // different sequence still scores identically.
+    const jumbled: SequenceElement = {
+      ...el,
+      items: [
+        { id: "s3", label: "Third", order: 3 },
+        { id: "s1", label: "First", order: 1 },
+        { id: "s2", label: "Second", order: 2 },
+      ],
+    };
+    expect(isElementCorrect(jumbled, ["s1", "s2", "s3"])).toBe(true);
+    expect(isElementCorrect(jumbled, ["s3", "s1", "s2"])).toBe(false);
   });
 
   it("is wrong when short", () => {

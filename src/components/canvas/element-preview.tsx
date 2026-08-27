@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
@@ -134,35 +135,36 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
           <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
             <MoveHorizontal className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <div className="grid flex-1 grid-cols-2 gap-2 overflow-hidden" style={textStyle(element)}>
-            <div className="flex flex-col gap-1">
-              {element.pairs.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-1.5 truncate rounded-md border border-border px-2 py-1"
-                >
+          {/* One grid, cells interleaved, so each pair sits on a shared row
+              whatever height its photo forces — two independently stacked
+              columns drifted out of alignment as soon as one side had an
+              image and the other did not.
+
+              Deliberately NOT shuffled here, unlike the player: this is the
+              clinician checking their answer key, and they need to see which
+              left item is supposed to go with which right one. */}
+          <div
+            className="grid flex-1 auto-rows-min grid-cols-2 gap-x-2 gap-y-1 overflow-hidden"
+            style={textStyle(element)}
+          >
+            {element.pairs.map((p) => (
+              <Fragment key={p.id}>
+                <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border px-2 py-1">
                   {p.leftImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.leftImage} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
                   )}
                   <span className="truncate">{p.left}</span>
                 </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-1">
-              {element.pairs.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-1.5 truncate rounded-md border border-border bg-secondary px-2 py-1"
-                >
+                <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 py-1">
                   {p.rightImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.rightImage} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
                   )}
                   <span className="truncate">{p.right}</span>
                 </div>
-              ))}
-            </div>
+              </Fragment>
+            ))}
           </div>
         </div>
       );
