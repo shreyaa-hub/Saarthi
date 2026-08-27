@@ -7,6 +7,7 @@ import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { shuffle } from "@/lib/canvas/shuffle";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
+import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
 import { cn } from "@/lib/utils";
 
 export function ElementPlayer({
@@ -103,8 +104,13 @@ export function ElementPlayer({
         onChange([...next]);
       };
       return (
-        <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-          <p className="text-sm font-semibold">{element.prompt}</p>
+        <div
+          className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p className="font-semibold" style={textStyle(element)}>
+            {element.prompt}
+          </p>
           <div className="flex flex-1 flex-col gap-1.5">
             {element.options.map((o) => {
               const isSelected = selected.has(o.id);
@@ -115,8 +121,9 @@ export function ElementPlayer({
                   type="button"
                   onClick={() => toggle(o.id)}
                   disabled={locked}
+                  style={textStyle(element)}
                   className={cn(
-                    "flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                    "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
                     isSelected ? "border-primary bg-secondary" : "border-border hover:bg-muted",
                     showResult && o.correct && "border-success bg-success/10",
                     showResult && isSelected && !o.correct && "border-destructive bg-destructive/10",
@@ -235,10 +242,35 @@ function DragMatchPlayer({
     setActiveLeft(null);
   };
 
+  // Real drag-and-drop, with tap-tap kept alongside it rather than replaced.
+  // HTML5 drag events do not fire on touchscreens at all, and a drag is also
+  // unreachable from a keyboard — so dragging is the affordance for a mouse,
+  // and tapping is what makes the same activity work on a tablet (which is
+  // what a child in a session is most likely holding) and for anyone using
+  // the keyboard. Both drive the identical onChange, so an attempt looks the
+  // same however it was made.
+  const [dragLeft, setDragLeft] = useState<string | null>(null);
+  const [dragOverRight, setDragOverRight] = useState<string | null>(null);
+
+  const dropOnRight = (rightId: string) => {
+    if (locked || matchedRightIds.has(rightId)) return;
+    const leftId = dragLeft ?? activeLeft;
+    if (!leftId) return;
+    onChange({ ...pairs, [leftId]: rightId });
+    setActiveLeft(null);
+    setDragLeft(null);
+    setDragOverRight(null);
+  };
+
   return (
-    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-      <p className="text-sm font-semibold">{element.prompt}</p>
-      <div className="grid flex-1 grid-cols-2 gap-3 text-sm">
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <div className="grid flex-1 grid-cols-2 gap-3" style={textStyle(element)}>
         <div className="flex flex-col gap-1.5">
           {element.pairs.map((p) => {
             const isMatched = Boolean(pairs[p.id]);
@@ -249,9 +281,22 @@ function DragMatchPlayer({
                 key={p.id}
                 type="button"
                 disabled={locked}
+                draggable={!locked}
+                onDragStart={(e) => {
+                  setDragLeft(p.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  // Firefox refuses to start a drag unless something is set.
+                  e.dataTransfer.setData("text/plain", p.id);
+                }}
+                onDragEnd={() => {
+                  setDragLeft(null);
+                  setDragOverRight(null);
+                }}
                 onClick={() => pickLeft(p.id)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  !locked && "cursor-grab active:cursor-grabbing",
+                  dragLeft === p.id && "opacity-50",
                   activeLeft === p.id && "border-primary bg-secondary",
                   isMatched && !locked && "border-primary/60",
                   isCorrect && "border-success bg-success/10",
@@ -261,7 +306,12 @@ function DragMatchPlayer({
               >
                 {p.leftImage && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.leftImage} alt="" className="size-6 shrink-0 rounded object-cover" />
+                  <img
+                    src={p.leftImage}
+                    alt=""
+                    className="shrink-0 rounded object-cover"
+                    style={imageStyle(element)}
+                  />
                 )}
                 <span className="truncate">{p.left}</span>
                 {isMatched && !locked && " ✓"}
@@ -272,20 +322,42 @@ function DragMatchPlayer({
         <div className="flex flex-col gap-1.5">
           {element.pairs.map((p) => {
             const takenBy = Object.entries(pairs).find(([, r]) => r === p.id)?.[0];
+            const canDrop = !locked && !takenBy && Boolean(dragLeft);
             return (
               <button
                 key={p.id}
                 type="button"
                 disabled={locked || Boolean(takenBy)}
+                onDragOver={(e) => {
+                  if (!canDrop) return;
+                  // Without preventDefault the browser treats this as "not a
+                  // drop target" and the drop event never fires at all.
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDragOverRight(p.id);
+                }}
+                onDragLeave={() => setDragOverRight((c) => (c === p.id ? null : c))}
+                onDrop={(e) => {
+                  if (!canDrop) return;
+                  e.preventDefault();
+                  dropOnRight(p.id);
+                }}
                 onClick={() => pickRight(p.id)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  dragOverRight === p.id && "border-primary bg-secondary ring-2 ring-primary/40",
+                  canDrop && dragOverRight !== p.id && "border-dashed border-primary/50",
                   takenBy ? "border-primary/60 bg-secondary" : "border-border hover:bg-muted",
                 )}
               >
                 {p.rightImage && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.rightImage} alt="" className="size-6 shrink-0 rounded object-cover" />
+                  <img
+                    src={p.rightImage}
+                    alt=""
+                    className="shrink-0 rounded object-cover"
+                    style={imageStyle(element)}
+                  />
                 )}
                 <span className="truncate">{p.right}</span>
               </button>
@@ -384,9 +456,45 @@ function SortCategorizePlayer({
 
   const unplaced = element.items.filter((it) => !placements[it.id]);
 
+  // Same dual approach as DragMatchPlayer: drag for a mouse, tap for touch
+  // and keyboard, both writing the identical placement.
+  const [dragItem, setDragItem] = useState<string | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+
+  const dropInCategory = (categoryId: string) => {
+    if (locked) return;
+    const itemId = dragItem ?? activeItem;
+    if (!itemId) return;
+    onChange({ ...placements, [itemId]: categoryId });
+    setActiveItem(null);
+    setDragItem(null);
+    setDragOverCategory(null);
+  };
+
+  const itemDragProps = (itemId: string) =>
+    locked
+      ? {}
+      : {
+          draggable: true,
+          onDragStart: (e: React.DragEvent) => {
+            setDragItem(itemId);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", itemId);
+          },
+          onDragEnd: () => {
+            setDragItem(null);
+            setDragOverCategory(null);
+          },
+        };
+
   return (
-    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-      <p className="text-sm font-semibold">{element.prompt}</p>
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
 
       {unplaced.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -395,13 +503,26 @@ function SortCategorizePlayer({
               key={it.id}
               type="button"
               disabled={locked}
+              {...itemDragProps(it.id)}
               onClick={() => pickItem(it.id)}
+              style={textStyle(element)}
               className={cn(
-                "rounded-md border px-2 py-1 text-xs transition-colors",
+                "flex items-center gap-1.5 rounded-md border px-2 py-1 transition-colors",
+                !locked && "cursor-grab active:cursor-grabbing",
+                dragItem === it.id && "opacity-50",
                 activeItem === it.id ? "border-primary bg-secondary" : "border-border hover:bg-muted",
               )}
             >
-              {it.label}
+              {it.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={it.image}
+                  alt=""
+                  className="shrink-0 rounded object-cover"
+                  style={imageStyle(element)}
+                />
+              )}
+              <span className="truncate">{it.label}</span>
             </button>
           ))}
         </div>
@@ -413,7 +534,7 @@ function SortCategorizePlayer({
       >
         {element.categories.map((c) => {
           const placedHere = element.items.filter((it) => placements[it.id] === c.id);
-          const acceptsDrop = Boolean(activeItem) && !locked;
+          const acceptsDrop = (Boolean(activeItem) || Boolean(dragItem)) && !locked;
           return (
             // A div, not a button: it has to contain each placed item's own
             // button (tapping an item un-files it), and a button cannot
@@ -431,9 +552,24 @@ function SortCategorizePlayer({
                   pickCategory(c.id);
                 }
               }}
+              onDragOver={(e) => {
+                if (!dragItem || locked) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverCategory(c.id);
+              }}
+              onDragLeave={() => setDragOverCategory((cur) => (cur === c.id ? null : cur))}
+              onDrop={(e) => {
+                if (!dragItem || locked) return;
+                e.preventDefault();
+                dropInCategory(c.id);
+              }}
               className={cn(
-                "flex flex-col gap-1 rounded-md border border-dashed p-2 text-left",
-                acceptsDrop ? "cursor-pointer border-primary/60 hover:bg-secondary" : "border-border",
+                "flex flex-col gap-1 rounded-md border border-dashed p-2 text-left transition-colors",
+                dragOverCategory === c.id && "border-primary bg-secondary ring-2 ring-primary/40",
+                acceptsDrop && dragOverCategory !== c.id
+                  ? "cursor-pointer border-primary/60 hover:bg-secondary"
+                  : dragOverCategory !== c.id && "border-border",
               )}
             >
               <p className="text-xs font-semibold text-muted-foreground">{c.label}</p>
@@ -445,20 +581,33 @@ function SortCategorizePlayer({
                     key={it.id}
                     type="button"
                     disabled={locked}
+                    {...itemDragProps(it.id)}
                     onClick={(e) => {
                       e.stopPropagation();
                       pickItem(it.id);
                     }}
+                    style={textStyle(element)}
                     className={cn(
-                      "rounded-md border px-2 py-1 text-left text-xs transition-colors",
+                      "flex items-center gap-1.5 rounded-md border px-2 py-1 text-left transition-colors",
+                      !locked && "cursor-grab active:cursor-grabbing",
+                      dragItem === it.id && "opacity-50",
                       correct && "border-success bg-success/10 text-success",
                       wrong && "border-destructive bg-destructive/10 text-destructive",
                       !locked && "border-primary/60 bg-secondary hover:bg-muted",
                     )}
                   >
-                    {it.label}
-                    {correct && <Check className="ml-1 inline size-3 text-success" />}
-                    {wrong && <X className="ml-1 inline size-3 text-destructive" />}
+                    {it.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={it.image}
+                        alt=""
+                        className="shrink-0 rounded object-cover"
+                        style={imageStyle(element)}
+                      />
+                    )}
+                    <span className="truncate">{it.label}</span>
+                    {correct && <Check className="ml-1 inline size-3 shrink-0 text-success" />}
+                    {wrong && <X className="ml-1 inline size-3 shrink-0 text-destructive" />}
                   </button>
                 );
               })}
@@ -540,8 +689,13 @@ function MemoryMatchPlayer({
   };
 
   return (
-    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-      <p className="text-sm font-semibold">{element.prompt}</p>
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
       <div className="grid flex-1 grid-cols-3 gap-2">
         {cards.map((c) => {
           const isMatchedCard = matched.includes(c.id);
@@ -555,8 +709,9 @@ function MemoryMatchPlayer({
               type="button"
               disabled={locked || isMatchedCard}
               onClick={() => pick(c.id)}
+              style={textStyle(element)}
               className={cn(
-                "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border p-1.5 text-center text-xs transition-colors",
+                "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border p-1.5 text-center transition-colors",
                 isMatchedCard && "border-success bg-success/10",
                 !isMatchedCard && revealed && "border-primary bg-secondary",
                 !revealed && "border-border bg-muted hover:bg-muted/70",
@@ -566,7 +721,12 @@ function MemoryMatchPlayer({
                 <>
                   {c.image && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.image} alt="" className="size-6 rounded object-cover" />
+                    <img
+                      src={c.image}
+                      alt=""
+                      className="rounded object-cover"
+                      style={imageStyle(element)}
+                    />
                   )}
                   <span className="truncate">{c.label}</span>
                 </>

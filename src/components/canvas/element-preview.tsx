@@ -2,6 +2,7 @@ import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, Sea
 import type { CanvasElement } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
+import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
 import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
@@ -86,14 +87,17 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
 
     case "multipleChoice":
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <p className="text-sm font-semibold">{element.prompt}</p>
-          <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
+          <div className="flex flex-1 flex-col gap-1.5 overflow-hidden" style={textStyle(element)}>
             {element.options.map((o) => (
               <div
                 key={o.id}
                 className={cn(
-                  "truncate rounded-md border px-2 py-1 text-xs",
+                  "truncate rounded-md border px-2 py-1",
                   o.correct ? "border-success/40 bg-success/10 text-success" : "border-border",
                 )}
               >
@@ -123,11 +127,14 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
 
     case "dragMatch":
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <MoveHorizontal className="size-3.5" /> {element.prompt}
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <MoveHorizontal className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <div className="grid flex-1 grid-cols-2 gap-2 overflow-hidden text-xs">
+          <div className="grid flex-1 grid-cols-2 gap-2 overflow-hidden" style={textStyle(element)}>
             <div className="flex flex-col gap-1">
               {element.pairs.map((p) => (
                 <div
@@ -136,7 +143,7 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
                 >
                   {p.leftImage && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.leftImage} alt="" className="size-4 shrink-0 rounded object-cover" />
+                    <img src={p.leftImage} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
                   )}
                   <span className="truncate">{p.left}</span>
                 </div>
@@ -150,7 +157,7 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
                 >
                   {p.rightImage && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.rightImage} alt="" className="size-4 shrink-0 rounded object-cover" />
+                    <img src={p.rightImage} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
                   )}
                   <span className="truncate">{p.right}</span>
                 </div>
@@ -180,13 +187,19 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
 
     case "sortCategorize":
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <LayoutGrid className="size-3.5" /> {element.prompt}
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <LayoutGrid className="size-3.5 shrink-0" /> {element.prompt}
           </div>
           <div
-            className="grid flex-1 gap-2 overflow-hidden text-xs"
-            style={{ gridTemplateColumns: `repeat(${element.categories.length}, minmax(0, 1fr))` }}
+            className="grid flex-1 gap-2 overflow-hidden"
+            style={{
+              ...textStyle(element),
+              gridTemplateColumns: `repeat(${element.categories.length}, minmax(0, 1fr))`,
+            }}
           >
             {element.categories.map((c) => (
               <div key={c.id} className="flex flex-col gap-1 overflow-hidden">
@@ -194,8 +207,21 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
                 {element.items
                   .filter((it) => it.categoryId === c.id)
                   .map((it) => (
-                    <div key={it.id} className="truncate rounded-md border border-border px-2 py-1">
-                      {it.label}
+                    <div
+                      key={it.id}
+                      className="flex items-center gap-1.5 truncate rounded-md border border-border px-2 py-1"
+                      style={textStyle(element)}
+                    >
+                      {it.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={it.image}
+                          alt=""
+                          className="shrink-0 rounded object-cover"
+                          style={imageStyle(element)}
+                        />
+                      )}
+                      <span className="truncate">{it.label}</span>
                     </div>
                   ))}
               </div>
@@ -206,11 +232,14 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
 
     case "memoryMatch":
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <Brain className="size-3.5" /> {element.prompt}
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Brain className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <div className="grid flex-1 grid-cols-3 gap-1.5 overflow-hidden text-xs">
+          <div className="grid flex-1 grid-cols-3 gap-1.5 overflow-hidden" style={textStyle(element)}>
             {element.pairs.map((p) => (
               <div
                 key={p.id}
@@ -218,7 +247,7 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
               >
                 {p.image && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt="" className="size-5 rounded object-cover" />
+                  <img src={p.image} alt="" className="rounded object-cover" style={imageStyle(element)} />
                 )}
                 <span className="truncate">{p.label}</span>
               </div>

@@ -373,9 +373,10 @@ export function CanvasEditor({
           <div className="min-h-0 flex-1">
             <CanvasSurface store={store} />
           </div>
-          {/* Pages are a print concept — an interactive activity is one
-              screen, so the bar only appears on the worksheet surface. */}
-          {surface === "worksheet" && <PageBar store={store} />}
+          {/* Both surfaces get pages: a worksheet has printed pages, an
+              activity has slides, and either way this is how a clinician
+              says "and then this next task". */}
+          <PageBar store={store} surface={surface} />
         </div>
         <PropertiesPanel store={store} />
       </motion.div>

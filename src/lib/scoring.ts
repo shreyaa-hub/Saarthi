@@ -1,5 +1,5 @@
 import type { CanvasElement, TemplateCanvas } from "@/lib/types/canvas";
-import { isInteractive } from "@/lib/types/canvas";
+import { isInteractive, allPages } from "@/lib/types/canvas";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 
 export type Responses = Record<string, unknown>;
@@ -53,8 +53,15 @@ export function isElementCorrect(element: CanvasElement, response: unknown): boo
   }
 }
 
+// Scores every page, not just the first. canvas.elements holds page 1 only
+// (pages 2+ live in canvas.pages — see allPages), so reading it directly
+// meant an activity built across several pages was scored on page 1 alone:
+// every question the patient answered on page 2 onward counted for nothing,
+// and the total they were marked out of was silently wrong.
 export function scoreCanvas(canvas: TemplateCanvas, responses: Responses) {
-  const interactiveElements = canvas.elements.filter(isInteractive);
+  const interactiveElements = allPages(canvas)
+    .flatMap((page) => page.elements)
+    .filter(isInteractive);
   const total = interactiveElements.length;
   const correct = interactiveElements.filter((el) => isElementCorrect(el, responses[el.id])).length;
   return { correct, total };

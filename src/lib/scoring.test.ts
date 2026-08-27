@@ -265,6 +265,37 @@ describe("scoreCanvas", () => {
     expect(result).toEqual({ correct: 1, total: 1 });
   });
 
+  it("scores interactive elements on pages 2+, not just page 1", () => {
+    // canvas.elements is page 1 only; pages 2+ live in canvas.pages. Reading
+    // canvas.elements directly used to mean everything after page 1 was
+    // silently unscored.
+    const canvas: TemplateCanvas = {
+      width: 900,
+      height: 600,
+      background: "#fff",
+      elements: [
+        { ...base, id: "p1q1", type: "fillBlank", template: "___", answer: "a", caseSensitive: false },
+      ],
+      pages: [
+        {
+          id: "page-2",
+          pageStyle: "blank",
+          elements: [
+            { ...base, id: "p2q1", type: "fillBlank", template: "___", answer: "b", caseSensitive: false },
+            { ...base, id: "p2q2", type: "fillBlank", template: "___", answer: "c", caseSensitive: false },
+          ],
+        },
+      ],
+    };
+
+    expect(scoreCanvas(canvas, { p1q1: "a", p2q1: "b", p2q2: "c" })).toEqual({ correct: 3, total: 3 });
+    // A wrong answer on page 2 has to actually cost a mark.
+    expect(scoreCanvas(canvas, { p1q1: "a", p2q1: "b", p2q2: "wrong" })).toEqual({
+      correct: 2,
+      total: 3,
+    });
+  });
+
   it("scores a mix of correct and incorrect interactive elements", () => {
     const canvas: TemplateCanvas = {
       width: 900,

@@ -12,10 +12,12 @@ import type {
   SortCategorizeElement,
   MemoryMatchElement,
   WordHuntElement,
+  InteractiveAppearance,
   ListElement,
   WritingLinesElement,
   PageStyle,
 } from "@/lib/types/canvas";
+import { APPEARANCE_DEFAULTS } from "@/lib/types/canvas";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -325,7 +327,10 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       )}
 
       {selected.type === "multipleChoice" && (
-        <MultipleChoiceFields element={selected} patch={patch} />
+        <>
+          <MultipleChoiceFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
       )}
 
       {selected.type === "fillBlank" && (
@@ -368,16 +373,27 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         </div>
       )}
 
-      {selected.type === "dragMatch" && <DragMatchFields element={selected} patch={patch} />}
+      {selected.type === "dragMatch" && (
+        <>
+          <DragMatchFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
 
       {selected.type === "sequence" && <SequenceFields element={selected} patch={patch} />}
 
       {selected.type === "sortCategorize" && (
-        <SortCategorizeFields element={selected} patch={patch} />
+        <>
+          <SortCategorizeFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
       )}
 
       {selected.type === "memoryMatch" && (
-        <MemoryMatchFields element={selected} patch={patch} />
+        <>
+          <MemoryMatchFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
       )}
 
       {selected.type === "wordHunt" && <WordHuntFields element={selected} patch={patch} />}
@@ -763,6 +779,11 @@ function SortCategorizeFields({
         <Label className="text-xs text-muted-foreground">Items</Label>
         {element.items.map((it, i) => (
           <div key={it.id} className="flex items-center gap-2">
+            <PairImagePicker
+              src={it.image}
+              onChange={(v) => updateItem(i, { image: v })}
+              label="item"
+            />
             <Input
               value={it.label}
               onChange={(e) => updateItem(i, { label: e.target.value })}
@@ -806,6 +827,112 @@ function SortCategorizeFields({
         </Button>
       </div>
     </>
+  );
+}
+
+// Appearance controls shared by every interactive type that draws cards of
+// authored content. One component rather than the same four fields copied
+// into each *Fields block, so a clinician gets the identical controls in the
+// identical order whichever activity type they are editing.
+//
+// Colour is opt-in: until the author picks one, nothing is written to the
+// element and the component keeps its theme-aware Tailwind classes (which
+// work in dark mode). "Reset" clears the value back to that state rather
+// than writing a hardcoded light-mode default.
+function AppearanceFields({
+  element,
+  patch,
+  showImageSize = true,
+}: {
+  element: InteractiveAppearance;
+  patch: (p: Partial<CanvasElement>) => void;
+  showImageSize?: boolean;
+}) {
+  return (
+    <>
+      <Separator />
+      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Appearance
+      </Label>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Text size">
+          <Input
+            type="number"
+            min={8}
+            max={48}
+            value={element.fontSize ?? APPEARANCE_DEFAULTS.fontSize}
+            onChange={(e) => patch({ fontSize: Number(e.target.value) || APPEARANCE_DEFAULTS.fontSize })}
+          />
+        </Field>
+        {showImageSize && (
+          <Field label="Image size">
+            <Input
+              type="number"
+              min={16}
+              max={200}
+              step={4}
+              value={element.imageSize ?? APPEARANCE_DEFAULTS.imageSize}
+              onChange={(e) =>
+                patch({ imageSize: Number(e.target.value) || APPEARANCE_DEFAULTS.imageSize })
+              }
+            />
+          </Field>
+        )}
+      </div>
+
+      <OptionalColorField
+        label="Text colour"
+        value={element.textColor}
+        onChange={(v) => patch({ textColor: v })}
+      />
+      <OptionalColorField
+        label="Card colour"
+        value={element.cardColor}
+        onChange={(v) => patch({ cardColor: v })}
+      />
+    </>
+  );
+}
+
+function OptionalColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  onChange: (v: string | undefined) => void;
+}) {
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          // The picker needs some concrete value to show; this placeholder
+          // is never written to the element unless the author actually picks.
+          value={value ?? "#ffffff"}
+          onChange={(e) => onChange(e.target.value)}
+          className="size-9 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-1"
+        />
+        <Input
+          value={value ?? ""}
+          placeholder="Theme default"
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className="font-mono text-xs"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            title={`Reset ${label.toLowerCase()}`}
+            className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+    </Field>
   );
 }
 

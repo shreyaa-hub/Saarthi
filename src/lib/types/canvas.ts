@@ -53,6 +53,26 @@ export type ButtonElement = ElementBase & {
   style: "primary" | "secondary" | "accent";
 };
 
+// Presentation controls shared by every interactive type that draws cards or
+// chips of authored content. All optional, and every consumer falls back to
+// the same defaults below, so an element authored before these existed
+// renders byte-identically to how it always did.
+//
+// Deliberately per-element rather than global: one activity can hold a
+// picture-matching task that wants big thumbnails next to a word-sorting
+// task that wants none, and a document-wide setting could not serve both.
+export type InteractiveAppearance = {
+  fontSize?: number;
+  textColor?: string;
+  cardColor?: string;
+  imageSize?: number;
+};
+
+export const APPEARANCE_DEFAULTS = {
+  fontSize: 14,
+  imageSize: 28,
+} as const;
+
 export type MultipleChoiceOption = {
   id: string;
   label: string;
@@ -60,7 +80,7 @@ export type MultipleChoiceOption = {
   correct: boolean;
 };
 
-export type MultipleChoiceElement = ElementBase & {
+export type MultipleChoiceElement = ElementBase & InteractiveAppearance & {
   type: "multipleChoice";
   prompt: string;
   options: MultipleChoiceOption[];
@@ -87,7 +107,7 @@ export type MatchPair = {
   rightImage?: string;
 };
 
-export type DragMatchElement = ElementBase & {
+export type DragMatchElement = ElementBase & InteractiveAppearance & {
   type: "dragMatch";
   prompt: string;
   pairs: MatchPair[];
@@ -118,9 +138,10 @@ export type SortItem = {
   id: string;
   label: string;
   categoryId: string;
+  image?: string;
 };
 
-export type SortCategorizeElement = ElementBase & {
+export type SortCategorizeElement = ElementBase & InteractiveAppearance & {
   type: "sortCategorize";
   prompt: string;
   categories: SortCategory[];
@@ -137,7 +158,7 @@ export type MemoryPair = {
   image?: string;
 };
 
-export type MemoryMatchElement = ElementBase & {
+export type MemoryMatchElement = ElementBase & InteractiveAppearance & {
   type: "memoryMatch";
   prompt: string;
   pairs: MemoryPair[];

@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, PartyPopper, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { TemplateCanvas } from "@/lib/types/canvas";
-import { isInteractive } from "@/lib/types/canvas";
+import { isInteractive, allPages } from "@/lib/types/canvas";
 import { scoreCanvas, type Responses } from "@/lib/scoring";
 import { pageStyleBackground } from "@/lib/canvas/page-style";
 import { submitAttempt } from "@/lib/actions/patient";
 import { ElementPlayer } from "./element-player";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 // `practice` runs the same player over a library item the patient chose
 // themselves. It scores and shows the result, but records nothing: an attempt
@@ -46,6 +47,16 @@ export function ActivityPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
+  // An activity can be several slides (a worksheet, several pages). Page 1
+  // lives in canvas.elements and the rest in canvas.pages; allPages is the
+  // one place that knows that, so everything here works in terms of a flat
+  // list. This player used to render canvas.elements directly, which meant
+  // a patient never saw anything past the first page at all.
+  const pages = useMemo(() => allPages(canvas), [canvas]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const page = pages[pageIndex] ?? pages[0];
+  const isLastPage = pageIndex >= pages.length - 1;
+
   useEffect(() => {
     startedAt.current = Date.now();
   }, []);
@@ -65,8 +76,15 @@ export function ActivityPlayer({
     return () => ro.disconnect();
   }, [canvas.width, canvas.height]);
 
-  const interactiveCount = canvas.elements.filter(isInteractive).length;
-  const answeredCount = canvas.elements.filter(isInteractive).filter((el) => {
+  // Progress counts every question in the whole activity, not just the
+  // current slide — "3/4 answered" has to mean the thing being submitted,
+  // and submitting scores all pages.
+  const allInteractive = useMemo(
+    () => pages.flatMap((p) => p.elements).filter(isInteractive),
+    [pages],
+  );
+  const interactiveCount = allInteractive.length;
+  const answeredCount = allInteractive.filter((el) => {
     const r = responses[el.id];
     if (r === undefined || r === null) return false;
     if (Array.isArray(r)) return r.length > 0;
@@ -158,9 +176,17 @@ export function ActivityPlayer({
             <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>
               <RotateCcw className="size-4" /> Done
             </Button>
-          ) : (
+          ) : isLastPage ? (
             <Button size="sm" onClick={handleSubmit} disabled={submitting}>
               Submit
+            </Button>
+          ) : (
+            // One primary action, always in the same corner: it reads Next
+            // until the last slide and Submit there, so a patient part-way
+            // through a multi-slide activity can't submit work they haven't
+            // been shown yet.
+            <Button size="sm" onClick={() => setPageIndex((i) => i + 1)}>
+              Next <ArrowRight className="size-4" />
             </Button>
           )}
         </div>
@@ -172,15 +198,21 @@ export function ActivityPlayer({
           style={{ width: canvas.width * scale, height: canvas.height * scale }}
         >
           <div
+            // Keyed by page so React remounts the slide's elements rather
+            // than reusing them positionally — without this, the transient
+            // local state inside a player (Memory Match's face-up cards,
+            // say) would carry over into whatever element happened to land
+            // at the same index on the next slide.
+            key={page.id}
             className="absolute left-0 top-0 origin-top-left"
             style={{
               width: canvas.width,
               height: canvas.height,
               transform: `scale(${scale})`,
-              ...pageStyleBackground(canvas.pageStyle, canvas.background),
+              ...pageStyleBackground(page.pageStyle, canvas.background),
             }}
           >
-            {canvas.elements.map((el) => (
+            {page.elements.map((el) => (
               <div key={el.id} className="absolute" style={{ left: el.x, top: el.y, width: el.w, height: el.h }}>
                 <ElementPlayer
                   element={el}
@@ -194,6 +226,52 @@ export function ActivityPlayer({
           </div>
         </div>
       </div>
+
+      {/* Only for genuinely multi-slide activities — a single-slide one
+          looks exactly as it always has. Navigation stays available after
+          submitting so the patient can page back through their answers. */}
+      {pages.length > 1 && (
+        <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPageIndex((i) => i - 1)}
+            disabled={pageIndex === 0}
+          >
+            <ArrowLeft className="size-4" /> Back
+          </Button>
+
+          <div className="flex items-center gap-1.5">
+            {pages.map((p, i) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPageIndex(i)}
+                aria-label={`Go to slide ${i + 1}`}
+                aria-current={i === pageIndex ? "step" : undefined}
+                className={cn(
+                  "size-2.5 rounded-full transition-colors",
+                  i === pageIndex ? "bg-primary" : "bg-muted-foreground/30 hover:bg-muted-foreground/60",
+                )}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Slide {pageIndex + 1} of {pages.length}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPageIndex((i) => i + 1)}
+              disabled={isLastPage}
+            >
+              Next <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,13 +6,28 @@ import { useCanvasStore } from "@/lib/canvas/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Page navigation for multi-page worksheets. Only rendered on the worksheet
-// surface: an interactive activity is a single screen, so pages would be
-// meaningless there and the bar would just be clutter.
-export function PageBar({ store }: { store: CanvasStoreApi }) {
+// Page navigation, on both surfaces. It used to be worksheet-only on the
+// reasoning that an activity is a single screen — but a clinician building
+// a multi-step activity has no way to say "and then this next task", which
+// is exactly what a second page is. The patient's player paginates through
+// them with Back/Next.
+//
+// The two surfaces call the same thing by different names: a printed
+// worksheet has pages, an on-screen activity has slides. Same machinery,
+// and the word the clinician sees matches the thing they are making.
+export function PageBar({
+  store,
+  surface = "worksheet",
+}: {
+  store: CanvasStoreApi;
+  surface?: "activity" | "worksheet";
+}) {
   const pages = useCanvasStore(store, (s) => s.pages);
   const pageIndex = useCanvasStore(store, (s) => s.pageIndex);
   const { goToPage, addPage, removePage } = store.getState();
+
+  const noun = surface === "activity" ? "Slide" : "Page";
+  const nounLower = noun.toLowerCase();
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-t border-border bg-card px-3">
@@ -21,7 +36,7 @@ export function PageBar({ store }: { store: CanvasStoreApi }) {
         size="icon"
         onClick={() => goToPage(pageIndex - 1)}
         disabled={pageIndex === 0}
-        aria-label="Previous page"
+        aria-label={`Previous ${nounLower}`}
       >
         <ChevronLeft className="size-4" />
       </Button>
@@ -50,18 +65,18 @@ export function PageBar({ store }: { store: CanvasStoreApi }) {
         size="icon"
         onClick={() => goToPage(pageIndex + 1)}
         disabled={pageIndex >= pages.length - 1}
-        aria-label="Next page"
+        aria-label={`Next ${nounLower}`}
       >
         <ChevronRight className="size-4" />
       </Button>
 
       <span className="ml-1 text-xs text-muted-foreground">
-        Page {pageIndex + 1} of {pages.length}
+        {noun} {pageIndex + 1} of {pages.length}
       </span>
 
       <div className="ml-auto flex items-center gap-1">
         <Button variant="outline" size="sm" onClick={addPage}>
-          <Plus className="size-4" /> Add page
+          <Plus className="size-4" /> Add {nounLower}
         </Button>
         {/* A document must always have at least one page, so the control is
             hidden rather than disabled when there is only one. */}
@@ -70,7 +85,7 @@ export function PageBar({ store }: { store: CanvasStoreApi }) {
             variant="ghost"
             size="icon"
             onClick={() => removePage(pageIndex)}
-            aria-label={`Delete page ${pageIndex + 1}`}
+            aria-label={`Delete ${nounLower} ${pageIndex + 1}`}
           >
             <Trash2 className="size-4" />
           </Button>
