@@ -127,6 +127,30 @@ export type SortCategorizeElement = ElementBase & {
   items: SortItem[];
 };
 
+// Authoring data only — each pair becomes exactly two face-down cards at
+// play time (ids `${id}-a` / `${id}-b`, shuffled together), not stored as
+// individual cards here. A clinician thinks in terms of "the six things to
+// find pairs of," not "twelve cards, coincidentally in matching pairs."
+export type MemoryPair = {
+  id: string;
+  label: string;
+  image?: string;
+};
+
+export type MemoryMatchElement = ElementBase & {
+  type: "memoryMatch";
+  prompt: string;
+  pairs: MemoryPair[];
+};
+
+export type WordHuntElement = ElementBase & {
+  type: "wordHunt";
+  prompt: string;
+  passage: string;
+  // Matched case-insensitively against the passage (see lib/canvas/word-hunt.ts).
+  targetWords: string[];
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -162,6 +186,8 @@ export type CanvasElement =
   | DragMatchElement
   | SequenceElement
   | SortCategorizeElement
+  | MemoryMatchElement
+  | WordHuntElement
   | ListElement
   | WritingLinesElement;
 
@@ -173,6 +199,8 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "dragMatch",
   "sequence",
   "sortCategorize",
+  "memoryMatch",
+  "wordHunt",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

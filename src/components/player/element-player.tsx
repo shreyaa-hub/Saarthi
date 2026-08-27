@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Volume2, Check, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Volume2, Check, X, Brain } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
+import { shuffle } from "@/lib/canvas/shuffle";
+import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { cn } from "@/lib/utils";
 
 export function ElementPlayer({
@@ -175,6 +177,16 @@ export function ElementPlayer({
       return (
         <SortCategorizePlayer element={element} placements={placements} onChange={onChange} locked={locked} />
       );
+    }
+
+    case "memoryMatch": {
+      const matched = Array.isArray(response) ? (response as string[]) : [];
+      return <MemoryMatchPlayer element={element} matched={matched} onChange={onChange} locked={locked} />;
+    }
+
+    case "wordHunt": {
+      const tapped = Array.isArray(response) ? (response as number[]) : [];
+      return <WordHuntPlayer element={element} tapped={tapped} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -454,6 +466,182 @@ function SortCategorizePlayer({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// A flip-card memory game — genuinely different from DragMatchPlayer even
+// though both end in "pairs matched": here the pairing is already known
+// (both cards say the same thing), and the task is remembering *where* the
+// other half is under a face-down grid, not working out *which* two things
+// go together.
+function MemoryMatchPlayer({
+  element,
+  matched,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "memoryMatch" }>;
+  matched: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  // Shuffled once per mount, not on every render: element.pairs comes from
+  // the template's frozen canvas_snapshot and is a stable reference for the
+  // lifetime of one attempt, so this genuinely runs once per play session —
+  // the way a real deck of cards is shuffled once at the start of a game,
+  // not reshuffled between every move.
+  const cards = useMemo(
+    () =>
+      shuffle(
+        element.pairs.flatMap((p) => [
+          { id: `${p.id}-a`, pairKey: p.id, label: p.label, image: p.image },
+          { id: `${p.id}-b`, pairKey: p.id, label: p.label, image: p.image },
+        ]),
+      ),
+    [element.pairs],
+  );
+
+  // The two currently face-up cards pending a match check — transient,
+  // never persisted. Only a confirmed match writes into the response
+  // (matched, via onChange); an unmatched pair shown on screen is just
+  // local UI state a page refresh is allowed to lose.
+  const [faceUp, setFaceUp] = useState<string[]>([]);
+
+  const pick = (cardId: string) => {
+    if (locked || matched.includes(cardId)) return;
+
+    // Tapping the single card currently face-up again cancels the pick.
+    if (faceUp.length === 1 && faceUp[0] === cardId) {
+      setFaceUp([]);
+      return;
+    }
+
+    // Two mismatched cards are already showing (the player is looking at a
+    // miss) — any further tap first clears them, then proceeds to register
+    // the new tap below, rather than requiring a separate "dismiss" step.
+    const current = faceUp.length === 2 ? [] : faceUp;
+    const next = [...current, cardId];
+
+    if (next.length < 2) {
+      setFaceUp(next);
+      return;
+    }
+
+    const [aId, bId] = next;
+    const a = cards.find((c) => c.id === aId);
+    const b = cards.find((c) => c.id === bId);
+    if (a && b && a.pairKey === b.pairKey) {
+      onChange([...matched, aId, bId]);
+      setFaceUp([]);
+    } else {
+      setFaceUp(next);
+    }
+  };
+
+  return (
+    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
+      <p className="text-sm font-semibold">{element.prompt}</p>
+      <div className="grid flex-1 grid-cols-3 gap-2">
+        {cards.map((c) => {
+          const isMatchedCard = matched.includes(c.id);
+          // Review mode reveals everything, matched or not, so the
+          // clinician (or the patient looking back) can see the whole
+          // board rather than a wall of card backs.
+          const revealed = isMatchedCard || locked || faceUp.includes(c.id);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              disabled={locked || isMatchedCard}
+              onClick={() => pick(c.id)}
+              className={cn(
+                "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border p-1.5 text-center text-xs transition-colors",
+                isMatchedCard && "border-success bg-success/10",
+                !isMatchedCard && revealed && "border-primary bg-secondary",
+                !revealed && "border-border bg-muted hover:bg-muted/70",
+              )}
+            >
+              {revealed ? (
+                <>
+                  {c.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.image} alt="" className="size-6 rounded object-cover" />
+                  )}
+                  <span className="truncate">{c.label}</span>
+                </>
+              ) : (
+                <Brain className="size-4 text-muted-foreground" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Tap every occurrence of a target word in flowing text. tokenizeWordHunt
+// and targetTokenIndices are the same functions scoring.ts uses to build
+// the answer key, so which words are tappable here and which count as
+// correct on review can never quietly diverge from what actually gets
+// scored.
+function WordHuntPlayer({
+  element,
+  tapped,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "wordHunt" }>;
+  tapped: number[];
+  onChange: (value: number[]) => void;
+  locked: boolean;
+}) {
+  const tokens = useMemo(() => tokenizeWordHunt(element.passage), [element.passage]);
+  const targets = useMemo(
+    () => targetTokenIndices(tokens, element.targetWords),
+    [tokens, element.targetWords],
+  );
+  const tappedSet = new Set(tapped);
+
+  const toggle = (i: number) => {
+    if (locked) return;
+    const next = new Set(tappedSet);
+    if (next.has(i)) next.delete(i);
+    else next.add(i);
+    onChange([...next]);
+  };
+
+  return (
+    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
+      <p className="text-sm font-semibold">{element.prompt}</p>
+      <p className="flex-1 text-sm leading-relaxed">
+        {tokens.map((token, i) => {
+          // Punctuation and whitespace render as plain text, not buttons —
+          // only a real word is ever something the patient can tap.
+          if (!isWordToken(token)) return token;
+
+          const isTapped = tappedSet.has(i);
+          const isTarget = targets.has(i);
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={locked}
+              onClick={() => toggle(i)}
+              className={cn(
+                "rounded px-0.5 transition-colors",
+                !locked && isTapped && "bg-secondary text-primary",
+                !locked && !isTapped && "hover:bg-muted",
+                locked && isTarget && "bg-success/20 text-success",
+                locked && !isTarget && isTapped && "bg-destructive/20 text-destructive line-through",
+              )}
+            >
+              {token}
+            </button>
+          );
+        })}
+      </p>
     </div>
   );
 }

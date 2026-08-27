@@ -1,6 +1,7 @@
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
+import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
@@ -202,6 +203,52 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
           </div>
         </div>
       );
+
+    case "memoryMatch":
+      return (
+        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <Brain className="size-3.5" /> {element.prompt}
+          </div>
+          <div className="grid flex-1 grid-cols-3 gap-1.5 overflow-hidden text-xs">
+            {element.pairs.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-col items-center justify-center gap-1 truncate rounded-md border border-border px-1.5 py-1.5 text-center"
+              >
+                {p.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt="" className="size-5 rounded object-cover" />
+                )}
+                <span className="truncate">{p.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "wordHunt": {
+      const tokens = tokenizeWordHunt(element.passage);
+      const targets = targetTokenIndices(tokens, element.targetWords);
+      return (
+        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <SearchCheck className="size-3.5" /> {element.prompt}
+          </div>
+          <p className="overflow-hidden text-xs leading-relaxed text-muted-foreground">
+            {tokens.map((token, i) =>
+              targets.has(i) ? (
+                <span key={i} className="rounded bg-success/20 px-0.5 text-success">
+                  {token}
+                </span>
+              ) : (
+                <span key={i}>{token}</span>
+              ),
+            )}
+          </p>
+        </div>
+      );
+    }
 
     case "list":
       return <ListBlock element={element} />;

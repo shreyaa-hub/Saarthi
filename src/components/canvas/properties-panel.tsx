@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { nanoid } from "nanoid";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
@@ -9,6 +10,8 @@ import type {
   DragMatchElement,
   SequenceElement,
   SortCategorizeElement,
+  MemoryMatchElement,
+  WordHuntElement,
   ListElement,
   WritingLinesElement,
   PageStyle,
@@ -20,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Copy, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown, X } from "lucide-react";
 import { ImageUploadButton } from "./image-upload-button";
 import { PairImagePicker } from "./pair-image-picker";
 
@@ -372,6 +375,12 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "sortCategorize" && (
         <SortCategorizeFields element={selected} patch={patch} />
       )}
+
+      {selected.type === "memoryMatch" && (
+        <MemoryMatchFields element={selected} patch={patch} />
+      )}
+
+      {selected.type === "wordHunt" && <WordHuntFields element={selected} patch={patch} />}
 
       {selected.type === "list" && <ListFields element={selected} patch={patch} />}
 
@@ -795,6 +804,131 @@ function SortCategorizeFields({
         >
           <Plus className="size-3.5" /> Add item
         </Button>
+      </div>
+    </>
+  );
+}
+
+function MemoryMatchFields({
+  element,
+  patch,
+}: {
+  element: MemoryMatchElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const updatePair = (i: number, p: Partial<MemoryMatchElement["pairs"][number]>) => {
+    patch({ pairs: element.pairs.map((pair, idx) => (idx === i ? { ...pair, ...p } : pair)) });
+  };
+
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Pairs to find</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Each one becomes two face-down cards, shuffled, that the patient flips to find.
+        </p>
+        {element.pairs.map((p, i) => (
+          <div key={p.id} className="flex items-center gap-2">
+            <PairImagePicker src={p.image} onChange={(v) => updatePair(i, { image: v })} label="card" />
+            <Input
+              value={p.label}
+              onChange={(e) => updatePair(i, { label: e.target.value })}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => patch({ pairs: element.pairs.filter((_, idx) => idx !== i) })}
+              disabled={element.pairs.length <= 2}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer disabled:opacity-30"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ pairs: [...element.pairs, { id: nanoid(8), label: "New pair" }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add pair
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function WordHuntFields({
+  element,
+  patch,
+}: {
+  element: WordHuntElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const addWord = () => {
+    const word = draft.trim();
+    if (!word) return;
+    const alreadyThere = element.targetWords.some((w) => w.toLowerCase() === word.toLowerCase());
+    if (!alreadyThere) {
+      patch({ targetWords: [...element.targetWords, word] });
+    }
+    setDraft("");
+  };
+
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Passage">
+        <Textarea value={element.passage} onChange={(e) => patch({ passage: e.target.value })} rows={4} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Target words (case-insensitive)</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {element.targetWords.map((w) => (
+            <span
+              key={w}
+              className="flex items-center gap-1 rounded-full border border-primary/40 bg-secondary px-2 py-0.5 text-xs"
+            >
+              {w}
+              <button
+                type="button"
+                onClick={() => patch({ targetWords: element.targetWords.filter((t) => t !== w) })}
+                className="text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+          {element.targetWords.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">No target words yet.</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addWord();
+              }
+            }}
+            placeholder="Add a word"
+            className="flex-1"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={addWord}>
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
       </div>
     </>
   );

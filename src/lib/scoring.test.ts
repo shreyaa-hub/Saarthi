@@ -6,6 +6,8 @@ import type {
   DragMatchElement,
   SequenceElement,
   SortCategorizeElement,
+  MemoryMatchElement,
+  WordHuntElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -166,6 +168,62 @@ describe("isElementCorrect: sortCategorize", () => {
   });
 
   it("treats a missing response as nothing placed", () => {
+    expect(isElementCorrect(el, undefined)).toBe(false);
+  });
+});
+
+describe("isElementCorrect: memoryMatch", () => {
+  const el: MemoryMatchElement = {
+    ...base,
+    type: "memoryMatch",
+    prompt: "Find every pair",
+    pairs: [
+      { id: "m1", label: "Dog" },
+      { id: "m2", label: "Cat" },
+    ],
+  };
+
+  it("is correct once both cards of every pair have been matched", () => {
+    expect(isElementCorrect(el, ["m1-a", "m1-b", "m2-a", "m2-b"])).toBe(true);
+  });
+
+  it("is wrong while any pair is still incomplete", () => {
+    expect(isElementCorrect(el, ["m1-a", "m1-b", "m2-a"])).toBe(false);
+  });
+
+  it("is wrong with no matches made", () => {
+    expect(isElementCorrect(el, [])).toBe(false);
+  });
+
+  it("does not care about the order matched ids arrive in", () => {
+    expect(isElementCorrect(el, ["m2-b", "m1-a", "m2-a", "m1-b"])).toBe(true);
+  });
+});
+
+describe("isElementCorrect: wordHunt", () => {
+  const el: WordHuntElement = {
+    ...base,
+    type: "wordHunt",
+    prompt: "Find the /s/ words",
+    passage: "Sam sat on the sofa.",
+    targetWords: ["Sam", "sofa"],
+  };
+  // tokens: ["Sam", " ", "sat", " ", "on", " ", "the", " ", "sofa", "."]
+  // target indices: 0 ("Sam"), 8 ("sofa")
+
+  it("is correct when exactly the target words are tapped", () => {
+    expect(isElementCorrect(el, [0, 8])).toBe(true);
+  });
+
+  it("is wrong when a target word is missed", () => {
+    expect(isElementCorrect(el, [0])).toBe(false);
+  });
+
+  it("is wrong when a non-target word is tapped too", () => {
+    expect(isElementCorrect(el, [0, 8, 2])).toBe(false);
+  });
+
+  it("is wrong with nothing tapped", () => {
     expect(isElementCorrect(el, undefined)).toBe(false);
   });
 });

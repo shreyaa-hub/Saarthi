@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, List, Baseline } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, List, Baseline } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import type { CanvasElement, CanvasElementType } from "@/lib/types/canvas";
@@ -17,6 +17,8 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   dragMatch: MoveHorizontal,
   sequence: ListOrdered,
   sortCategorize: LayoutGrid,
+  memoryMatch: Brain,
+  wordHunt: SearchCheck,
   list: List,
   writingLines: Baseline,
 };

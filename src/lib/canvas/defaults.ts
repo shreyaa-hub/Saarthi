@@ -12,6 +12,8 @@ import type {
   DragMatchElement,
   SequenceElement,
   SortCategorizeElement,
+  MemoryMatchElement,
+  WordHuntElement,
   ListElement,
   WritingLinesElement,
 } from "@/lib/types/canvas";
@@ -160,6 +162,32 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
       } satisfies SortCategorizeElement;
     }
 
+    case "memoryMatch":
+      return {
+        ...base,
+        type: "memoryMatch",
+        w: 420,
+        h: 320,
+        prompt: "Find every matching pair.",
+        pairs: [
+          { id: id(), label: "🐶 Dog" },
+          { id: id(), label: "🐱 Cat" },
+          { id: id(), label: "🐦 Bird" },
+        ],
+      } satisfies MemoryMatchElement;
+
+    case "wordHunt":
+      return {
+        ...base,
+        type: "wordHunt",
+        w: 460,
+        h: 240,
+        prompt: "Tap every word that starts with the /s/ sound.",
+        passage:
+          "The sun was so bright that Sam put on his sunglasses before he sat on the soft grass.",
+        targetWords: ["sun", "so", "Sam", "sunglasses", "sat", "soft"],
+      } satisfies WordHuntElement;
+
     case "list":
       return {
         ...base,
@@ -218,6 +246,8 @@ export const ELEMENT_LIBRARY: {
   { type: "dragMatch", label: "Drag to match", group: "interactive", surfaces: ["activity"] },
   { type: "sequence", label: "Sequencing", group: "interactive", surfaces: ["activity"] },
   { type: "sortCategorize", label: "Sort into categories", group: "interactive", surfaces: ["activity"] },
+  { type: "memoryMatch", label: "Memory match", group: "interactive", surfaces: ["activity"] },
+  { type: "wordHunt", label: "Word hunt", group: "interactive", surfaces: ["activity"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {

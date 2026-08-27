@@ -1,5 +1,6 @@
 import type { CanvasElement, TemplateCanvas } from "@/lib/types/canvas";
 import { isInteractive } from "@/lib/types/canvas";
+import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 
 export type Responses = Record<string, unknown>;
 
@@ -30,6 +31,22 @@ export function isElementCorrect(element: CanvasElement, response: unknown): boo
     case "sortCategorize": {
       const placements = (response ?? {}) as Record<string, string>;
       return element.items.every((it) => placements[it.id] === it.categoryId);
+    }
+    case "memoryMatch": {
+      // The response holds card ids ("<pairId>-a" / "<pairId>-b"), derived
+      // deterministically from each pair's own id — never the shuffled
+      // display order, so scoring needs no randomness and can't disagree
+      // with whatever order the cards happened to render in for this attempt.
+      const matched = new Set(Array.isArray(response) ? (response as string[]) : []);
+      return element.pairs.every((p) => matched.has(`${p.id}-a`) && matched.has(`${p.id}-b`));
+    }
+    case "wordHunt": {
+      const tapped = new Set(Array.isArray(response) ? (response as number[]) : []);
+      const tokens = tokenizeWordHunt(element.passage);
+      const targets = targetTokenIndices(tokens, element.targetWords);
+      if (tapped.size !== targets.size) return false;
+      for (const i of tapped) if (!targets.has(i)) return false;
+      return true;
     }
     default:
       return true;
