@@ -8,6 +8,7 @@ import type {
   MultipleChoiceElement,
   DragMatchElement,
   SequenceElement,
+  SortCategorizeElement,
   ListElement,
   WritingLinesElement,
   PageStyle,
@@ -367,6 +368,10 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
 
       {selected.type === "sequence" && <SequenceFields element={selected} patch={patch} />}
 
+      {selected.type === "sortCategorize" && (
+        <SortCategorizeFields element={selected} patch={patch} />
+      )}
+
       {selected.type === "list" && <ListFields element={selected} patch={patch} />}
 
       {selected.type === "writingLines" && <WritingLinesFields element={selected} patch={patch} />}
@@ -651,6 +656,116 @@ function SequenceFields({
           }
         >
           <Plus className="size-3.5" /> Add step
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function SortCategorizeFields({
+  element,
+  patch,
+}: {
+  element: SortCategorizeElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const updateCategory = (i: number, label: string) => {
+    patch({ categories: element.categories.map((c, idx) => (idx === i ? { ...c, label } : c)) });
+  };
+
+  // An item pointing at a removed category would score as permanently wrong
+  // with nowhere correct left to place it, so it's reassigned to whichever
+  // category remains first rather than left dangling on a deleted id.
+  const removeCategory = (id: string) => {
+    const remaining = element.categories.filter((c) => c.id !== id);
+    const fallback = remaining[0]?.id ?? "";
+    patch({
+      categories: remaining,
+      items: element.items.map((it) => (it.categoryId === id ? { ...it, categoryId: fallback } : it)),
+    });
+  };
+
+  const updateItem = (i: number, p: Partial<SortCategorizeElement["items"][number]>) => {
+    patch({ items: element.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
+  };
+
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Categories</Label>
+        {element.categories.map((c, i) => (
+          <div key={c.id} className="flex items-center gap-2">
+            <Input value={c.label} onChange={(e) => updateCategory(i, e.target.value)} />
+            <button
+              type="button"
+              onClick={() => removeCategory(c.id)}
+              disabled={element.categories.length <= 1}
+              className="text-muted-foreground hover:text-destructive cursor-pointer disabled:opacity-30"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ categories: [...element.categories, { id: nanoid(8), label: "New category" }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add category
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Items</Label>
+        {element.items.map((it, i) => (
+          <div key={it.id} className="flex items-center gap-2">
+            <Input
+              value={it.label}
+              onChange={(e) => updateItem(i, { label: e.target.value })}
+              className="flex-1"
+            />
+            <Select value={it.categoryId} onValueChange={(v) => updateItem(i, { categoryId: v })}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {element.categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              onClick={() => patch({ items: element.items.filter((x) => x.id !== it.id) })}
+              className="text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({
+              items: [
+                ...element.items,
+                { id: nanoid(8), label: "New item", categoryId: element.categories[0]?.id ?? "" },
+              ],
+            })
+          }
+        >
+          <Plus className="size-3.5" /> Add item
         </Button>
       </div>
     </>

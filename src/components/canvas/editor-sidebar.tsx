@@ -16,6 +16,7 @@ import {
   ListOrdered,
   List,
   Baseline,
+  LayoutGrid,
 } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
@@ -38,6 +39,7 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   fillBlank: PenLine,
   dragMatch: MoveHorizontal,
   sequence: ListOrdered,
+  sortCategorize: LayoutGrid,
   list: List,
   writingLines: Baseline,
 };

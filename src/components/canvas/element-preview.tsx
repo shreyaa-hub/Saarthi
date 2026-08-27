@@ -1,4 +1,4 @@
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { cn } from "@/lib/utils";
@@ -159,6 +159,32 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
                   <span className="font-semibold text-primary">{i + 1}.</span> {it.label}
                 </div>
               ))}
+          </div>
+        </div>
+      );
+
+    case "sortCategorize":
+      return (
+        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <LayoutGrid className="size-3.5" /> {element.prompt}
+          </div>
+          <div
+            className="grid flex-1 gap-2 overflow-hidden text-xs"
+            style={{ gridTemplateColumns: `repeat(${element.categories.length}, minmax(0, 1fr))` }}
+          >
+            {element.categories.map((c) => (
+              <div key={c.id} className="flex flex-col gap-1 overflow-hidden">
+                <p className="truncate font-semibold text-muted-foreground">{c.label}</p>
+                {element.items
+                  .filter((it) => it.categoryId === c.id)
+                  .map((it) => (
+                    <div key={it.id} className="truncate rounded-md border border-border px-2 py-1">
+                      {it.label}
+                    </div>
+                  ))}
+              </div>
+            ))}
           </div>
         </div>
       );

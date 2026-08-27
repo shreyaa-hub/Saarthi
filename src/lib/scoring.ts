@@ -27,6 +27,10 @@ export function isElementCorrect(element: CanvasElement, response: unknown): boo
       if (order.length !== correctOrder.length) return false;
       return order.every((id, i) => id === correctOrder[i]);
     }
+    case "sortCategorize": {
+      const placements = (response ?? {}) as Record<string, string>;
+      return element.items.every((it) => placements[it.id] === it.categoryId);
+    }
     default:
       return true;
   }

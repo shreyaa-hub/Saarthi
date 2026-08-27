@@ -170,6 +170,13 @@ export function ElementPlayer({
       return <SequencePlayer element={element} order={order} onChange={onChange} locked={locked} />;
     }
 
+    case "sortCategorize": {
+      const placements = (response ?? {}) as Record<string, string>;
+      return (
+        <SortCategorizePlayer element={element} placements={placements} onChange={onChange} locked={locked} />
+      );
+    }
+
     // Worksheet elements are printed and filled in on paper — nothing to
     // capture, nothing to score — so on screen they render exactly as the
     // author laid them out, via the same components the canvas uses.
@@ -315,6 +322,130 @@ function SequencePlayer({
               </span>
               {item.label}
             </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Tap-tap, the same two-step selection DragMatchPlayer uses (tap an item,
+// then tap where it goes) rather than a native drag gesture — deliberately:
+// a real drag is unreliable on a touchscreen and harder to make keyboard-
+// accessible, and every other interactive type in this file already commits
+// to tap-tap for the same reason.
+function SortCategorizePlayer({
+  element,
+  placements,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "sortCategorize" }>;
+  placements: Record<string, string>;
+  onChange: (value: Record<string, string>) => void;
+  locked: boolean;
+}) {
+  const [activeItem, setActiveItem] = useState<string | null>(null);
+
+  const pickItem = (itemId: string) => {
+    if (locked) return;
+    if (placements[itemId]) {
+      const next = { ...placements };
+      delete next[itemId];
+      onChange(next);
+      setActiveItem(null);
+      return;
+    }
+    setActiveItem(itemId === activeItem ? null : itemId);
+  };
+
+  const pickCategory = (categoryId: string) => {
+    if (locked || !activeItem) return;
+    onChange({ ...placements, [activeItem]: categoryId });
+    setActiveItem(null);
+  };
+
+  const unplaced = element.items.filter((it) => !placements[it.id]);
+
+  return (
+    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
+      <p className="text-sm font-semibold">{element.prompt}</p>
+
+      {unplaced.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {unplaced.map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              disabled={locked}
+              onClick={() => pickItem(it.id)}
+              className={cn(
+                "rounded-md border px-2 py-1 text-xs transition-colors",
+                activeItem === it.id ? "border-primary bg-secondary" : "border-border hover:bg-muted",
+              )}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div
+        className="grid flex-1 gap-2"
+        style={{ gridTemplateColumns: `repeat(${element.categories.length}, minmax(0, 1fr))` }}
+      >
+        {element.categories.map((c) => {
+          const placedHere = element.items.filter((it) => placements[it.id] === c.id);
+          const acceptsDrop = Boolean(activeItem) && !locked;
+          return (
+            // A div, not a button: it has to contain each placed item's own
+            // button (tapping an item un-files it), and a button cannot
+            // nest another button. role="button" + a key handler keep the
+            // "tap this bucket to file the active item" gesture reachable
+            // from a keyboard, same as every real <button> elsewhere here.
+            <div
+              key={c.id}
+              role={acceptsDrop ? "button" : undefined}
+              tabIndex={acceptsDrop ? 0 : undefined}
+              onClick={() => pickCategory(c.id)}
+              onKeyDown={(e) => {
+                if (acceptsDrop && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  pickCategory(c.id);
+                }
+              }}
+              className={cn(
+                "flex flex-col gap-1 rounded-md border border-dashed p-2 text-left",
+                acceptsDrop ? "cursor-pointer border-primary/60 hover:bg-secondary" : "border-border",
+              )}
+            >
+              <p className="text-xs font-semibold text-muted-foreground">{c.label}</p>
+              {placedHere.map((it) => {
+                const correct = locked && it.categoryId === c.id;
+                const wrong = locked && it.categoryId !== c.id;
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    disabled={locked}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pickItem(it.id);
+                    }}
+                    className={cn(
+                      "rounded-md border px-2 py-1 text-left text-xs transition-colors",
+                      correct && "border-success bg-success/10 text-success",
+                      wrong && "border-destructive bg-destructive/10 text-destructive",
+                      !locked && "border-primary/60 bg-secondary hover:bg-muted",
+                    )}
+                  >
+                    {it.label}
+                    {correct && <Check className="ml-1 inline size-3 text-success" />}
+                    {wrong && <X className="ml-1 inline size-3 text-destructive" />}
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </div>

@@ -2,14 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ZoomIn, ZoomOut, Maximize2, Magnet } from "lucide-react";
+import { toast } from "sonner";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import { computeSnap } from "@/lib/canvas/alignment";
 import { pageStyleBackground } from "@/lib/canvas/page-style";
 import { createElement } from "@/lib/canvas/defaults";
 import { ELEMENT_DND_TYPE } from "@/lib/canvas/dnd";
+import { uploadImageFile, dragCarriesFiles } from "@/lib/canvas/upload-image";
 import type { CanvasElementType } from "@/lib/types/canvas";
 import { ElementBox } from "./element-box";
+import { useEditorMode } from "./editor-mode";
 import { cn } from "@/lib/utils";
 
 const ZOOM_MIN = 0.25;
@@ -34,35 +37,89 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const { guest } = useEditorMode();
 
-  // Dropping from the sidebar. The element lands centred on the pointer, in
-  // canvas coordinates — client coordinates have to be divided back through
-  // the current zoom, or an element dropped while zoomed out would land far
-  // from the cursor.
+  // Two very different things can be dropped here, told apart by MIME type:
+  // an element dragged from the sidebar palette (carries ELEMENT_DND_TYPE),
+  // or a real picture dragged in from the OS (carries "Files", the browser's
+  // own type for a file drag — dataTransfer.files itself is only populated
+  // at drop time, so dragover has to check .types instead). Both need
+  // preventDefault() on dragover or the browser refuses the drop entirely;
+  // a file drop specifically needs it on drop too, or the browser's fallback
+  // is to navigate the tab to the raw image file, which would abandon
+  // whatever was being edited.
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes(ELEMENT_DND_TYPE)) return;
+    const isElement = e.dataTransfer.types.includes(ELEMENT_DND_TYPE);
+    const isFile = dragCarriesFiles(e.dataTransfer);
+    if (!isElement && !isFile) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     setDropActive(true);
   }, []);
 
+  // Where a dropped image (or the nth of several, dropped together) lands,
+  // in canvas coordinates — client coordinates have to be divided back
+  // through the current zoom, or a drop while zoomed out would land far from
+  // the cursor. Successive images cascade slightly so a multi-file drop
+  // doesn't stack every image exactly on top of the last.
+  const dropPoint = useCallback(
+    (e: React.DragEvent, index: number) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) / scale + index * 16,
+        y: (e.clientY - rect.top) / scale + index * 16,
+      };
+    },
+    [scale],
+  );
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       const raw = e.dataTransfer.getData(ELEMENT_DND_TYPE);
-      if (!raw) return;
+
+      if (raw) {
+        e.preventDefault();
+        setDropActive(false);
+        const { x, y } = dropPoint(e, 0);
+        const el = createElement(raw as CanvasElementType, 0, 0);
+        const placed = { ...el, x: Math.round(x - el.w / 2), y: Math.round(y - el.h / 2) };
+        store.getState().addElement(placed);
+        store.getState().select(placed.id);
+        return;
+      }
+
+      if (!dragCarriesFiles(e.dataTransfer)) return;
       e.preventDefault();
       setDropActive(false);
 
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+      if (files.length === 0) {
+        toast.error("Drop an image file to add it to the page.");
+        return;
+      }
+      if (guest) {
+        toast.error("Uploading images needs a free account. You can still paste an image address in.");
+        return;
+      }
 
-      const el = createElement(raw as CanvasElementType, 0, 0);
-      const placed = { ...el, x: Math.round(x - el.w / 2), y: Math.round(y - el.h / 2) };
-      store.getState().addElement(placed);
-      store.getState().select(placed.id);
+      files.forEach((file, i) => {
+        const { x, y } = dropPoint(e, i);
+        const el = createElement("image", 0, 0);
+        const placed = { ...el, x: Math.round(x - el.w / 2), y: Math.round(y - el.h / 2) };
+        store.getState().addElement(placed);
+        store.getState().select(placed.id);
+
+        uploadImageFile(file).then((result) => {
+          if ("error" in result) {
+            store.getState().removeElement(placed.id);
+            toast.error(result.error);
+            return;
+          }
+          store.getState().updateElement(placed.id, { src: result.url });
+        });
+      });
     },
-    [scale, store],
+    [dropPoint, guest, store],
   );
 
   // Pure derivation from the current drag position — no state needed, this

@@ -98,6 +98,28 @@ export type SequenceElement = ElementBase & {
   items: SequenceItem[];
 };
 
+export type SortCategory = {
+  id: string;
+  label: string;
+};
+
+// categoryId is the correct bucket for this item — the answer key, not the
+// patient's placement. The patient's in-progress placement lives entirely in
+// the attempt response (itemId -> categoryId), same split as DragMatchElement
+// (pairs = the key, the response = what the patient did).
+export type SortItem = {
+  id: string;
+  label: string;
+  categoryId: string;
+};
+
+export type SortCategorizeElement = ElementBase & {
+  type: "sortCategorize";
+  prompt: string;
+  categories: SortCategory[];
+  items: SortItem[];
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -132,6 +154,7 @@ export type CanvasElement =
   | FillBlankElement
   | DragMatchElement
   | SequenceElement
+  | SortCategorizeElement
   | ListElement
   | WritingLinesElement;
 
@@ -142,6 +165,7 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "fillBlank",
   "dragMatch",
   "sequence",
+  "sortCategorize",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

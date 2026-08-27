@@ -11,6 +11,7 @@ import type {
   FillBlankElement,
   DragMatchElement,
   SequenceElement,
+  SortCategorizeElement,
   ListElement,
   WritingLinesElement,
 } from "@/lib/types/canvas";
@@ -137,6 +138,28 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         ],
       } satisfies SequenceElement;
 
+    case "sortCategorize": {
+      const animals = id();
+      const food = id();
+      return {
+        ...base,
+        type: "sortCategorize",
+        w: 420,
+        h: 280,
+        prompt: "Sort each word into the right category.",
+        categories: [
+          { id: animals, label: "Animals" },
+          { id: food, label: "Food" },
+        ],
+        items: [
+          { id: id(), label: "Dog", categoryId: animals },
+          { id: id(), label: "Apple", categoryId: food },
+          { id: id(), label: "Cat", categoryId: animals },
+          { id: id(), label: "Banana", categoryId: food },
+        ],
+      } satisfies SortCategorizeElement;
+    }
+
     case "list":
       return {
         ...base,
@@ -194,6 +217,7 @@ export const ELEMENT_LIBRARY: {
   { type: "fillBlank", label: "Fill in the blank", group: "interactive", surfaces: ["activity"] },
   { type: "dragMatch", label: "Drag to match", group: "interactive", surfaces: ["activity"] },
   { type: "sequence", label: "Sequencing", group: "interactive", surfaces: ["activity"] },
+  { type: "sortCategorize", label: "Sort into categories", group: "interactive", surfaces: ["activity"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {
