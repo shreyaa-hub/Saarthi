@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, Hash, ArrowRight } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/session";
 import { getPublicTemplateDetail } from "@/lib/data/library";
+import { getStarter, isStarterId } from "@/lib/canvas/starters";
 import { ActivityPlayer } from "@/components/player/activity-player";
 
 // Practice mode: a patient working through something they picked out of the
@@ -19,7 +20,12 @@ export default async function LibraryTryPage({
 
   if (profile.role !== "patient") redirect("/library/templates");
 
-  const template = await getPublicTemplateDetail(supabase, templateId);
+  // A starter is a built-in example held in code rather than a row (see
+  // lib/canvas/starters.ts), so it is fetched from there. Everything below is
+  // the same either way — practice records nothing regardless of the source.
+  const template = isStarterId(templateId)
+    ? getStarter(templateId)
+    : await getPublicTemplateDetail(supabase, templateId);
   if (!template) notFound();
 
   return (

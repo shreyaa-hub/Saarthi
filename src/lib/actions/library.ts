@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { TemplateCanvas, TemplateMedium } from "@/lib/types/canvas";
 import { randomThumbnailColor } from "@/lib/canvas/colors";
 import { getPublicTemplateDetail } from "@/lib/data/library";
+import { getStarter, isStarterId } from "@/lib/canvas/starters";
 
 async function requireClinician(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
@@ -35,6 +37,35 @@ async function requireAuthor(supabase: Awaited<ReturnType<typeof createClient>>)
   return { error: null, user, role: profile.role as "clinician" | "parent" };
 }
 
+// A starter in the shape the import insert and the preview dialog expect, so
+// neither has to know whether it came from code or from the database.
+function starterAsRow(id: string) {
+  const s = getStarter(id);
+  if (!s) return null;
+  return {
+    title: s.title,
+    description: s.description as string | null,
+    domain: s.domain as string,
+    // Widened to the column's own union rather than to plain string: the
+    // insert below types `medium` as that union, and a starter's medium is
+    // always one of its members by construction.
+    medium: s.medium,
+    canvas: s.canvas,
+  };
+}
+
+function starterAsDetail(s: NonNullable<ReturnType<typeof getStarter>>) {
+  return {
+    id: s.id,
+    title: s.title,
+    description: s.description,
+    domain: s.domain as string,
+    medium: s.medium as string,
+    canvas: s.canvas,
+    updated_at: new Date(0).toISOString(),
+  };
+}
+
 export async function setTemplatePublic(templateId: string, isPublic: boolean) {
   const supabase = await createClient();
   const { error } = await supabase.from("templates").update({ is_public: isPublic }).eq("id", templateId);
@@ -58,13 +89,21 @@ export async function importTemplate(templateId: string) {
   const { error: authError, user, role } = await requireAuthor(supabase);
   if (authError || !user) return { error: authError ?? "Not signed in." };
 
-  const { data: original } = await supabase
-    .from("templates")
-    .select("title, description, domain, medium, canvas")
-    .eq("id", templateId)
-    .eq("is_public", true)
-    .is("deleted_at", null)
-    .single();
+  // A starter is a built-in example that lives in code, not a row anybody
+  // owns (see lib/canvas/starters.ts). Importing one is otherwise identical:
+  // the copy below is an ordinary template row owned by the importer, so from
+  // this moment it behaves like anything else in their library.
+  const original = isStarterId(templateId)
+    ? starterAsRow(templateId)
+    : (
+        await supabase
+          .from("templates")
+          .select("title, description, domain, medium, canvas")
+          .eq("id", templateId)
+          .eq("is_public", true)
+          .is("deleted_at", null)
+          .single()
+      ).data;
 
   if (!original) return { error: "That library item is no longer available." };
 
@@ -75,8 +114,8 @@ export async function importTemplate(templateId: string) {
       title: `${original.title} (imported)`,
       description: original.description,
       domain: original.domain,
-      medium: original.medium,
-      canvas: original.canvas,
+      medium: original.medium as TemplateMedium,
+      canvas: original.canvas as TemplateCanvas,
       thumbnail_color: randomThumbnailColor(),
       status: "draft",
       is_public: false,
@@ -124,6 +163,12 @@ export async function deleteAsset(assetId: string) {
 // signed in or not, because templates_public_select governs it — which is the
 // point: a visitor sees what the platform makes before deciding to join.
 export async function loadTemplatePreview(templateId: string) {
+  if (isStarterId(templateId)) {
+    const starter = getStarter(templateId);
+    if (!starter) return { error: "That starter no longer exists.", detail: null };
+    return { error: null, detail: starterAsDetail(starter) };
+  }
+
   const supabase = await createClient();
   const detail = await getPublicTemplateDetail(supabase, templateId);
   if (!detail) return { error: "That library item is no longer available.", detail: null };

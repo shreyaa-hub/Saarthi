@@ -5,6 +5,7 @@ import { homeForRole } from "@/lib/auth/roles";
 import type { TemplateCanvas } from "@/lib/types/canvas";
 import { PrintableCanvas } from "@/components/print/printable-canvas";
 import { PrintBar } from "@/components/print/print-bar";
+import { getStarter, isStarterId } from "@/lib/canvas/starters";
 
 // Printable view of a template, for whoever is allowed to read it.
 //
@@ -24,11 +25,18 @@ export default async function PrintTemplatePage({
   const { templateId } = await params;
   const supabase = await createClient();
 
-  const { data: template } = await supabase
-    .from("templates")
-    .select("id, title, domain, canvas")
-    .eq("id", templateId)
-    .single();
+  // Starters live in code rather than in the table, so a printable starter is
+  // read from there. Nothing else differs: the sheet is rendered from a
+  // TemplateCanvas either way.
+  const template = isStarterId(templateId)
+    ? getStarter(templateId)
+    : (
+        await supabase
+          .from("templates")
+          .select("id, title, domain, canvas")
+          .eq("id", templateId)
+          .single()
+      ).data;
 
   if (!template) notFound();
 
