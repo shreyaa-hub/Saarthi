@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline, CheckSquare, Table2, Pencil, AlignLeft, ThumbsUp, Layers2, Hash } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline, CheckSquare, Table2, Pencil, AlignLeft, ThumbsUp, Layers2, Hash, MoveRight, Minus, Smile, MessageCircle, Info, FileSignature, Grid3x3, Ruler, Star, BookOpen } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import type { CanvasElement, CanvasElementType } from "@/lib/types/canvas";
@@ -30,6 +30,16 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   writingLines: Baseline,
   checklist: CheckSquare,
   table: Table2,
+  arrow: MoveRight,
+  divider: Minus,
+  sticker: Smile,
+  speechBubble: MessageCircle,
+  callout: Info,
+  sheetHeader: FileSignature,
+  letterBoxes: Grid3x3,
+  numberLine: Ruler,
+  rewardStars: Star,
+  wordBank: BookOpen,
 };
 
 // A readable label for a layer row. Falls back to the type name so an element
@@ -60,6 +70,36 @@ function describe(el: CanvasElement): string {
       return el.items[0] || "Checklist";
     case "table":
       return `Table (${el.rows.length} rows)`;
+    case "sticker":
+      return `${el.emoji} Sticker`;
+    case "speechBubble":
+      return el.text || "Speech bubble";
+    case "callout":
+      return el.title || "Grown-up note";
+    case "sheetHeader":
+      return el.fields.join(" · ") || "Name & date";
+    case "letterBoxes":
+      return `Letter boxes (${el.word})`;
+    case "numberLine":
+      return `Number line ${el.from}–${el.to}`;
+    case "rewardStars":
+      return el.label || `${el.total} stars`;
+    case "wordBank":
+      return el.title || "Word bank";
+    case "arrow":
+      return "Arrow";
+    case "divider":
+      return "Divider";
+    case "yesNo":
+      return el.prompt || "Yes or no";
+    case "flashcards":
+      return el.prompt || "Flashcards";
+    case "countTap":
+      return el.prompt || "How many?";
+    case "drawPad":
+      return el.prompt || "Draw / trace";
+    case "longAnswer":
+      return el.prompt || "Written answer";
     default:
       return "Element";
   }

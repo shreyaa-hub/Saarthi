@@ -21,6 +21,16 @@ import type {
   CountTapElement,
   ChecklistElement,
   TableElement,
+  ArrowElement,
+  DividerElement,
+  StickerElement,
+  SpeechBubbleElement,
+  CalloutElement,
+  SheetHeaderElement,
+  LetterBoxesElement,
+  NumberLineElement,
+  RewardStarsElement,
+  WordBankElement,
   InteractiveAppearance,
   ListElement,
   WritingLinesElement,
@@ -474,6 +484,17 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "checklist" && <ChecklistFields element={selected} patch={patch} />}
 
       {selected.type === "table" && <TableFields element={selected} patch={patch} />}
+
+      {selected.type === "arrow" && <ArrowFields element={selected} patch={patch} />}
+      {selected.type === "divider" && <DividerFields element={selected} patch={patch} />}
+      {selected.type === "sticker" && <StickerFields element={selected} patch={patch} />}
+      {selected.type === "speechBubble" && <SpeechBubbleFields element={selected} patch={patch} />}
+      {selected.type === "callout" && <CalloutFields element={selected} patch={patch} />}
+      {selected.type === "sheetHeader" && <SheetHeaderFields element={selected} patch={patch} />}
+      {selected.type === "letterBoxes" && <LetterBoxesFields element={selected} patch={patch} />}
+      {selected.type === "numberLine" && <NumberLineFields element={selected} patch={patch} />}
+      {selected.type === "rewardStars" && <RewardStarsFields element={selected} patch={patch} />}
+      {selected.type === "wordBank" && <WordBankFields element={selected} patch={patch} />}
     </aside>
   );
 }
@@ -1897,6 +1918,393 @@ function TableFields({
       </Field>
       <ColorField label="Text colour" value={element.color} onChange={(v) => patch({ color: v })} />
       <ColorField label="Line colour" value={element.borderColor} onChange={(v) => patch({ borderColor: v })} />
+    </>
+  );
+}
+
+// --- Page furniture ---------------------------------------------------------
+// Each of these edits a plain, unscored block, so they are short: a couple of
+// fields and a colour. Numbers are clamped where a bad value would render
+// something absurd (a thousand stars, a number line with sixty ticks) rather
+// than trusting the input.
+
+function ArrowFields({ element, patch }: { element: ArrowElement; patch: (p: Partial<CanvasElement>) => void }) {
+  return (
+    <>
+      <Field label="Arrowheads">
+        <Select value={element.head} onValueChange={(v) => patch({ head: v as ArrowElement["head"] })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="end">One end</SelectItem>
+            <SelectItem value="both">Both ends</SelectItem>
+            <SelectItem value="none">Plain line</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Thickness">
+        <Input
+          type="number"
+          min={1}
+          max={20}
+          value={element.thickness}
+          onChange={(e) => patch({ thickness: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+        />
+      </Field>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+      <p className="text-[11px] text-muted-foreground">
+        Rotate the element to angle the arrow — the Rotation field above turns it.
+      </p>
+    </>
+  );
+}
+
+function DividerFields({ element, patch }: { element: DividerElement; patch: (p: Partial<CanvasElement>) => void }) {
+  return (
+    <>
+      <Field label="Line style">
+        <Select value={element.style} onValueChange={(v) => patch({ style: v as DividerElement["style"] })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="solid">Solid</SelectItem>
+            <SelectItem value="dashed">Dashed</SelectItem>
+            <SelectItem value="dotted">Dotted</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Thickness">
+        <Input
+          type="number"
+          min={1}
+          max={12}
+          value={element.thickness}
+          onChange={(e) => patch({ thickness: Math.max(1, Math.min(12, Number(e.target.value) || 1)) })}
+        />
+      </Field>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+    </>
+  );
+}
+
+function StickerFields({ element, patch }: { element: StickerElement; patch: (p: Partial<CanvasElement>) => void }) {
+  const QUICK = ["⭐", "🎉", "👍", "❤️", "🐶", "🍎", "☀️", "🚗", "⚽", "🎈", "😀", "🙂"];
+  return (
+    <>
+      <Field label="Emoji">
+        <Input value={element.emoji} onChange={(e) => patch({ emoji: e.target.value })} />
+      </Field>
+      <div className="flex flex-wrap gap-1">
+        {QUICK.map((e) => (
+          <button
+            key={e}
+            type="button"
+            onClick={() => patch({ emoji: e })}
+            className="flex size-8 items-center justify-center rounded-md border border-border text-lg hover:bg-muted cursor-pointer"
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Drag the corner handles to resize it — the sticker fills whatever box you give it.
+      </p>
+    </>
+  );
+}
+
+function SpeechBubbleFields({
+  element,
+  patch,
+}: {
+  element: SpeechBubbleElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="What it says">
+        <Textarea value={element.text} onChange={(e) => patch({ text: e.target.value })} rows={3} />
+      </Field>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="bubble-thought"
+          checked={element.thought}
+          onCheckedChange={(v) => patch({ thought: Boolean(v) })}
+        />
+        <Label htmlFor="bubble-thought" className="text-xs font-normal">
+          Thought bubble (a cloud, not speech)
+        </Label>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Tail">
+          <Select value={element.tail} onValueChange={(v) => patch({ tail: v as SpeechBubbleElement["tail"] })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="left">Left</SelectItem>
+              <SelectItem value="right">Right</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Text size">
+          <Input
+            type="number"
+            min={8}
+            max={48}
+            value={element.fontSize}
+            onChange={(e) => patch({ fontSize: Math.max(8, Number(e.target.value) || 18) })}
+          />
+        </Field>
+      </div>
+      <ColorField label="Bubble colour" value={element.fill} onChange={(fill) => patch({ fill })} />
+      <ColorField label="Text colour" value={element.color} onChange={(color) => patch({ color })} />
+    </>
+  );
+}
+
+function CalloutFields({ element, patch }: { element: CalloutElement; patch: (p: Partial<CanvasElement>) => void }) {
+  return (
+    <>
+      <Field label="Heading">
+        <Input value={element.title} onChange={(e) => patch({ title: e.target.value })} />
+      </Field>
+      <Field label="Note">
+        <Textarea value={element.body} onChange={(e) => patch({ body: e.target.value })} rows={3} />
+      </Field>
+      <Field label="Tone">
+        <Select value={element.tone} onValueChange={(v) => patch({ tone: v as CalloutElement["tone"] })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="note">Note (violet)</SelectItem>
+            <SelectItem value="tip">Tip (green)</SelectItem>
+            <SelectItem value="warning">Watch out (amber)</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Text size">
+        <Input
+          type="number"
+          min={8}
+          max={32}
+          value={element.fontSize}
+          onChange={(e) => patch({ fontSize: Math.max(8, Number(e.target.value) || 15) })}
+        />
+      </Field>
+      <p className="text-[11px] text-muted-foreground">
+        Tinted on purpose, so a child can see at a glance which words on the page are not for them.
+      </p>
+    </>
+  );
+}
+
+function SheetHeaderFields({
+  element,
+  patch,
+}: {
+  element: SheetHeaderElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const setField = (i: number, value: string) =>
+    patch({ fields: element.fields.map((f, idx) => (idx === i ? value : f)) });
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Fields</Label>
+        {element.fields.map((f, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input value={f} onChange={(e) => setField(i, e.target.value)} className="flex-1" />
+            <button
+              type="button"
+              onClick={() => patch({ fields: element.fields.filter((_, idx) => idx !== i) })}
+              className="text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ fields: [...element.fields, "Field"] })}
+        >
+          <Plus className="size-3.5" /> Add field
+        </Button>
+      </div>
+      <Field label="Text size">
+        <Input
+          type="number"
+          min={8}
+          max={32}
+          value={element.fontSize}
+          onChange={(e) => patch({ fontSize: Math.max(8, Number(e.target.value) || 16) })}
+        />
+      </Field>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+    </>
+  );
+}
+
+function LetterBoxesFields({
+  element,
+  patch,
+}: {
+  element: LetterBoxesElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Word">
+        <Input value={element.word} onChange={(e) => patch({ word: e.target.value })} />
+      </Field>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="lb-show"
+          checked={element.showLetters}
+          onCheckedChange={(v) => patch({ showLetters: Boolean(v) })}
+        />
+        <Label htmlFor="lb-show" className="text-xs font-normal">
+          Print the letters faintly, for tracing
+        </Label>
+      </div>
+      <Field label="Box size">
+        <Input
+          type="number"
+          min={16}
+          max={120}
+          value={element.boxSize}
+          onChange={(e) => patch({ boxSize: Math.max(16, Math.min(120, Number(e.target.value) || 44)) })}
+        />
+      </Field>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+      <p className="text-[11px] text-muted-foreground">
+        A space in the word becomes a gap between words rather than a box to write in.
+      </p>
+    </>
+  );
+}
+
+function NumberLineFields({
+  element,
+  patch,
+}: {
+  element: NumberLineElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="From">
+          <Input
+            type="number"
+            value={element.from}
+            onChange={(e) => patch({ from: Math.round(Number(e.target.value) || 0) })}
+          />
+        </Field>
+        <Field label="To">
+          <Input
+            type="number"
+            value={element.to}
+            onChange={(e) => patch({ to: Math.round(Number(e.target.value) || 10) })}
+          />
+        </Field>
+        <Field label="Step">
+          <Input
+            type="number"
+            min={1}
+            value={element.step}
+            onChange={(e) => patch({ step: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
+          />
+        </Field>
+      </div>
+      <Field label="Text size">
+        <Input
+          type="number"
+          min={8}
+          max={28}
+          value={element.fontSize}
+          onChange={(e) => patch({ fontSize: Math.max(8, Number(e.target.value) || 14) })}
+        />
+      </Field>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+      <p className="text-[11px] text-muted-foreground">
+        Capped at 60 marks, so a small step over a wide range stays readable.
+      </p>
+    </>
+  );
+}
+
+function RewardStarsFields({
+  element,
+  patch,
+}: {
+  element: RewardStarsElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Label">
+        <Input value={element.label} onChange={(e) => patch({ label: e.target.value })} />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Stars">
+          <Input
+            type="number"
+            min={1}
+            max={30}
+            value={element.total}
+            onChange={(e) => patch({ total: Math.max(1, Math.min(30, Number(e.target.value) || 5)) })}
+          />
+        </Field>
+        <Field label="Already earned">
+          <Input
+            type="number"
+            min={0}
+            max={element.total}
+            value={element.earned}
+            onChange={(e) => patch({ earned: Math.max(0, Number(e.target.value) || 0) })}
+          />
+        </Field>
+      </div>
+      <ColorField label="Colour" value={element.color} onChange={(color) => patch({ color })} />
+      <p className="text-[11px] text-muted-foreground">
+        Earned stars are filled in; the rest print as outlines for the child to colour.
+      </p>
+    </>
+  );
+}
+
+function WordBankFields({
+  element,
+  patch,
+}: {
+  element: WordBankElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Heading">
+        <Input value={element.title} onChange={(e) => patch({ title: e.target.value })} />
+      </Field>
+      <Field label="Words (one per line)">
+        <Textarea
+          value={element.words.join("\n")}
+          onChange={(e) =>
+            patch({ words: e.target.value.split("\n").map((w) => w.trim()).filter(Boolean) })
+          }
+          rows={5}
+        />
+      </Field>
+      <Field label="Text size">
+        <Input
+          type="number"
+          min={8}
+          max={32}
+          value={element.fontSize}
+          onChange={(e) => patch({ fontSize: Math.max(8, Number(e.target.value) || 17) })}
+        />
+      </Field>
+      <ColorField label="Text colour" value={element.color} onChange={(color) => patch({ color })} />
+      <ColorField label="Border colour" value={element.borderColor} onChange={(borderColor) => patch({ borderColor })} />
     </>
   );
 }

@@ -26,6 +26,16 @@ import {
   ThumbsUp,
   Layers2,
   Hash,
+  MoveRight,
+  Minus,
+  Smile,
+  MessageCircle,
+  Info,
+  FileSignature,
+  Grid3x3,
+  Ruler,
+  Star,
+  BookOpen,
   ListChecks as ChecklistIcon,
   Table2,
 } from "lucide-react";
@@ -64,6 +74,16 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   writingLines: Baseline,
   checklist: ChecklistIcon,
   table: Table2,
+  arrow: MoveRight,
+  divider: Minus,
+  sticker: Smile,
+  speechBubble: MessageCircle,
+  callout: Info,
+  sheetHeader: FileSignature,
+  letterBoxes: Grid3x3,
+  numberLine: Ruler,
+  rewardStars: Star,
+  wordBank: BookOpen,
 };
 
 const GROUP_LABELS: Record<string, string> = {

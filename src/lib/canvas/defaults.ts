@@ -25,6 +25,16 @@ import type {
   WritingLinesElement,
   ChecklistElement,
   TableElement,
+  ArrowElement,
+  DividerElement,
+  StickerElement,
+  SpeechBubbleElement,
+  CalloutElement,
+  SheetHeaderElement,
+  LetterBoxesElement,
+  NumberLineElement,
+  RewardStarsElement,
+  WordBankElement,
 } from "@/lib/types/canvas";
 
 const id = () => nanoid(8);
@@ -348,6 +358,124 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         borderColor: "#c9bfae",
       } satisfies TableElement;
 
+    case "arrow":
+      return {
+        ...base,
+        type: "arrow",
+        w: 200,
+        h: 40,
+        color: "#2a2420",
+        thickness: 3,
+        head: "end",
+      } satisfies ArrowElement;
+
+    case "divider":
+      return {
+        ...base,
+        type: "divider",
+        w: 520,
+        h: 24,
+        color: "#c9bfae",
+        thickness: 2,
+        style: "solid",
+      } satisfies DividerElement;
+
+    case "sticker":
+      return {
+        ...base,
+        type: "sticker",
+        w: 96,
+        h: 96,
+        emoji: "⭐",
+      } satisfies StickerElement;
+
+    case "speechBubble":
+      return {
+        ...base,
+        type: "speechBubble",
+        w: 260,
+        h: 140,
+        text: "What do you say?",
+        fontSize: 18,
+        color: "#2a2420",
+        fill: "#ede9fe",
+        tail: "left",
+        thought: false,
+      } satisfies SpeechBubbleElement;
+
+    case "callout":
+      return {
+        ...base,
+        type: "callout",
+        w: 460,
+        h: 110,
+        title: "For the grown-up",
+        body: "Say each word first and let them copy you.",
+        tone: "note",
+        fontSize: 15,
+      } satisfies CalloutElement;
+
+    case "sheetHeader":
+      return {
+        ...base,
+        type: "sheetHeader",
+        w: 620,
+        h: 48,
+        fields: ["Name", "Date"],
+        fontSize: 16,
+        color: "#2a2420",
+      } satisfies SheetHeaderElement;
+
+    case "letterBoxes":
+      return {
+        ...base,
+        type: "letterBoxes",
+        w: 400,
+        h: 60,
+        word: "sun",
+        showLetters: false,
+        boxSize: 44,
+        color: "#2a2420",
+      } satisfies LetterBoxesElement;
+
+    case "numberLine":
+      return {
+        ...base,
+        type: "numberLine",
+        w: 560,
+        h: 70,
+        from: 0,
+        to: 10,
+        step: 1,
+        color: "#2a2420",
+        fontSize: 14,
+      } satisfies NumberLineElement;
+
+    case "rewardStars":
+      return {
+        ...base,
+        type: "rewardStars",
+        w: 400,
+        h: 70,
+        total: 5,
+        earned: 0,
+        color: "#7c3aed",
+        label: "My stars",
+      } satisfies RewardStarsElement;
+
+    case "wordBank":
+      return {
+        ...base,
+        type: "wordBank",
+        w: 440,
+        h: 140,
+        title: "Word bank",
+        words: ["in", "on", "under", "behind"],
+        fontSize: 17,
+        color: "#2a2420",
+        borderColor: "#c9bfae",
+      } satisfies WordBankElement;
+
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown element type: ${_exhaustive}`);
@@ -392,6 +520,16 @@ export const ELEMENT_LIBRARY: {
   { type: "yesNo", label: "Yes or no", group: "interactive", surfaces: ["activity"] },
   { type: "flashcards", label: "Flashcards", group: "interactive", surfaces: ["activity"] },
   { type: "countTap", label: "How many?", group: "interactive", surfaces: ["activity"] },
+  { type: "arrow", label: "Arrow", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "divider", label: "Divider", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "sticker", label: "Sticker", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "speechBubble", label: "Speech bubble", group: "content", surfaces: ["activity", "worksheet"] },
+  { type: "callout", label: "Grown-up note", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "sheetHeader", label: "Name & date", group: "worksheet", surfaces: ["worksheet"] },
+  { type: "letterBoxes", label: "Letter boxes", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "numberLine", label: "Number line", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "rewardStars", label: "Reward stars", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "wordBank", label: "Word bank", group: "worksheet", surfaces: ["activity", "worksheet"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {

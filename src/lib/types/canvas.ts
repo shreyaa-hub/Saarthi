@@ -432,6 +432,115 @@ export type WritingLinesElement = ElementBase & {
   guide: "single" | "dotted-midline"; // dotted-midline = handwriting practice ruling
 };
 
+// A straight line, optionally with an arrowhead. The one piece of page
+// furniture nothing else could stand in for: pointing at something, or
+// connecting two things a clinician has laid out, previously meant drawing a
+// very thin rectangle.
+export type ArrowElement = ElementBase & {
+  type: "arrow";
+  color: string;
+  thickness: number;
+  head: "none" | "end" | "both";
+};
+
+// A horizontal rule across the page, for separating sections of a worksheet.
+// Distinct from `arrow` because it is about structure rather than pointing,
+// and it carries a style a rule wants and a pointer does not.
+export type DividerElement = ElementBase & {
+  type: "divider";
+  color: string;
+  thickness: number;
+  style: "solid" | "dashed" | "dotted";
+};
+
+// A single large emoji. Sounds trivial; it is the cheapest way to put a
+// recognisable picture on a page, and it needs no upload, no storage and no
+// network — which matters for a clinician building a worksheet on a phone
+// between sessions.
+export type StickerElement = ElementBase & {
+  type: "sticker";
+  emoji: string;
+};
+
+// Text in a speech or thought bubble. Comic-strip social stories are a
+// standard pragmatics tool, and they need a bubble that actually contains its
+// own words — the existing speech-bubble shape is a background with no text.
+export type SpeechBubbleElement = ElementBase & {
+  type: "speechBubble";
+  text: string;
+  fontSize: number;
+  color: string;
+  fill: string;
+  tail: "left" | "right" | "none";
+  thought: boolean; // round scallops and dots, for what a character is thinking
+};
+
+// A tinted box with a heading, for the instruction to the adult running the
+// sheet. Visually separated on purpose: the child should be able to tell at a
+// glance which words on the page are not for them.
+export type CalloutElement = ElementBase & {
+  type: "callout";
+  title: string;
+  body: string;
+  tone: "note" | "tip" | "warning";
+  fontSize: number;
+};
+
+// Name and date rules across the top of a sheet. Every printed worksheet in
+// every clinic has these, and drawing them by hand out of text elements and
+// lines was several minutes of fiddling per sheet.
+export type SheetHeaderElement = ElementBase & {
+  type: "sheetHeader";
+  fields: string[];
+  fontSize: number;
+  color: string;
+};
+
+// One box per character, for handwriting and spelling. `word` is the answer
+// the child writes; `showLetters` prints it faintly for tracing, or leaves the
+// boxes empty for recall.
+export type LetterBoxesElement = ElementBase & {
+  type: "letterBoxes";
+  word: string;
+  showLetters: boolean;
+  boxSize: number;
+  color: string;
+};
+
+// A ruled number line. Counting, number recognition and simple arithmetic all
+// use one, and it has to be drawn to scale — which is exactly what a clinician
+// cannot do by hand out of text boxes.
+export type NumberLineElement = ElementBase & {
+  type: "numberLine";
+  from: number;
+  to: number;
+  step: number;
+  color: string;
+  fontSize: number;
+};
+
+// A row of stars to colour in as the child earns them. Token boards are one of
+// the most-used pieces of paper in paediatric therapy, and there was no way to
+// make one that did not involve drawing ten identical shapes by hand.
+export type RewardStarsElement = ElementBase & {
+  type: "rewardStars";
+  total: number;
+  earned: number;
+  color: string;
+  label: string;
+};
+
+// A boxed list of words to choose from when filling in blanks. Always
+// unscored — it is the pool the answers come from, printed on the page.
+export type WordBankElement = ElementBase & {
+  type: "wordBank";
+  title: string;
+  words: string[];
+  fontSize: number;
+  color: string;
+  borderColor: string;
+};
+
 export type CanvasElement =
   | TextElement
   | ImageElement
@@ -455,7 +564,17 @@ export type CanvasElement =
   | ListElement
   | WritingLinesElement
   | ChecklistElement
-  | TableElement;
+  | TableElement
+  | ArrowElement
+  | DividerElement
+  | StickerElement
+  | SpeechBubbleElement
+  | CalloutElement
+  | SheetHeaderElement
+  | LetterBoxesElement
+  | NumberLineElement
+  | RewardStarsElement
+  | WordBankElement;
 
 export type CanvasElementType = CanvasElement["type"];
 

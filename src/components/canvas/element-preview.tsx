@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, Hash, ArrowRight } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
-import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
+import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "./hotspot-frame";
@@ -606,6 +606,39 @@ export function ElementPreview({
 
     case "table":
       return <TableBlock element={element} />;
+
+    // Page furniture. Unscored, so the same block serves the authoring
+    // canvas, the player and the printed sheet — the print output cannot
+    // drift from what the author saw.
+    case "arrow":
+      return <ArrowBlock element={element} />;
+
+    case "divider":
+      return <DividerBlock element={element} />;
+
+    case "sticker":
+      return <StickerBlock element={element} />;
+
+    case "speechBubble":
+      return <SpeechBubbleBlock element={element} />;
+
+    case "callout":
+      return <CalloutBlock element={element} />;
+
+    case "sheetHeader":
+      return <SheetHeaderBlock element={element} />;
+
+    case "letterBoxes":
+      return <LetterBoxesBlock element={element} />;
+
+    case "numberLine":
+      return <NumberLineBlock element={element} />;
+
+    case "rewardStars":
+      return <RewardStarsBlock element={element} />;
+
+    case "wordBank":
+      return <WordBankBlock element={element} />;
 
     default:
       return null;
