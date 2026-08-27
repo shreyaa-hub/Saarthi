@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline, CheckSquare, Table2 } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import type { CanvasElement, CanvasElementType } from "@/lib/types/canvas";
@@ -23,6 +23,8 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   practiceDrill: Repeat2,
   list: List,
   writingLines: Baseline,
+  checklist: CheckSquare,
+  table: Table2,
 };
 
 // A readable label for a layer row. Falls back to the type name so an element
@@ -49,6 +51,10 @@ function describe(el: CanvasElement): string {
       return el.shape;
     case "writingLines":
       return `Writing lines (${el.lines})`;
+    case "checklist":
+      return el.items[0] || "Checklist";
+    case "table":
+      return `Table (${el.rows.length} rows)`;
     default:
       return "Element";
   }

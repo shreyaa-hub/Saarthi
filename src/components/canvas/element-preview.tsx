@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2 } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
-import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
+import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "./hotspot-frame";
@@ -17,12 +17,18 @@ import { cn } from "@/lib/utils";
 // frame rather than over the whole element: the frame is only as big as the
 // rendered picture, so an overlay positioned against the element would put
 // targets somewhere else entirely from where the patient sees them.
+// hideAnswers strips the answer key from the types that show it. On the
+// authoring canvas revealing the correct option is the point — the clinician
+// is checking their own work. On a sheet printed for a patient it hands them
+// the answers, so the print view sets this.
 export function ElementPreview({
   element,
   hotspotOverlay,
+  hideAnswers = false,
 }: {
   element: CanvasElement;
   hotspotOverlay?: ReactNode;
+  hideAnswers?: boolean;
 }) {
   switch (element.type) {
     case "text":
@@ -114,7 +120,9 @@ export function ElementPreview({
                 key={o.id}
                 className={cn(
                   "truncate rounded-md border px-2 py-1",
-                  o.correct ? "border-success/40 bg-success/10 text-success" : "border-border",
+                  o.correct && !hideAnswers
+                    ? "border-success/40 bg-success/10 text-success"
+                    : "border-border",
                 )}
               >
                 {o.label}
@@ -137,7 +145,9 @@ export function ElementPreview({
               </span>
             ))}
           </p>
-          <p className="text-xs text-muted-foreground">Answer: {element.answer}</p>
+          {!hideAnswers && (
+            <p className="text-xs text-muted-foreground">Answer: {element.answer}</p>
+          )}
         </div>
       );
 
@@ -195,7 +205,12 @@ export function ElementPreview({
               .sort((a, b) => a.order - b.order)
               .map((it, i) => (
                 <div key={it.id} className="flex items-center gap-2 truncate rounded-md border border-border px-2 py-1">
-                  <span className="font-semibold text-primary">{i + 1}.</span> {it.label}
+                  {/* The number IS the answer to a sequencing task, so on a
+                      printed sheet it becomes an empty box to write in. */}
+                  <span className="font-semibold text-primary">
+                    {hideAnswers ? "☐" : `${i + 1}.`}
+                  </span>{" "}
+                  {it.label}
                 </div>
               ))}
           </div>
@@ -221,8 +236,10 @@ export function ElementPreview({
             {element.categories.map((c) => (
               <div key={c.id} className="flex flex-col gap-1 overflow-hidden">
                 <p className="truncate font-semibold text-muted-foreground">{c.label}</p>
+                {/* Grouping each item under its own category is the answer
+                    key; a printed sheet shows empty columns to write into. */}
                 {element.items
-                  .filter((it) => it.categoryId === c.id)
+                  .filter((it) => (hideAnswers ? false : it.categoryId === c.id))
                   .map((it) => (
                     <div
                       key={it.id}
@@ -302,7 +319,7 @@ export function ElementPreview({
           </div>
           <p className="overflow-hidden text-xs leading-relaxed text-muted-foreground">
             {tokens.map((token, i) =>
-              targets.has(i) ? (
+              targets.has(i) && !hideAnswers ? (
                 <span key={i} className="rounded bg-success/20 px-0.5 text-success">
                   {token}
                 </span>
@@ -390,6 +407,12 @@ export function ElementPreview({
 
     case "writingLines":
       return <WritingLinesBlock element={element} />;
+
+    case "checklist":
+      return <ChecklistBlock element={element} />;
+
+    case "table":
+      return <TableBlock element={element} />;
 
     default:
       return null;

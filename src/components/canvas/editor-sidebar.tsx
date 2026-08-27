@@ -21,6 +21,8 @@ import {
   SearchCheck,
   ScanSearch,
   Repeat2,
+  ListChecks as ChecklistIcon,
+  Table2,
 } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
@@ -50,6 +52,8 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   practiceDrill: Repeat2,
   list: List,
   writingLines: Baseline,
+  checklist: ChecklistIcon,
+  table: Table2,
 };
 
 const GROUP_LABELS: Record<string, string> = {

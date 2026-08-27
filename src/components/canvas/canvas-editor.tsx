@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2, Keyboard } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2, Keyboard, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useCanvasStore, useCanvasStoreInstance } from "@/lib/canvas/store";
 import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } from "@/lib/types/canvas";
@@ -342,6 +342,20 @@ export function CanvasEditor({
           >
             <Keyboard className="size-4" />
           </button>
+          {/* Print/PDF opens the template's own printable page in a new tab,
+              so the editor keeps its unsaved state. Hidden in guest mode:
+              there is no saved template row for that page to read, since a
+              guest draft only exists in their own browser. Deliberately not
+              gated on medium either — a clinician printing an activity to
+              work through on paper is a real thing, and the print view
+              already strips the answer key. */}
+          {!guest && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`/print/template/${template.id}`} target="_blank" rel="noopener noreferrer">
+                <Printer className="size-3.5" /> Print / PDF
+              </a>
+            </Button>
+          )}
           {guest ? (
             <Button size="sm" onClick={guest.onSignUpPrompt}>
               Save this

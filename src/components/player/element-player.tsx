@@ -5,7 +5,7 @@ import { Volume2, Check, X, Brain, Plus, Minus } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
-import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
+import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
 import { seededShuffle } from "@/lib/canvas/shuffle";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
@@ -216,6 +216,12 @@ export function ElementPlayer({
 
     case "writingLines":
       return <WritingLinesBlock element={element} />;
+
+    case "checklist":
+      return <ChecklistBlock element={element} />;
+
+    case "table":
+      return <TableBlock element={element} />;
 
     default:
       return null;

@@ -264,6 +264,31 @@ export type ListElement = ElementBase & {
   lineGap: number;
 };
 
+// Tick boxes down the page — a home-practice log, a session checklist, a
+// consent form. Static like every worksheet element: the boxes are drawn
+// empty and ticked with a pen, so there is nothing to score.
+export type ChecklistElement = ElementBase & {
+  type: "checklist";
+  items: string[];
+  fontSize: number;
+  color: string;
+  lineGap: number;
+  boxSize: number;
+};
+
+// A ruled grid for anything a form collects in columns — dates against
+// trials, a frequency tally, a home-practice record. rows[0] is the header
+// when headerRow is true, so the shape stays one plain array of arrays
+// rather than a header that has to be kept the same width as the body.
+export type TableElement = ElementBase & {
+  type: "table";
+  rows: string[][];
+  headerRow: boolean;
+  fontSize: number;
+  color: string;
+  borderColor: string;
+};
+
 // Ruled lines for handwriting practice. Rendered as real lines rather than a
 // background image so they stay crisp at any zoom and in print.
 export type WritingLinesElement = ElementBase & {
@@ -290,7 +315,9 @@ export type CanvasElement =
   | ImageHotspotsElement
   | PracticeDrillElement
   | ListElement
-  | WritingLinesElement;
+  | WritingLinesElement
+  | ChecklistElement
+  | TableElement;
 
 export type CanvasElementType = CanvasElement["type"];
 

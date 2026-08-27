@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
-import { ClipboardList, Play, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Play, CheckCircle2, Printer } from "lucide-react";
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
   completed: "success",
@@ -70,11 +70,22 @@ export default async function PatientDashboardPage() {
                   <p className="text-xs text-muted-foreground">
                     {a.due_date ? `Due ${formatDate(a.due_date)}` : "No due date"}
                   </p>
-                  <Button asChild>
-                    <Link href={`/patient/activity/${a.id}`}>
-                      <Play className="size-4" /> Start
-                    </Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button asChild className="flex-1">
+                      <Link href={`/patient/activity/${a.id}`}>
+                        <Play className="size-4" /> Start
+                      </Link>
+                    </Button>
+                    {/* Patients had no way to reach a printable copy at all.
+                        It prints the assignment's own snapshot, so it is the
+                        version they were given rather than whatever the
+                        template has since become. */}
+                    <Button asChild variant="outline" size="icon" title="Print or save as PDF">
+                      <Link href={`/print/assignment/${a.id}`} aria-label={`Print ${a.title}`}>
+                        <Printer className="size-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -92,10 +103,15 @@ export default async function PatientDashboardPage() {
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
                     <CheckCircle2 className="size-4" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{a.title}</p>
                     <p className="text-xs text-muted-foreground">Completed {formatDate(a.created_at)}</p>
                   </div>
+                  <Button asChild variant="ghost" size="icon" title="Print or save as PDF">
+                    <Link href={`/print/assignment/${a.id}`} aria-label={`Print ${a.title}`}>
+                      <Printer className="size-4" />
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
             ))}

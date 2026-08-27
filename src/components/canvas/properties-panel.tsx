@@ -14,6 +14,8 @@ import type {
   WordHuntElement,
   ImageHotspotsElement,
   PracticeDrillElement,
+  ChecklistElement,
+  TableElement,
   InteractiveAppearance,
   ListElement,
   WritingLinesElement,
@@ -417,6 +419,10 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "list" && <ListFields element={selected} patch={patch} />}
 
       {selected.type === "writingLines" && <WritingLinesFields element={selected} patch={patch} />}
+
+      {selected.type === "checklist" && <ChecklistFields element={selected} patch={patch} />}
+
+      {selected.type === "table" && <TableFields element={selected} patch={patch} />}
     </aside>
   );
 }
@@ -1297,6 +1303,168 @@ function PracticeDrillFields({
           <Plus className="size-3.5" /> Add word
         </Button>
       </div>
+    </>
+  );
+}
+
+function ChecklistFields({
+  element,
+  patch,
+}: {
+  element: ChecklistElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const setItem = (i: number, value: string) => {
+    patch({ items: element.items.map((it, idx) => (idx === i ? value : it)) });
+  };
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Tick-box items</Label>
+        {element.items.map((item, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input value={item} onChange={(e) => setItem(i, e.target.value)} className="flex-1" />
+            <button
+              type="button"
+              onClick={() => patch({ items: element.items.filter((_, idx) => idx !== i) })}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ items: [...element.items, "New item"] })}
+        >
+          <Plus className="size-3.5" /> Add item
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Text size">
+          <Input
+            type="number"
+            value={element.fontSize}
+            onChange={(e) => patch({ fontSize: Number(e.target.value) || element.fontSize })}
+          />
+        </Field>
+        <Field label="Box size">
+          <Input
+            type="number"
+            value={element.boxSize}
+            onChange={(e) => patch({ boxSize: Number(e.target.value) || element.boxSize })}
+          />
+        </Field>
+        <Field label="Line gap">
+          <Input
+            type="number"
+            value={element.lineGap}
+            onChange={(e) => patch({ lineGap: Number(e.target.value) || element.lineGap })}
+          />
+        </Field>
+      </div>
+      <ColorField label="Colour" value={element.color} onChange={(v) => patch({ color: v })} />
+    </>
+  );
+}
+
+function TableFields({
+  element,
+  patch,
+}: {
+  element: TableElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const columns = Math.max(1, ...element.rows.map((r) => r.length));
+
+  const setCell = (r: number, c: number, value: string) => {
+    patch({
+      rows: element.rows.map((row, ri) =>
+        ri === r ? Array.from({ length: columns }, (_, ci) => (ci === c ? value : row[ci] ?? "")) : row,
+      ),
+    });
+  };
+
+  // Every row is normalised to the same width whenever the shape changes, so
+  // a ragged rows array can never reach the renderer and leave a hole in the
+  // grid where a cell should be.
+  const setColumns = (next: number) => {
+    if (next < 1) return;
+    patch({
+      rows: element.rows.map((row) => Array.from({ length: next }, (_, ci) => row[ci] ?? "")),
+    });
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="table-header"
+          checked={element.headerRow}
+          onCheckedChange={(v) => patch({ headerRow: Boolean(v) })}
+        />
+        <Label htmlFor="table-header" className="text-xs font-normal">
+          First row is a header
+        </Label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setColumns(columns - 1)}>
+          − Column
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setColumns(columns + 1)}>
+          <Plus className="size-3.5" /> Column
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Rows</Label>
+        {element.rows.map((row, r) => (
+          <div key={r} className="flex items-start gap-1.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              {Array.from({ length: columns }, (_, c) => (
+                <Input
+                  key={c}
+                  value={row[c] ?? ""}
+                  placeholder={element.headerRow && r === 0 ? `Heading ${c + 1}` : `Cell ${c + 1}`}
+                  onChange={(e) => setCell(r, c, e.target.value)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => patch({ rows: element.rows.filter((_, ri) => ri !== r) })}
+              disabled={element.rows.length <= 1}
+              className="mt-1 shrink-0 text-muted-foreground hover:text-destructive cursor-pointer disabled:opacity-30"
+              aria-label={`Delete row ${r + 1}`}
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ rows: [...element.rows, Array.from({ length: columns }, () => "")] })}
+        >
+          <Plus className="size-3.5" /> Add row
+        </Button>
+      </div>
+
+      <Field label="Text size">
+        <Input
+          type="number"
+          value={element.fontSize}
+          onChange={(e) => patch({ fontSize: Number(e.target.value) || element.fontSize })}
+        />
+      </Field>
+      <ColorField label="Text colour" value={element.color} onChange={(v) => patch({ color: v })} />
+      <ColorField label="Line colour" value={element.borderColor} onChange={(v) => patch({ borderColor: v })} />
     </>
   );
 }

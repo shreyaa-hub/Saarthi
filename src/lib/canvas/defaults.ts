@@ -18,6 +18,8 @@ import type {
   PracticeDrillElement,
   ListElement,
   WritingLinesElement,
+  ChecklistElement,
+  TableElement,
 } from "@/lib/types/canvas";
 
 const id = () => nanoid(8);
@@ -249,6 +251,37 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         guide: "single",
       } satisfies WritingLinesElement;
 
+    case "checklist":
+      return {
+        ...base,
+        type: "checklist",
+        w: 420,
+        h: 200,
+        items: ["First task", "Second task", "Third task"],
+        fontSize: 18,
+        color: "#2a2420",
+        lineGap: 16,
+        boxSize: 18,
+      } satisfies ChecklistElement;
+
+    case "table":
+      return {
+        ...base,
+        type: "table",
+        w: 520,
+        h: 200,
+        headerRow: true,
+        rows: [
+          ["Day", "Practised", "Notes"],
+          ["Monday", "", ""],
+          ["Tuesday", "", ""],
+          ["Wednesday", "", ""],
+        ],
+        fontSize: 15,
+        color: "#2a2420",
+        borderColor: "#c9bfae",
+      } satisfies TableElement;
+
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown element type: ${_exhaustive}`);
@@ -277,6 +310,8 @@ export const ELEMENT_LIBRARY: {
   { type: "button", label: "Button", group: "content", surfaces: ["activity"] },
   { type: "list", label: "List", group: "worksheet", surfaces: ["activity", "worksheet"] },
   { type: "writingLines", label: "Writing lines", group: "worksheet", surfaces: ["worksheet"] },
+  { type: "checklist", label: "Checklist", group: "worksheet", surfaces: ["activity", "worksheet"] },
+  { type: "table", label: "Table", group: "worksheet", surfaces: ["activity", "worksheet"] },
   { type: "multipleChoice", label: "Multiple choice", group: "interactive", surfaces: ["activity"] },
   { type: "fillBlank", label: "Fill in the blank", group: "interactive", surfaces: ["activity"] },
   { type: "dragMatch", label: "Drag to match", group: "interactive", surfaces: ["activity"] },

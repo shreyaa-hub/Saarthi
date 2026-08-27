@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Trash2, Loader2, Printer, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,9 +77,17 @@ export function SavedWorksheetList({
               <Badge variant="outline">{row.templates?.domain}</Badge>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.print()} className="flex-1">
-                <Printer className="size-4" /> Print
-              </Button>
+              {/* Opens the worksheet's own printable page rather than
+                  calling window.print() here — this component is a grid of
+                  cards on the dashboard, so printing in place produced a
+                  sheet of card thumbnails instead of the worksheet. */}
+              {row.templates && (
+                <Button asChild variant="outline" size="sm" className="flex-1">
+                  <Link href={`/print/template/${row.templates.id}`}>
+                    <Printer className="size-4" /> Print / PDF
+                  </Link>
+                </Button>
+              )}
               {childList.length > 0 && row.templates && (
                 <Button
                   variant="outline"
