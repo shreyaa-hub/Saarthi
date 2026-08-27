@@ -16,6 +16,8 @@ import type {
   WordHuntElement,
   ImageHotspotsElement,
   PracticeDrillElement,
+  DrawPadElement,
+  LongAnswerElement,
   ListElement,
   WritingLinesElement,
   ChecklistElement,
@@ -226,6 +228,29 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         ],
       } satisfies PracticeDrillElement;
 
+    case "drawPad":
+      return {
+        ...base,
+        type: "drawPad",
+        w: 420,
+        h: 300,
+        prompt: "Draw or trace here.",
+        strokeColor: "#2a2420",
+        strokeWidth: 4,
+      } satisfies DrawPadElement;
+
+    case "longAnswer":
+      return {
+        ...base,
+        type: "longAnswer",
+        w: 420,
+        h: 200,
+        prompt: "Tell me what is happening in the picture.",
+        placeholder: "Write your answer here…",
+        minWords: 0,
+        lines: 5,
+      } satisfies LongAnswerElement;
+
     case "list":
       return {
         ...base,
@@ -321,6 +346,8 @@ export const ELEMENT_LIBRARY: {
   { type: "wordHunt", label: "Word hunt", group: "interactive", surfaces: ["activity"] },
   { type: "imageHotspots", label: "Find in picture", group: "interactive", surfaces: ["activity"] },
   { type: "practiceDrill", label: "Practice drill", group: "interactive", surfaces: ["activity"] },
+  { type: "drawPad", label: "Draw / trace", group: "interactive", surfaces: ["activity"] },
+  { type: "longAnswer", label: "Written answer", group: "interactive", surfaces: ["activity"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {

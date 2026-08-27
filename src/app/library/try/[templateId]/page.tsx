@@ -31,6 +31,7 @@ export default async function LibraryTryPage({
       practice
       backHref="/library/templates"
       backLabel="the library"
+      printHref={`/print/template/${template.id}`}
     />
   );
 }

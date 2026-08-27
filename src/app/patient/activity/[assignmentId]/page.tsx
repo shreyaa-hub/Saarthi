@@ -20,6 +20,7 @@ export default async function ActivityPlayPage({
       title={assignment.title}
       canvas={assignment.canvas_snapshot}
       alreadyCompleted={assignment.status === "completed"}
+      printHref={`/print/assignment/${assignment.id}`}
     />
   );
 }

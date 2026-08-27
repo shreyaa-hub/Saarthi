@@ -10,6 +10,8 @@ import type {
   WordHuntElement,
   ImageHotspotsElement,
   PracticeDrillElement,
+  DrawPadElement,
+  LongAnswerElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -323,6 +325,70 @@ describe("isElementCorrect: practiceDrill", () => {
   it("is incomplete when a word is short or missing", () => {
     expect(isElementCorrect(el, { w1: 5 })).toBe(false);
     expect(isElementCorrect(el, {})).toBe(false);
+  });
+});
+
+// Both of these are unmarked by design — a drawing and a language sample
+// have no key a computer can check — so what these tests pin down is the
+// "did the patient actually do it" bar, which is the only thing scoring can
+// honestly say about them.
+describe("isElementCorrect: drawPad", () => {
+  const el: DrawPadElement = {
+    ...base,
+    type: "drawPad",
+    prompt: "Trace the letter",
+    strokeColor: "#000000",
+    strokeWidth: 4,
+  };
+
+  it("counts a stroke that travelled as an attempt", () => {
+    expect(isElementCorrect(el, [[{ x: 0.1, y: 0.1 }, { x: 0.4, y: 0.5 }]])).toBe(true);
+  });
+
+  it("does not count a single-point stroke, which is a stray tap", () => {
+    expect(isElementCorrect(el, [[{ x: 0.1, y: 0.1 }]])).toBe(false);
+  });
+
+  it("is incomplete with nothing drawn", () => {
+    expect(isElementCorrect(el, [])).toBe(false);
+    expect(isElementCorrect(el, undefined)).toBe(false);
+  });
+
+  it("ignores junk in the response rather than throwing", () => {
+    expect(isElementCorrect(el, "scribble")).toBe(false);
+    expect(isElementCorrect(el, [null, 7])).toBe(false);
+  });
+});
+
+describe("isElementCorrect: longAnswer", () => {
+  const anyAnswer: LongAnswerElement = {
+    ...base,
+    type: "longAnswer",
+    prompt: "Tell me about the picture",
+    placeholder: "",
+    minWords: 0,
+    lines: 5,
+  };
+  const sentence: LongAnswerElement = { ...anyAnswer, minWords: 5 };
+
+  it("accepts any writing when no minimum is set", () => {
+    expect(isElementCorrect(anyAnswer, "dog")).toBe(true);
+  });
+
+  it("does not accept an empty or whitespace-only answer", () => {
+    expect(isElementCorrect(anyAnswer, "")).toBe(false);
+    expect(isElementCorrect(anyAnswer, "   \n  ")).toBe(false);
+    expect(isElementCorrect(anyAnswer, undefined)).toBe(false);
+  });
+
+  it("holds the patient to the clinician's word count", () => {
+    expect(isElementCorrect(sentence, "the dog is very big")).toBe(true);
+    expect(isElementCorrect(sentence, "the dog is big")).toBe(false);
+  });
+
+  it("counts words, not spaces — extra whitespace does not inflate the count", () => {
+    expect(isElementCorrect(sentence, "  the   dog  is   very    big  ")).toBe(true);
+    expect(isElementCorrect(sentence, "the     dog")).toBe(false);
   });
 });
 

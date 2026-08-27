@@ -56,6 +56,8 @@ export type CanvasActions = {
   toCanvas: () => TemplateCanvas;
   undo: () => void;
   redo: () => void;
+  beginGesture: () => void;
+  endGesture: () => void;
 };
 
 export type CanvasStore = CanvasState & CanvasActions;
@@ -77,9 +79,17 @@ export function createCanvasStore(initial: TemplateCanvas) {
   // opens a new undo step, so a drag or a burst of keystrokes collapses
   // into one history entry instead of one per pointermove/keydown.
   let lastCheckpointAt = 0;
+  // True between pointerdown and pointerup of a direct-manipulation gesture
+  // (dragging or resizing an element). The time-based debounce alone cannot
+  // express "this is one gesture": a drag held for longer than the debounce
+  // window split into several undo steps, so reversing one drag took several
+  // Ctrl+Zs and left the element somewhere it had never been put. A gesture
+  // takes its checkpoint once at the start and suppresses the rest.
+  let inGesture = false;
 
   const store = createStore<CanvasStore>()((set, get) => {
     const checkpoint = (force = false) => {
+      if (inGesture && !force) return;
       const now = Date.now();
       if (!force && now - lastCheckpointAt < CHECKPOINT_DEBOUNCE_MS) return;
       lastCheckpointAt = now;
@@ -289,6 +299,20 @@ export function createCanvasStore(initial: TemplateCanvas) {
         };
       },
 
+      // One checkpoint for the whole gesture, then silence until it ends.
+      beginGesture: () => {
+        if (inGesture) return;
+        checkpoint(true);
+        inGesture = true;
+      },
+
+      // Reset the debounce clock too, so whatever the author does next opens
+      // its own step rather than being folded into the gesture just closed.
+      endGesture: () => {
+        inGesture = false;
+        lastCheckpointAt = 0;
+      },
+
       undo: () =>
         set((s) => {
           if (s.past.length === 0) return s;
@@ -298,7 +322,7 @@ export function createCanvasStore(initial: TemplateCanvas) {
             ...previous,
             past: rest,
             future: [snapshotOf(s), ...s.future].slice(0, HISTORY_LIMIT),
-            selectedIds: [],
+            selectedIds: survivingSelection(s.selectedIds, previous.elements),
             dirty: true,
           };
         }),
@@ -311,7 +335,7 @@ export function createCanvasStore(initial: TemplateCanvas) {
             ...next,
             past: [...s.past, snapshotOf(s)].slice(-HISTORY_LIMIT),
             future: rest,
-            selectedIds: [],
+            selectedIds: survivingSelection(s.selectedIds, next.elements),
             dirty: true,
           };
         }),
@@ -319,6 +343,19 @@ export function createCanvasStore(initial: TemplateCanvas) {
   });
 
   return store;
+}
+
+// Which of the currently-selected elements still exist after stepping through
+// history. Undo and redo used to clear the selection outright, which is safe
+// but means undoing a nudge drops you out of the element you were adjusting
+// and snaps the properties panel back to canvas settings — so correcting a
+// mistake costs you your place. Keeping the selection where the element
+// survived, and dropping only ids that no longer exist, avoids both the stale
+// selection and the lost place.
+function survivingSelection(selectedIds: string[], elements: CanvasElement[]): string[] {
+  if (selectedIds.length === 0) return selectedIds;
+  const live = new Set(elements.map((e) => e.id));
+  return selectedIds.filter((id) => live.has(id));
 }
 
 export type CanvasStoreApi = ReturnType<typeof createCanvasStore>;

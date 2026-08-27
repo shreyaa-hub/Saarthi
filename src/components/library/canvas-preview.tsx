@@ -74,6 +74,7 @@ export function CanvasPreview({
                     onChange={() => {}}
                     onSubmit={() => {}}
                     locked
+                    preview
                   />
                 </div>
               ))}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw, Maximize2, Minimize2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import type { TemplateCanvas } from "@/lib/types/canvas";
 import { isInteractive, allPages } from "@/lib/types/canvas";
@@ -29,6 +29,7 @@ export function ActivityPlayer({
   practice = false,
   backHref = "/patient",
   backLabel = "my missions",
+  printHref,
 }: {
   assignmentId: string;
   title: string;
@@ -37,6 +38,12 @@ export function ActivityPlayer({
   practice?: boolean;
   backHref?: string;
   backLabel?: string;
+  // The printable version of this same activity. Given as a URL rather than
+  // printing the player itself: the player is a scaled, interactive view with
+  // app chrome around it, and printing that puts a screenshot of a screen on
+  // the paper. The print route renders the canvas at its authored size, one
+  // page per sheet, with the answer key stripped.
+  printHref?: string;
 }) {
   const router = useRouter();
   const [responses, setResponses] = useState<Responses>({});
@@ -155,6 +162,13 @@ export function ActivityPlayer({
               <RotateCcw className="size-4" /> Try again
             </Button>
           )}
+          {printHref && (
+            <Button variant="outline" asChild>
+              <a href={printHref} target="_blank" rel="noopener noreferrer">
+                <Printer className="size-4" /> Download as PDF
+              </a>
+            </Button>
+          )}
           <Button onClick={() => router.push(backHref)}>Back to {backLabel}</Button>
         </div>
       </div>
@@ -178,6 +192,18 @@ export function ActivityPlayer({
                 {answeredCount}/{interactiveCount}
               </span>
             </div>
+          )}
+          {printHref && (
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              title="Print or save as PDF"
+            >
+              <a href={printHref} target="_blank" rel="noopener noreferrer" aria-label="Print or save this activity as a PDF">
+                <Printer className="size-4" />
+              </a>
+            </Button>
           )}
           {fullscreenSupported && (
             <Button

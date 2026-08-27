@@ -65,12 +65,20 @@ export type InteractiveAppearance = {
   fontSize?: number;
   textColor?: string;
   cardColor?: string;
+  // The height of an embedded thumbnail in pixels. Width follows from
+  // imageShape below, so one number is all an author has to set.
   imageSize?: number;
+  // Thumbnails used to be square, which crops a landscape photo down the
+  // sides — and almost every photo a clinician uploads is landscape. "wide"
+  // gives the box a 4:3 landscape ratio so the picture survives the crop;
+  // "square" is still there for icon-like art that was drawn square.
+  imageShape?: "square" | "wide";
 };
 
 export const APPEARANCE_DEFAULTS = {
   fontSize: 14,
   imageSize: 28,
+  imageShape: "wide",
 } as const;
 
 export type MultipleChoiceOption = {
@@ -87,7 +95,7 @@ export type MultipleChoiceElement = ElementBase & InteractiveAppearance & {
   allowMultiple: boolean;
 };
 
-export type FillBlankElement = ElementBase & {
+export type FillBlankElement = ElementBase & InteractiveAppearance & {
   type: "fillBlank";
   template: string; // use "___" to mark the blank
   answer: string;
@@ -117,9 +125,13 @@ export type SequenceItem = {
   id: string;
   label: string;
   order: number;
+  // Optional, so every sequence authored before this still parses. Picture
+  // sequencing — put the photos of the story in order — is a standard task,
+  // and it is the version that works for a patient who cannot yet read.
+  image?: string;
 };
 
-export type SequenceElement = ElementBase & {
+export type SequenceElement = ElementBase & InteractiveAppearance & {
   type: "sequence";
   prompt: string;
   items: SequenceItem[];
@@ -190,7 +202,7 @@ export type MemoryMatchElement = ElementBase & InteractiveAppearance & {
   pairs: MemoryPair[];
 };
 
-export type WordHuntElement = ElementBase & {
+export type WordHuntElement = ElementBase & InteractiveAppearance & {
   type: "wordHunt";
   prompt: string;
   passage: string;
@@ -248,6 +260,46 @@ export type PracticeDrillElement = ElementBase & InteractiveAppearance & {
   type: "practiceDrill";
   prompt: string;
   words: DrillWord[];
+};
+
+// One continuous pen stroke, as points in the pad's own coordinate space
+// where 0,0 is the top-left corner and 1,1 the bottom-right. Normalised for
+// the same reason hotspots are: the pad is drawn at whatever size the
+// element was resized to and at whatever zoom the player is at, and a stroke
+// stored in pixels would land somewhere else the moment either changed —
+// including on the clinician's screen when they open the finished attempt.
+export type DrawStroke = { x: number; y: number }[];
+
+// Draw or trace with a finger. The one thing the patient does here that no
+// other element type asks for is a motor act rather than a choice, which is
+// what fine-motor and handwriting work actually is — and it is the only type
+// that produces something the clinician looks at rather than marks.
+//
+// backgroundSrc turns it from free drawing into tracing: put a letter, a
+// shape or a maze behind the pad and the patient follows it.
+export type DrawPadElement = ElementBase & InteractiveAppearance & {
+  type: "drawPad";
+  prompt: string;
+  backgroundSrc?: string;
+  strokeColor: string;
+  strokeWidth: number;
+};
+
+// An open written response — a narrative, a sentence about a picture, a
+// description. Deliberately unmarked: there is no key a computer could check
+// a language sample against, so it is scored as "attempted" and the words
+// themselves are what the clinician reads.
+export type LongAnswerElement = ElementBase & InteractiveAppearance & {
+  type: "longAnswer";
+  prompt: string;
+  placeholder: string;
+  // 0 means "anything at all counts". Above 0 the patient has to reach that
+  // many words before the element counts as done, which is how a clinician
+  // asks for a sentence rather than a single word.
+  minWords: number;
+  // How many ruled lines the printed version gets. Screen-side the box grows
+  // with the element, so this only shapes the paper copy.
+  lines: number;
 };
 
 // --- Worksheet elements -----------------------------------------------------
@@ -314,6 +366,8 @@ export type CanvasElement =
   | WordHuntElement
   | ImageHotspotsElement
   | PracticeDrillElement
+  | DrawPadElement
+  | LongAnswerElement
   | ListElement
   | WritingLinesElement
   | ChecklistElement
@@ -331,6 +385,8 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "wordHunt",
   "imageHotspots",
   "practiceDrill",
+  "drawPad",
+  "longAnswer",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

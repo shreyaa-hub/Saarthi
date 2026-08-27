@@ -21,6 +21,8 @@ import {
   SearchCheck,
   ScanSearch,
   Repeat2,
+  Pencil,
+  AlignLeft,
   ListChecks as ChecklistIcon,
   Table2,
 } from "lucide-react";
@@ -50,6 +52,8 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   wordHunt: SearchCheck,
   imageHotspots: ScanSearch,
   practiceDrill: Repeat2,
+  drawPad: Pencil,
+  longAnswer: AlignLeft,
   list: List,
   writingLines: Baseline,
   checklist: ChecklistIcon,

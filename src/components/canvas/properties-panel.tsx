@@ -14,6 +14,8 @@ import type {
   WordHuntElement,
   ImageHotspotsElement,
   PracticeDrillElement,
+  DrawPadElement,
+  LongAnswerElement,
   ChecklistElement,
   TableElement,
   InteractiveAppearance,
@@ -333,7 +335,7 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "multipleChoice" && (
         <>
           <MultipleChoiceFields element={selected} patch={patch} />
-          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+          <AppearanceFields element={selected} patch={patch} />
         </>
       )}
 
@@ -353,6 +355,7 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
             />
             <Label htmlFor="case-sensitive" className="text-xs font-normal">Case sensitive</Label>
           </div>
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
         </>
       )}
 
@@ -384,7 +387,12 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         </>
       )}
 
-      {selected.type === "sequence" && <SequenceFields element={selected} patch={patch} />}
+      {selected.type === "sequence" && (
+        <>
+          <SequenceFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
 
       {selected.type === "sortCategorize" && (
         <>
@@ -400,7 +408,12 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         </>
       )}
 
-      {selected.type === "wordHunt" && <WordHuntFields element={selected} patch={patch} />}
+      {selected.type === "wordHunt" && (
+        <>
+          <WordHuntFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
 
       {selected.type === "imageHotspots" && (
         <>
@@ -413,6 +426,20 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         <>
           <PracticeDrillFields element={selected} patch={patch} />
           <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
+
+      {selected.type === "drawPad" && (
+        <>
+          <DrawPadFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "longAnswer" && (
+        <>
+          <LongAnswerFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
         </>
       )}
 
@@ -575,9 +602,17 @@ function MultipleChoiceFields({
       </div>
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Options</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Tick the correct answer. Add a photo to make it a picture-choice question.
+        </p>
         {element.options.map((o, i) => (
           <div key={o.id} className="flex items-center gap-2">
             <Checkbox checked={o.correct} onCheckedChange={(v) => update(i, { correct: Boolean(v) })} />
+            <PairImagePicker
+              src={o.imageSrc}
+              onChange={(v) => update(i, { imageSrc: v })}
+              label="option"
+            />
             <Input value={o.label} onChange={(e) => update(i, { label: e.target.value })} className="flex-1" />
             <button
               type="button"
@@ -686,8 +721,8 @@ function SequenceFields({
   patch: (p: Partial<CanvasElement>) => void;
 }) {
   const sorted = [...element.items].sort((a, b) => a.order - b.order);
-  const update = (id: string, label: string) => {
-    patch({ items: element.items.map((it) => (it.id === id ? { ...it, label } : it)) });
+  const update = (id: string, p: Partial<SequenceElement["items"][number]>) => {
+    patch({ items: element.items.map((it) => (it.id === id ? { ...it, ...p } : it)) });
   };
   const move = (id: string, dir: -1 | 1) => {
     const idx = sorted.findIndex((it) => it.id === id);
@@ -705,10 +740,14 @@ function SequenceFields({
       </Field>
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Steps (in correct order)</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Add a photo to each step for picture sequencing. The patient always sees them shuffled.
+        </p>
         {sorted.map((it, i) => (
           <div key={it.id} className="flex items-center gap-2">
             <span className="w-4 text-xs font-semibold text-primary">{i + 1}</span>
-            <Input value={it.label} onChange={(e) => update(it.id, e.target.value)} className="flex-1" />
+            <PairImagePicker src={it.image} onChange={(v) => update(it.id, { image: v })} label="step" />
+            <Input value={it.label} onChange={(e) => update(it.id, { label: e.target.value })} className="flex-1" />
             <button type="button" onClick={() => move(it.id, -1)} className="text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-30" disabled={i === 0}>↑</button>
             <button type="button" onClick={() => move(it.id, 1)} className="text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-30" disabled={i === sorted.length - 1}>↓</button>
             <button
@@ -902,6 +941,21 @@ function AppearanceFields({
           </Field>
         )}
       </div>
+
+      {showImageSize && (
+        <Field label="Image shape">
+          <Select
+            value={element.imageShape ?? APPEARANCE_DEFAULTS.imageShape}
+            onValueChange={(v) => patch({ imageShape: v as "square" | "wide" })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="wide">Landscape (wider than tall)</SelectItem>
+              <SelectItem value="square">Square</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
 
       <OptionalColorField
         label="Text colour"
@@ -1303,6 +1357,104 @@ function PracticeDrillFields({
           <Plus className="size-3.5" /> Add word
         </Button>
       </div>
+    </>
+  );
+}
+
+function DrawPadFields({
+  element,
+  patch,
+}: {
+  element: DrawPadElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Trace over (optional)">
+        <div className="flex flex-col gap-1.5">
+          <ImageUploadButton onUploaded={(src) => patch({ backgroundSrc: src })} />
+          {element.backgroundSrc && (
+            <button
+              type="button"
+              onClick={() => patch({ backgroundSrc: undefined })}
+              className="self-start text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              Remove picture
+            </button>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            A letter, shape or maze behind the pad turns free drawing into tracing.
+          </p>
+        </div>
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Pen colour">
+          <input
+            type="color"
+            value={element.strokeColor}
+            onChange={(e) => patch({ strokeColor: e.target.value })}
+            className="h-9 w-full cursor-pointer rounded-md border border-input bg-transparent p-1"
+          />
+        </Field>
+        <Field label="Pen size">
+          <Input
+            type="number"
+            min={1}
+            max={24}
+            value={element.strokeWidth}
+            onChange={(e) => patch({ strokeWidth: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </Field>
+      </div>
+    </>
+  );
+}
+
+function LongAnswerFields({
+  element,
+  patch,
+}: {
+  element: LongAnswerElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Placeholder">
+        <Input
+          value={element.placeholder}
+          onChange={(e) => patch({ placeholder: e.target.value })}
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Least words">
+          <Input
+            type="number"
+            min={0}
+            max={500}
+            value={element.minWords}
+            onChange={(e) => patch({ minWords: Math.max(0, Number(e.target.value) || 0) })}
+          />
+        </Field>
+        <Field label="Printed lines">
+          <Input
+            type="number"
+            min={1}
+            max={30}
+            value={element.lines}
+            onChange={(e) => patch({ lines: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Nothing here is marked right or wrong — it counts as done once the patient has written
+        that many words. Leave it at 0 to accept any answer.
+      </p>
     </>
   );
 }

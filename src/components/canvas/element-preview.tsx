@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2 } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
@@ -119,13 +119,22 @@ export function ElementPreview({
               <div
                 key={o.id}
                 className={cn(
-                  "truncate rounded-md border px-2 py-1",
+                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1",
                   o.correct && !hideAnswers
                     ? "border-success/40 bg-success/10 text-success"
                     : "border-border",
                 )}
               >
-                {o.label}
+                {o.imageSrc && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={o.imageSrc}
+                    alt=""
+                    className="shrink-0 rounded object-cover"
+                    style={imageStyle(element)}
+                  />
+                )}
+                <span className="truncate">{o.label}</span>
               </div>
             ))}
           </div>
@@ -134,8 +143,11 @@ export function ElementPreview({
 
     case "fillBlank":
       return (
-        <div className="flex size-full flex-col justify-center gap-1 rounded-lg border border-border bg-card p-3">
-          <p className="text-sm">
+        <div
+          className="flex size-full flex-col justify-center gap-1 rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p style={textStyle(element)}>
             {element.template.split("___").map((part, i, arr) => (
               <span key={i}>
                 {part}
@@ -196,21 +208,36 @@ export function ElementPreview({
 
     case "sequence":
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <ListOrdered className="size-3.5" /> {element.prompt}
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <ListOrdered className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <div className="flex flex-col gap-1 overflow-hidden text-xs">
+          <div className="flex flex-col gap-1 overflow-hidden" style={textStyle(element)}>
             {[...element.items]
               .sort((a, b) => a.order - b.order)
               .map((it, i) => (
-                <div key={it.id} className="flex items-center gap-2 truncate rounded-md border border-border px-2 py-1">
+                <div
+                  key={it.id}
+                  className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2 py-1"
+                >
                   {/* The number IS the answer to a sequencing task, so on a
                       printed sheet it becomes an empty box to write in. */}
-                  <span className="font-semibold text-primary">
+                  <span className="shrink-0 font-semibold text-primary">
                     {hideAnswers ? "☐" : `${i + 1}.`}
-                  </span>{" "}
-                  {it.label}
+                  </span>
+                  {it.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={it.image}
+                      alt=""
+                      className="shrink-0 rounded object-cover"
+                      style={imageStyle(element)}
+                    />
+                  )}
+                  <span className="truncate">{it.label}</span>
                 </div>
               ))}
           </div>
@@ -295,7 +322,7 @@ export function ElementPreview({
                         <img
                           src={face.image}
                           alt=""
-                          className="rounded object-cover"
+                          className="max-w-full rounded object-cover"
                           style={imageStyle(element)}
                         />
                       )}
@@ -313,11 +340,14 @@ export function ElementPreview({
       const tokens = tokenizeWordHunt(element.passage);
       const targets = targetTokenIndices(tokens, element.targetWords);
       return (
-        <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <SearchCheck className="size-3.5" /> {element.prompt}
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <SearchCheck className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <p className="overflow-hidden text-xs leading-relaxed text-muted-foreground">
+          <p className="overflow-hidden leading-relaxed text-muted-foreground" style={textStyle(element)}>
             {tokens.map((token, i) =>
               targets.has(i) && !hideAnswers ? (
                 <span key={i} className="rounded bg-success/20 px-0.5 text-success">
@@ -341,33 +371,45 @@ export function ElementPreview({
           <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
             <ScanSearch className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          {/* Every target is outlined and labelled here regardless of the
-              element's showOutlines setting — the clinician is checking
-              placement, and an authoring view that hid the targets would be
-              impossible to work in.
+          {/* In the authoring view every target is outlined and labelled
+              regardless of the element's showOutlines setting — the clinician
+              is checking placement, and an authoring view that hid the targets
+              would be impossible to work in.
+
+              On a sheet handed to a patient (hideAnswers) those boxes are the
+              answer key drawn on top of the question, so they come off. The
+              target names move to a "Find:" line instead — without them the
+              printed picture asks nothing at all.
 
               hotspotOverlay replaces these with the caller's own draggable
               ones (ElementBox passes HotspotEditor while selected), rendered
               inside this same frame so the two agree on where 50% is. */}
           <HotspotFrame element={element} emptyHint="Add a picture in the panel">
-            {hotspotOverlay ??
-              element.hotspots.map((h) => (
-                <div
-                  key={h.id}
-                  className="absolute rounded-md border-2 border-primary/70 bg-primary/10"
-                  style={{
-                    left: `${h.xPct}%`,
-                    top: `${h.yPct}%`,
-                    width: `${h.wPct}%`,
-                    height: `${h.hPct}%`,
-                  }}
-                >
-                  <span className="absolute inset-x-0 bottom-0 truncate bg-primary/80 px-1 text-[10px] text-primary-foreground">
-                    {h.label}
-                  </span>
-                </div>
-              ))}
+            {hideAnswers
+              ? null
+              : (hotspotOverlay ??
+                element.hotspots.map((h) => (
+                  <div
+                    key={h.id}
+                    className="absolute rounded-md border-2 border-primary/70 bg-primary/10"
+                    style={{
+                      left: `${h.xPct}%`,
+                      top: `${h.yPct}%`,
+                      width: `${h.wPct}%`,
+                      height: `${h.hPct}%`,
+                    }}
+                  >
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-primary/80 px-1 text-[10px] text-primary-foreground">
+                      {h.label}
+                    </span>
+                  </div>
+                )))}
           </HotspotFrame>
+          {hideAnswers && element.hotspots.length > 0 && (
+            <p className="shrink-0 truncate text-muted-foreground" style={textStyle(element)}>
+              Find: {element.hotspots.map((h) => h.label).join(", ")}
+            </p>
+          )}
         </div>
       );
 
@@ -397,6 +439,53 @@ export function ElementPreview({
                   ))}
                 </span>
               </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    // Both new types are unmarked — a drawing and a written answer have no
+    // key — so the authoring view and the printed sheet are the same thing:
+    // an empty space for the patient to fill. That means no hideAnswers
+    // branch here, and it means the printed version is genuinely usable
+    // rather than a picture of a screen.
+    case "drawPad":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Pencil className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-dashed border-border bg-white">
+            {element.backgroundSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={element.backgroundSrc}
+                alt=""
+                className="absolute inset-0 size-full object-contain opacity-40"
+              />
+            )}
+          </div>
+        </div>
+      );
+
+    case "longAnswer":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <PenLine className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          {/* Ruled lines rather than an empty rectangle: this is where the
+              answer gets written by hand on paper, and unruled space is
+              where handwriting wanders. */}
+          <div className="flex min-h-0 flex-1 flex-col justify-evenly overflow-hidden">
+            {Array.from({ length: Math.max(1, element.lines) }, (_, i) => (
+              <span key={i} className="block border-b border-border/70" />
             ))}
           </div>
         </div>

@@ -89,6 +89,9 @@ export function ElementBox({
       if (element.locked) return;
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      // Resizing is one gesture too, and had no bracketing at all — a slow
+      // corner drag left a trail of undo steps.
+      onDragStart?.();
       resizeState.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -99,7 +102,7 @@ export function ElementBox({
         handle,
       };
     },
-    [element.x, element.y, element.w, element.h, element.locked],
+    [element.x, element.y, element.w, element.h, element.locked, onDragStart],
   );
 
   const handleResizeMove = useCallback(
@@ -140,7 +143,8 @@ export function ElementBox({
 
   const handleResizeUp = useCallback(() => {
     resizeState.current = null;
-  }, []);
+    onDragEnd?.();
+  }, [onDragEnd]);
 
   const editingHotspots =
     element.type === "imageHotspots" && soleSelected && !readOnly && !element.locked;

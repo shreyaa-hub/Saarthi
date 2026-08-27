@@ -33,7 +33,13 @@ export function imagePx(a: InteractiveAppearance): number {
 
 // Embedded thumbnails were previously a hardcoded Tailwind `size-6` (24px),
 // which is what made photos in a match pair or memory card look tiny.
+//
+// imageSize is the height; the width comes from the shape. Landscape is the
+// default because photographs are landscape — a square box with object-cover
+// throws away the left and right thirds of one, which is exactly where the
+// thing being named usually is.
 export function imageStyle(a: InteractiveAppearance): CSSProperties {
   const px = imagePx(a);
-  return { width: px, height: px };
+  const shape = a.imageShape ?? APPEARANCE_DEFAULTS.imageShape;
+  return { width: shape === "wide" ? Math.round((px * 4) / 3) : px, height: px };
 }

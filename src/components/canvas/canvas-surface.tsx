@@ -27,7 +27,8 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
   const pageStyle = useCanvasStore(store, (s) => s.pageStyle);
   const elements = useCanvasStore(store, (s) => s.elements);
   const selectedIds = useCanvasStore(store, (s) => s.selectedIds);
-  const { updateElement, removeElement, duplicateElement, reorder, select, selectMany } = store.getState();
+  const { updateElement, removeElement, duplicateElement, reorder, select, selectMany, beginGesture, endGesture } =
+    store.getState();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
@@ -267,8 +268,17 @@ export function CanvasSurface({ store }: { store: CanvasStoreApi }) {
                 onDelete={() => removeElement(el.id)}
                 onDuplicate={() => duplicateElement(el.id)}
                 onReorder={(direction) => reorder(el.id, direction)}
-                onDragStart={() => setDraggingId(el.id)}
-                onDragEnd={() => setDraggingId(null)}
+                // beginGesture/endGesture bracket the whole drag or resize
+                // into a single undo step; setDraggingId drives the alignment
+                // guides. Both start and stop at the same moment.
+                onDragStart={() => {
+                  beginGesture();
+                  setDraggingId(el.id);
+                }}
+                onDragEnd={() => {
+                  endGesture();
+                  setDraggingId(null);
+                }}
               />
             ))}
 

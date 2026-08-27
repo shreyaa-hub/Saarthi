@@ -203,8 +203,20 @@ body {
   background-size: 20px 20px;
 }
 
-* {
-  border-color: var(--border);
+/* The default border colour, so a bare `border` utility draws the theme's
+   neutral rule without every component restating it.
+
+   It MUST stay inside @layer base. Unlayered, this rule beat every
+   `border-<colour>` utility in the app — cascade layers are decided by layer
+   order before specificity, and an unlayered rule outranks anything in a
+   layer, so a plain `*` selector was overriding `border-primary`. Measured:
+   a selected answer with `border-primary` computed to #e6e0f7 instead of
+   #7c3aed. Every selection highlight, correct/wrong marker and drop-target
+   outline in the app was being painted the same neutral grey. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 /* Slow-drifting ambient gradient used behind the marketing hero. */

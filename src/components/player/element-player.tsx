@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
-import { Volume2, Check, X, Brain, Plus, Minus } from "lucide-react";
-import type { CanvasElement } from "@/lib/types/canvas";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { Volume2, Check, X, Brain, Plus, Minus, Undo2, Eraser } from "lucide-react";
+import type { CanvasElement, DrawStroke } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
@@ -12,18 +12,25 @@ import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
 import { cn } from "@/lib/utils";
 
+// `preview` is not the same thing as `locked`, and conflating them leaked
+// answers. Both mean "you cannot interact", but locked also means "you have
+// had your go, so here is what you missed" — which is right after an attempt
+// and exactly wrong in a library preview, where it showed every answer to
+// someone who had not started yet.
 export function ElementPlayer({
   element,
   response,
   onChange,
   locked,
   onSubmit,
+  preview = false,
 }: {
   element: CanvasElement;
   response: unknown;
   onChange: (value: unknown) => void;
   locked: boolean;
   onSubmit: () => void;
+  preview?: boolean;
 }) {
   switch (element.type) {
     case "text":
@@ -125,15 +132,24 @@ export function ElementPlayer({
                   disabled={locked}
                   style={textStyle(element)}
                   className={cn(
-                    "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
+                    "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
                     isSelected ? "border-primary bg-secondary" : "border-border hover:bg-muted",
                     showResult && o.correct && "border-success bg-success/10",
                     showResult && isSelected && !o.correct && "border-destructive bg-destructive/10",
                   )}
                 >
-                  {o.label}
-                  {showResult && o.correct && <Check className="size-4 text-success" />}
-                  {showResult && isSelected && !o.correct && <X className="size-4 text-destructive" />}
+                  {o.imageSrc && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={o.imageSrc}
+                      alt=""
+                      className="shrink-0 rounded object-cover"
+                      style={imageStyle(element)}
+                    />
+                  )}
+                  <span className="min-w-0 flex-1">{o.label}</span>
+                  {showResult && o.correct && <Check className="size-4 shrink-0 text-success" />}
+                  {showResult && isSelected && !o.correct && <X className="size-4 shrink-0 text-destructive" />}
                 </button>
               );
             })}
@@ -147,8 +163,11 @@ export function ElementPlayer({
       const correct = locked && isElementCorrect(element, value);
       const parts = element.template.split("___");
       return (
-        <div className="flex size-full flex-col justify-center gap-2 rounded-lg border border-border bg-card p-3">
-          <p className="flex flex-wrap items-center gap-1 text-sm">
+        <div
+          className="flex size-full flex-col justify-center gap-2 rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p className="flex flex-wrap items-center gap-1" style={textStyle(element)}>
             {parts.map((part, i) => (
               <span key={i} className="flex items-center gap-1">
                 {part}
@@ -200,12 +219,30 @@ export function ElementPlayer({
 
     case "imageHotspots": {
       const found = Array.isArray(response) ? (response as string[]) : [];
-      return <ImageHotspotsPlayer element={element} found={found} onChange={onChange} locked={locked} />;
+      return (
+        <ImageHotspotsPlayer
+          element={element}
+          found={found}
+          onChange={onChange}
+          locked={locked}
+          preview={preview}
+        />
+      );
     }
 
     case "practiceDrill": {
       const counts = (response ?? {}) as Record<string, number>;
       return <PracticeDrillPlayer element={element} counts={counts} onChange={onChange} locked={locked} />;
+    }
+
+    case "drawPad": {
+      const strokes = Array.isArray(response) ? (response as DrawStroke[]) : [];
+      return <DrawPadPlayer element={element} strokes={strokes} onChange={onChange} locked={locked} />;
+    }
+
+    case "longAnswer": {
+      const text = typeof response === "string" ? response : "";
+      return <LongAnswerPlayer element={element} text={text} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -435,8 +472,11 @@ function SequencePlayer({
   );
 
   return (
-    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-      <p className="text-sm font-semibold">{element.prompt}</p>
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
       <div className="flex flex-col gap-1.5">
         {items.map((item) => {
           const position = order.indexOf(item.id);
@@ -446,14 +486,24 @@ function SequencePlayer({
               type="button"
               disabled={locked}
               onClick={() => toggle(item.id)}
+              style={textStyle(element)}
               className={cn(
-                "flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition-colors",
+                "flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors",
                 position >= 0 ? "border-primary bg-secondary" : "border-border hover:bg-muted",
               )}
             >
               <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 {position >= 0 ? position + 1 : ""}
               </span>
+              {item.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.image}
+                  alt=""
+                  className="shrink-0 rounded object-cover"
+                  style={imageStyle(element)}
+                />
+              )}
               <span className="truncate">{item.label}</span>
             </button>
           );
@@ -762,7 +812,10 @@ function MemoryMatchPlayer({
               onClick={() => pick(c.id)}
               style={textStyle(element)}
               className={cn(
-                "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border p-1.5 text-center transition-colors",
+                // Landscape tiles, not square: the photos on them are
+                // landscape, and a square tile letterboxed every one of them
+                // into a strip with dead space above and below.
+                "flex aspect-[4/3] flex-col items-center justify-center gap-1 overflow-hidden rounded-md border p-1.5 text-center transition-colors",
                 isMatchedCard && "border-success bg-success/10",
                 !isMatchedCard && revealed && "border-primary bg-secondary",
                 !revealed && "border-border bg-muted hover:bg-muted/70",
@@ -775,11 +828,11 @@ function MemoryMatchPlayer({
                     <img
                       src={c.image}
                       alt=""
-                      className="rounded object-cover"
+                      className="max-w-full rounded object-cover"
                       style={imageStyle(element)}
                     />
                   )}
-                  <span className="truncate">{c.label}</span>
+                  <span className="max-w-full truncate">{c.label}</span>
                 </>
               ) : (
                 <Brain className="size-4 text-muted-foreground" />
@@ -824,9 +877,12 @@ function WordHuntPlayer({
   };
 
   return (
-    <div className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3">
-      <p className="text-sm font-semibold">{element.prompt}</p>
-      <p className="flex-1 text-sm leading-relaxed">
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
+      <p className="flex-1 leading-relaxed" style={textStyle(element)}>
         {tokens.map((token, i) => {
           // Punctuation and whitespace render as plain text, not buttons —
           // only a real word is ever something the patient can tap.
@@ -869,13 +925,19 @@ function ImageHotspotsPlayer({
   found,
   onChange,
   locked,
+  preview = false,
 }: {
   element: Extract<CanvasElement, { type: "imageHotspots" }>;
   found: string[];
   onChange: (value: string[]) => void;
   locked: boolean;
+  preview?: boolean;
 }) {
   const foundSet = new Set(found);
+  // Reveal what was missed only after a real attempt. A preview is locked
+  // too, and treating that as "show the answers" outlined and labelled every
+  // target for someone who had not started.
+  const revealMisses = locked && !preview;
 
   const toggle = (id: string) => {
     if (locked) return;
@@ -906,19 +968,19 @@ function ImageHotspotsPlayer({
               type="button"
               disabled={locked}
               onClick={() => toggle(h.id)}
-              title={isFound || locked ? h.label : undefined}
+              title={isFound || revealMisses ? h.label : undefined}
               aria-label={h.label}
               className={cn(
                 "absolute rounded-md border-2 transition-colors",
                 isFound && "border-success bg-success/25",
                 // Review reveals every target, so a patient looking back can
                 // see what they missed rather than just their own taps.
-                !isFound && locked && "border-destructive border-dashed bg-destructive/10",
-                !isFound && !locked && element.showOutlines && "border-primary/70 bg-primary/10",
+                !isFound && revealMisses && "border-destructive border-dashed bg-destructive/10",
+                !isFound && !revealMisses && element.showOutlines && "border-primary/70 bg-primary/10",
                 // The real activity: no outline at all until it is found, so
                 // the picture has to actually be searched. Still a real
                 // button — focusable, and hit-testable by a screen reader.
-                !isFound && !locked && !element.showOutlines && "border-transparent hover:bg-white/20",
+                !isFound && !revealMisses && !element.showOutlines && "border-transparent hover:bg-white/20",
               )}
               style={{
                 left: `${h.xPct}%`,
@@ -927,7 +989,7 @@ function ImageHotspotsPlayer({
                 height: `${h.hPct}%`,
               }}
             >
-              {(isFound || locked) && (
+              {(isFound || revealMisses) && (
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 text-[10px] text-white">
                   {h.label}
                 </span>
@@ -1037,6 +1099,206 @@ function PracticeDrillPlayer({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Turns a stroke's normalised points into an SVG path. The pad's viewBox is
+// 0 0 1 1, so the stored coordinates go straight in with no conversion — the
+// whole point of storing them normalised.
+export function strokePath(stroke: DrawStroke): string {
+  if (stroke.length === 0) return "";
+  const [first, ...rest] = stroke;
+  return `M ${first.x} ${first.y}` + rest.map((p) => ` L ${p.x} ${p.y}`).join("");
+}
+
+// Draw or trace with a finger, a stylus or a mouse. Pointer events rather
+// than separate mouse and touch handlers: one code path covers all three,
+// which is what a tablet in a clinic actually needs.
+//
+// SVG rather than <canvas>: the strokes are already state, so the picture is
+// a pure function of that state and redraws itself on undo, on resize and
+// when the clinician later opens the finished attempt — with a canvas every
+// one of those needs an imperative repaint, and a server-rendered canvas
+// starts blank.
+function DrawPadPlayer({
+  element,
+  strokes,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "drawPad" }>;
+  strokes: DrawStroke[];
+  onChange: (value: DrawStroke[]) => void;
+  locked: boolean;
+}) {
+  const padRef = useRef<HTMLDivElement>(null);
+  // The stroke under the finger right now. Kept local and committed on
+  // pointer-up so a drag writes one response update instead of one per
+  // pointermove — at 60Hz that is the difference between a smooth line and
+  // a stuttering one on a tablet.
+  const [live, setLive] = useState<DrawStroke | null>(null);
+
+  // Normalised to the pad's own box (0..1), clamped so a finger that slides
+  // off the edge mid-stroke leaves a line that stops at the edge rather than
+  // one that jumps somewhere outside the drawing.
+  const pointAt = (e: React.PointerEvent): { x: number; y: number } | null => {
+    const box = padRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0 || box.height === 0) return null;
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - box.top) / box.height)),
+    };
+  };
+
+  const start = (e: React.PointerEvent) => {
+    if (locked) return;
+    const p = pointAt(e);
+    if (!p) return;
+    // Capture, so a stroke that wanders outside the pad keeps arriving here
+    // instead of being stolen by whatever is underneath.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setLive([p]);
+  };
+
+  const extend = (e: React.PointerEvent) => {
+    if (locked || !live) return;
+    const p = pointAt(e);
+    if (!p) return;
+    setLive([...live, p]);
+  };
+
+  const finish = () => {
+    if (!live) return;
+    // A single point is a tap, not a mark — dropping it keeps stray taps out
+    // of the drawing and out of what scoring counts as an attempt.
+    if (live.length >= 2) onChange([...strokes, live]);
+    setLive(null);
+  };
+
+  const shown = live ? [...strokes, live] : strokes;
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
+          {element.prompt}
+        </p>
+        <button
+          type="button"
+          disabled={locked || strokes.length === 0}
+          onClick={() => onChange(strokes.slice(0, -1))}
+          aria-label="Undo last stroke"
+          title="Undo"
+          className="flex size-7 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+        >
+          <Undo2 className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          disabled={locked || strokes.length === 0}
+          onClick={() => onChange([])}
+          aria-label="Clear the drawing"
+          title="Clear"
+          className="flex size-7 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+        >
+          <Eraser className="size-3.5" />
+        </button>
+      </div>
+
+      <div
+        ref={padRef}
+        onPointerDown={start}
+        onPointerMove={extend}
+        onPointerUp={finish}
+        onPointerCancel={finish}
+        // touch-none is not decoration: without it the browser claims the
+        // gesture for scrolling and the patient's line never starts.
+        className={cn(
+          "relative min-h-0 flex-1 touch-none select-none overflow-hidden rounded-md border border-dashed border-border bg-white",
+          !locked && "cursor-crosshair",
+        )}
+      >
+        {element.backgroundSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={element.backgroundSrc}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute inset-0 size-full object-contain opacity-40"
+          />
+        )}
+        <svg
+          viewBox="0 0 1 1"
+          // The pad is whatever shape the element was resized to, so the
+          // viewBox is stretched to fit it. non-scaling-stroke keeps the pen
+          // an even width in screen pixels regardless — without it a wide
+          // short pad draws horizontal lines thin and vertical ones fat.
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 size-full"
+        >
+          {shown.map((s, i) => (
+            <path
+              key={i}
+              d={strokePath(s)}
+              fill="none"
+              stroke={element.strokeColor}
+              strokeWidth={element.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// An open written response. Nothing here is marked — a language sample has
+// no key — so the only feedback is the word count against whatever minimum
+// the clinician set, which tells the patient when they have written enough.
+function LongAnswerPlayer({
+  element,
+  text,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "longAnswer" }>;
+  text: string;
+  onChange: (value: string) => void;
+  locked: boolean;
+}) {
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const enough = words >= Math.max(1, element.minWords);
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={locked}
+        placeholder={element.placeholder}
+        style={textStyle(element)}
+        className="min-h-0 flex-1 resize-none rounded-md border border-border bg-background p-2 outline-none focus:border-primary disabled:opacity-70"
+      />
+      <p className="shrink-0 text-xs text-muted-foreground">
+        {words} {words === 1 ? "word" : "words"}
+        {element.minWords > 0 && (
+          <span className={cn("ml-1", enough ? "text-success" : "text-muted-foreground")}>
+            (at least {element.minWords} needed)
+          </span>
+        )}
+      </p>
     </div>
   );
 }

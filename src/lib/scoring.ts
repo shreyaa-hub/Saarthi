@@ -55,6 +55,21 @@ export function isElementCorrect(element: CanvasElement, response: unknown): boo
       const counts = (response ?? {}) as Record<string, number>;
       return element.words.every((w) => (counts[w.id] ?? 0) >= w.target);
     }
+    case "drawPad": {
+      // There is no answer key for a drawing, so "correct" here means the
+      // patient actually drew something. A single tap leaves a one-point
+      // stroke, which is a misfire rather than an attempt, so a stroke has
+      // to have travelled at least two points to count.
+      const strokes = Array.isArray(response) ? (response as unknown[]) : [];
+      return strokes.some((s) => Array.isArray(s) && s.length >= 2);
+    }
+    case "longAnswer": {
+      // Likewise unmarked — a language sample has no single right answer.
+      // minWords is the clinician's own bar: 0 means any writing at all.
+      const text = typeof response === "string" ? response.trim() : "";
+      const words = text ? text.split(/\s+/).length : 0;
+      return words >= Math.max(1, element.minWords);
+    }
     case "wordHunt": {
       const tapped = new Set(Array.isArray(response) ? (response as number[]) : []);
       const tokens = tokenizeWordHunt(element.passage);
