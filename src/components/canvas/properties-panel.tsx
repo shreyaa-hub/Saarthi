@@ -1131,6 +1131,23 @@ function ImageHotspotsFields({
 
   return (
     <>
+      {/* This element needs explaining in a way the list-based ones do not:
+          a clinician who drops it sees an empty box and two floating
+          rectangles, with nothing on screen saying what the activity even
+          is. Three sentences here is cheaper than them guessing wrong. */}
+      <div className="rounded-lg border border-border bg-muted/40 p-2.5">
+        <p className="mb-1 text-xs font-semibold">How this works</p>
+        <ol className="ml-3.5 list-decimal space-y-0.5 text-[11px] text-muted-foreground">
+          <li>Add a picture.</li>
+          <li>Drag a box over each thing the patient should find, and resize it by its corner.</li>
+          <li>Name each box — the patient sees that name once they find it.</li>
+        </ol>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          In the activity the boxes are invisible, so the patient has to search the picture and
+          tap what you asked for.
+        </p>
+      </div>
+
       <Field label="Prompt">
         <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
       </Field>
@@ -1144,6 +1161,24 @@ function ImageHotspotsFields({
       <Field label="Alt text">
         <Input value={element.alt} onChange={(e) => patch({ alt: e.target.value })} />
       </Field>
+
+      <Field label="Picture fit">
+        <Select
+          value={element.fit ?? "contain"}
+          onValueChange={(v) => patch({ fit: v as ImageHotspotsElement["fit"] })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="contain">Fit the whole picture inside</SelectItem>
+            <SelectItem value="cover">Fill the box (crops the edges)</SelectItem>
+            <SelectItem value="fill">Stretch to the box</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <p className="-mt-3 text-[11px] text-muted-foreground">
+        A tall photo fitted inside leaves space either side. Fill spreads it across the whole
+        box instead. Targets stay on the picture either way.
+      </p>
 
       <div className="flex items-center gap-2">
         <Checkbox
@@ -1159,7 +1194,8 @@ function ImageHotspotsFields({
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Things to find</Label>
         <p className="text-[11px] text-muted-foreground">
-          Drag a target on the canvas to move it, or drag its bottom-right corner to resize.
+          Select the element on the canvas, then drag a target to move it or its bottom-right
+          corner to resize.
         </p>
         {element.hotspots.map((h, i) => (
           <div key={h.id} className="flex items-center gap-2">

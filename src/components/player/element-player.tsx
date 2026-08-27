@@ -9,6 +9,7 @@ import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elem
 import { seededShuffle } from "@/lib/canvas/shuffle";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
+import { HotspotFrame } from "@/components/canvas/hotspot-frame";
 import { cn } from "@/lib/utils";
 
 export function ElementPlayer({
@@ -890,16 +891,7 @@ function ImageHotspotsPlayer({
         Found {foundSet.size} of {element.hotspots.length}
       </p>
 
-      <div className="relative min-h-0 flex-1">
-        {element.src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={element.src} alt={element.alt} className="size-full object-contain" />
-        ) : (
-          <div className="flex size-full items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
-            No picture set yet
-          </div>
-        )}
-
+      <HotspotFrame element={element} emptyHint="No picture set yet">
         {element.hotspots.map((h) => {
           const isFound = foundSet.has(h.id);
           return (
@@ -937,7 +929,7 @@ function ImageHotspotsPlayer({
             </button>
           );
         })}
-      </div>
+      </HotspotFrame>
     </div>
   );
 }

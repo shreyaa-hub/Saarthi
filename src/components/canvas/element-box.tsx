@@ -166,12 +166,17 @@ export function ElementBox({
     >
       {/* Spatial elements get direct manipulation of their own inner parts
           while selected — placing a target over the thing it marks is not
-          something four percentage fields can do. The preview stops drawing
-          its own markers while that overlay is up, or each target would be
-          outlined and labelled twice. */}
-      <ElementPreview element={element} suppressHotspots={editingHotspots} />
-
-      {editingHotspots && <HotspotEditor element={element} scale={scale} onChange={onChange} />}
+          something four percentage fields can do. The draggable targets go
+          into the preview's own picture frame rather than over the element,
+          so the editor and the patient's view agree on where 50% is. */}
+      <ElementPreview
+        element={element}
+        hotspotOverlay={
+          editingHotspots && element.type === "imageHotspots" ? (
+            <HotspotEditor element={element} onChange={onChange} />
+          ) : undefined
+        }
+      />
 
       {soleSelected && !readOnly && (
         <>

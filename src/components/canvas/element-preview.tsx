@@ -1,25 +1,28 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2 } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
+import { HotspotFrame } from "./hotspot-frame";
 import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
 // authoring canvas. The activity player has its own interactive renderer.
 //
-// suppressHotspots turns off this component's own "find in picture" target
-// markers, for when the caller is drawing its own draggable ones on top
-// (ElementBox does, while the element is selected). Without it the target is
-// outlined and labelled twice, which reads as two overlapping targets.
+// hotspotOverlay lets the caller put its own target markers inside the
+// picture frame instead of the static ones drawn here — ElementBox passes the
+// draggable editor while the element is selected. It has to go *inside* the
+// frame rather than over the whole element: the frame is only as big as the
+// rendered picture, so an overlay positioned against the element would put
+// targets somewhere else entirely from where the patient sees them.
 export function ElementPreview({
   element,
-  suppressHotspots = false,
+  hotspotOverlay,
 }: {
   element: CanvasElement;
-  suppressHotspots?: boolean;
+  hotspotOverlay?: ReactNode;
 }) {
   switch (element.type) {
     case "text":
@@ -324,34 +327,30 @@ export function ElementPreview({
           {/* Every target is outlined and labelled here regardless of the
               element's showOutlines setting — the clinician is checking
               placement, and an authoring view that hid the targets would be
-              impossible to work in. */}
-          <div className="relative min-h-0 flex-1">
-            {element.src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={element.src} alt={element.alt} className="size-full object-contain" />
-            ) : (
-              <div className="flex size-full flex-col items-center justify-center gap-1 rounded border border-dashed border-border text-xs text-muted-foreground">
-                <ImageIcon className="size-5" />
-                Add a picture in the panel
-              </div>
-            )}
-            {!suppressHotspots && element.hotspots.map((h) => (
-              <div
-                key={h.id}
-                className="absolute rounded-md border-2 border-primary/70 bg-primary/10"
-                style={{
-                  left: `${h.xPct}%`,
-                  top: `${h.yPct}%`,
-                  width: `${h.wPct}%`,
-                  height: `${h.hPct}%`,
-                }}
-              >
-                <span className="absolute inset-x-0 bottom-0 truncate bg-primary/80 px-1 text-[10px] text-primary-foreground">
-                  {h.label}
-                </span>
-              </div>
-            ))}
-          </div>
+              impossible to work in.
+
+              hotspotOverlay replaces these with the caller's own draggable
+              ones (ElementBox passes HotspotEditor while selected), rendered
+              inside this same frame so the two agree on where 50% is. */}
+          <HotspotFrame element={element} emptyHint="Add a picture in the panel">
+            {hotspotOverlay ??
+              element.hotspots.map((h) => (
+                <div
+                  key={h.id}
+                  className="absolute rounded-md border-2 border-primary/70 bg-primary/10"
+                  style={{
+                    left: `${h.xPct}%`,
+                    top: `${h.yPct}%`,
+                    width: `${h.wPct}%`,
+                    height: `${h.hPct}%`,
+                  }}
+                >
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-primary/80 px-1 text-[10px] text-primary-foreground">
+                    {h.label}
+                  </span>
+                </div>
+              ))}
+          </HotspotFrame>
         </div>
       );
 

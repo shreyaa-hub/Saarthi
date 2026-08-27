@@ -226,6 +226,12 @@ export type ImageHotspotsElement = ElementBase & InteractiveAppearance & {
   // is the real activity (the patient has to search); on turns it into a
   // labelling exercise, useful for a younger or more impaired patient.
   showOutlines: boolean;
+  // How the picture sits in the element's box. "contain" fits the whole
+  // picture inside, letterboxing a portrait photo into a narrow strip;
+  // "cover" fills the box widthways and crops the overflow; "fill" stretches
+  // it. Optional and defaulting to "contain" so elements authored before this
+  // existed are unchanged.
+  fit?: "contain" | "cover" | "fill";
 };
 
 // One word to drill, and how many times it should be produced. Articulation

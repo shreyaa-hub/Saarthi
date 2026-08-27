@@ -200,13 +200,14 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         src: "",
         alt: "",
         showOutlines: false,
-        // Two starter regions in sensible spots so the element is usable the
-        // moment it is dropped — the clinician drags them onto the real
-        // objects once they have added their own picture.
-        hotspots: [
-          { id: id(), label: "First thing", xPct: 15, yPct: 20, wPct: 22, hPct: 22 },
-          { id: id(), label: "Second thing", xPct: 60, yPct: 55, wPct: 22, hPct: 22 },
-        ],
+        fit: "contain",
+        // Exactly one starter target, not two. Two arrived named "First
+        // thing" and "Second thing", which told a clinician nothing about
+        // what to do and read as gibberish to the patient if left unrenamed.
+        // One target is enough to show what a target IS and to drag onto the
+        // picture, and it is never zero — an element with no targets would
+        // score as complete without the patient doing anything.
+        hotspots: [{ id: id(), label: "Target 1", xPct: 35, yPct: 35, wPct: 25, hPct: 25 }],
       } satisfies ImageHotspotsElement;
 
     case "practiceDrill":

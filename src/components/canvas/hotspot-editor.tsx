@@ -2,39 +2,45 @@
 
 import { useCallback, useRef } from "react";
 import type { CanvasElement, ImageHotspotsElement } from "@/lib/types/canvas";
-import { cn } from "@/lib/utils";
 
 // Direct manipulation of "find in picture" targets: drag a region to move it,
 // drag its corner to resize. Typing four percentages per target into number
-// fields is technically the same data, but nobody can place a box over a dog's
-// head that way — the whole point of this element type is spatial, so the
-// authoring has to be spatial too.
+// fields is technically the same data, but nobody can place a box over a
+// dog's head that way — the element is spatial, so authoring has to be too.
 //
-// Rendered inside ElementBox, on top of the element's own preview, and only
-// while that element is the sole selection. Every handler stops propagation:
-// ElementBox's pointer handlers move the whole element, and without that a
-// drag meant for one target would drag the entire picture across the canvas.
+// Rendered by ElementBox *inside* the picture frame (via ElementPreview's
+// hotspotOverlay slot), never over the whole element. That matters: with the
+// picture fitted inside, the frame is smaller than the element, and an
+// overlay positioned against the element would place targets somewhere
+// different from where the patient eventually sees them.
+//
+// Every handler stops propagation — ElementBox's own pointer handlers move
+// the whole element, and without that a drag meant for one target would drag
+// the entire picture across the canvas.
 
 const MIN_PCT = 4;
 
 export function HotspotEditor({
   element,
-  scale,
   onChange,
 }: {
   element: ImageHotspotsElement;
-  scale: number;
   onChange: (patch: Partial<CanvasElement>) => void;
 }) {
-  // Held in a ref, not state: this changes on every pointermove and none of
-  // it needs to trigger a render of its own — the element's own hotspot
-  // values are what the overlay draws from, and those update through
-  // onChange.
+  // Measured rather than derived from element.w/h and the canvas zoom: the
+  // frame is the rendered picture, which is smaller than the element whenever
+  // the picture is fitted inside, and its size depends on the image's own
+  // aspect ratio. getBoundingClientRect gives the real on-screen box, which
+  // already accounts for zoom, so one measurement replaces two assumptions.
+  const frameRef = useRef<HTMLDivElement>(null);
+
   const drag = useRef<{
     id: string;
     mode: "move" | "resize";
     startX: number;
     startY: number;
+    frameW: number;
+    frameH: number;
     startSpot: { xPct: number; yPct: number; wPct: number; hPct: number };
   } | null>(null);
 
@@ -51,12 +57,15 @@ export function HotspotEditor({
     e.stopPropagation();
     e.preventDefault();
     const spot = element.hotspots.find((h) => h.id === id);
-    if (!spot) return;
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!spot || !rect || rect.width === 0 || rect.height === 0) return;
     drag.current = {
       id,
       mode,
       startX: e.clientX,
       startY: e.clientY,
+      frameW: rect.width,
+      frameH: rect.height,
       startSpot: { xPct: spot.xPct, yPct: spot.yPct, wPct: spot.wPct, hPct: spot.hPct },
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -67,13 +76,8 @@ export function HotspotEditor({
     if (!d) return;
     e.stopPropagation();
 
-    // Pointer movement is in screen pixels; the element is drawn at `scale`,
-    // and hotspots are percentages of the element's own box. Dividing by
-    // scale converts back to canvas pixels, and dividing by the element's
-    // width/height converts those to percent — so a target stays under the
-    // cursor at any zoom.
-    const dxPct = ((e.clientX - d.startX) / scale / element.w) * 100;
-    const dyPct = ((e.clientY - d.startY) / scale / element.h) * 100;
+    const dxPct = ((e.clientX - d.startX) / d.frameW) * 100;
+    const dyPct = ((e.clientY - d.startY) / d.frameH) * 100;
 
     if (d.mode === "move") {
       patchSpot(d.id, {
@@ -98,7 +102,7 @@ export function HotspotEditor({
   };
 
   return (
-    <div className="absolute inset-0">
+    <div ref={frameRef} className="absolute inset-0">
       {element.hotspots.map((h) => (
         <div
           key={h.id}
@@ -107,10 +111,7 @@ export function HotspotEditor({
           onPointerMove={move}
           onPointerUp={end}
           onPointerCancel={end}
-          className={cn(
-            "absolute cursor-move rounded-md border-2 border-primary bg-primary/15",
-            "hover:bg-primary/25",
-          )}
+          className="absolute cursor-move rounded-md border-2 border-primary bg-primary/15 hover:bg-primary/25"
           style={{
             left: `${h.xPct}%`,
             top: `${h.yPct}%`,
