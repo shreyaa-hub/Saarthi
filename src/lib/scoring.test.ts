@@ -12,6 +12,9 @@ import type {
   PracticeDrillElement,
   DrawPadElement,
   LongAnswerElement,
+  YesNoElement,
+  FlashcardsElement,
+  CountTapElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -641,5 +644,46 @@ describe("scoreCanvas: partial credit across an activity", () => {
     // One pair of three, plus the blank right: 2 of 4, not 1 of 2 and
     // certainly not 1 of 2 with the match counted as a total failure.
     expect(scoreCanvas(canvas, { dm: { p1: "p1" }, fb: "yes" })).toEqual({ correct: 2, total: 4 });
+  });
+});
+
+describe("scoreElement: the simple child-facing tasks", () => {
+  it("marks yes/no against the authored answer, not the button text", () => {
+    const el: YesNoElement = {
+      ...base, type: "yesNo", prompt: "Is this a dog?",
+      answer: "no", yesLabel: "Same", noLabel: "Different",
+    };
+    expect(scoreElement(el, "no")).toEqual({ correct: 1, total: 1 });
+    expect(scoreElement(el, "yes")).toEqual({ correct: 0, total: 1 });
+    // Unanswered, and anything that is not one of the two buttons.
+    expect(scoreElement(el, undefined)).toEqual({ correct: 0, total: 1 });
+    expect(scoreElement(el, "maybe")).toEqual({ correct: 0, total: 1 });
+  });
+
+  it("counts the flashcards the child said they knew", () => {
+    const el: FlashcardsElement = {
+      ...base, type: "flashcards", prompt: "Turn each card over",
+      cards: [
+        { id: "c1", front: "Sun", back: "☀️" },
+        { id: "c2", front: "Cat", back: "🐱" },
+        { id: "c3", front: "Ball", back: "⚽" },
+      ],
+    };
+    expect(scoreElement(el, ["c1", "c3"])).toEqual({ correct: 2, total: 3 });
+    expect(scoreElement(el, [])).toEqual({ correct: 0, total: 3 });
+    // A card id that is not in the deck cannot inflate the count.
+    expect(scoreElement(el, ["c1", "ghost"])).toEqual({ correct: 1, total: 3 });
+  });
+
+  it("marks the counting task on the number tapped", () => {
+    const el: CountTapElement = {
+      ...base, type: "countTap", prompt: "How many?",
+      emoji: "🍎", count: 3, maxChoice: 5,
+    };
+    expect(scoreElement(el, 3)).toEqual({ correct: 1, total: 1 });
+    expect(scoreElement(el, 4)).toEqual({ correct: 0, total: 1 });
+    // A string "3" is not a tap on the 3 button — the player sends a number.
+    expect(scoreElement(el, "3")).toEqual({ correct: 0, total: 1 });
+    expect(scoreElement(el, undefined)).toEqual({ correct: 0, total: 1 });
   });
 });

@@ -168,6 +168,33 @@ export function scoreElement(element: CanvasElement, response: unknown): Element
       return netScore(hits, misfires, targets.size);
     }
 
+    case "yesNo": {
+      // One question, one mark. No penalty arithmetic to do — there are two
+      // buttons and the child pressed one of them.
+      const picked = response === "yes" || response === "no" ? response : null;
+      return { correct: picked === element.answer ? 1 : 0, total: 1 };
+    }
+
+    case "flashcards": {
+      // Self-rated, so this is not marked against a key: the response is the
+      // set of cards the child said they knew, and what it measures is how
+      // many of the deck that was. Recording it as accuracy is honest as long
+      // as nobody reads it as the app having checked anything — which is why
+      // the player labels the buttons "I knew it" and "Practise again"
+      // rather than right and wrong.
+      const known = new Set(Array.isArray(response) ? (response as string[]) : []);
+      if (element.cards.length === 0) return NOT_SCORED;
+      return {
+        correct: element.cards.filter((c) => known.has(c.id)).length,
+        total: element.cards.length,
+      };
+    }
+
+    case "countTap": {
+      const picked = typeof response === "number" ? response : null;
+      return { correct: picked === element.count ? 1 : 0, total: 1 };
+    }
+
     default:
       return NOT_SCORED;
   }

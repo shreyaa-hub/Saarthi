@@ -320,6 +320,69 @@ export type LongAnswerElement = ElementBase & InteractiveAppearance & {
   lines: number;
 };
 
+// --- Simple tasks for young or pre-verbal children ---------------------------
+// Everything above asks the child to read a list, drag something precisely, or
+// hold several items in mind at once. These three deliberately do not. Each is
+// one question with a small number of very large targets, which is what works
+// for a three-year-old, for a child with limited language, and for anyone
+// still learning to use a touchscreen.
+
+// A single yes/no question about a picture or a sentence. The simplest
+// comprehension check there is: "Is this a dog?" It reaches a child who cannot
+// yet read a list of options, and it is the format most early-language goals
+// are actually measured in.
+export type YesNoElement = ElementBase & InteractiveAppearance & {
+  type: "yesNo";
+  prompt: string;
+  imageSrc?: string;
+  // The answer key. Kept explicit rather than inferred from the prompt so the
+  // clinician can write the question however they like.
+  answer: "yes" | "no";
+  // What the two buttons say. Overridable because the same layout serves
+  // "Yes / No", "Same / Different" and "👍 / 👎", which are the same task to
+  // the child and different words to the clinician.
+  yesLabel: string;
+  noLabel: string;
+};
+
+export type Flashcard = {
+  id: string;
+  front: string;
+  back: string;
+  frontImage?: string;
+  backImage?: string;
+};
+
+// A deck the child taps to flip, then marks for themselves. Not marked by the
+// app: nothing here is typed or chosen, so there is nothing a computer can
+// check — what it records is how many the child said they knew, which is the
+// self-rating a clinician asks for anyway ("show me the ones that were hard").
+//
+// A deck rather than a page of questions is the point. One card at a time is
+// the whole visual field, which is what makes it usable for a child who cannot
+// scan a grid.
+export type FlashcardsElement = ElementBase & InteractiveAppearance & {
+  type: "flashcards";
+  prompt: string;
+  cards: Flashcard[];
+};
+
+// "How many?" — a row of the same picture repeated, and number buttons under
+// it. Counting is the one early-cognitive skill none of the other types touch,
+// and the interaction is a single tap on a big number.
+export type CountTapElement = ElementBase & InteractiveAppearance & {
+  type: "countTap";
+  prompt: string;
+  // What is being counted. An emoji is deliberately allowed and is the
+  // default — a clinician can build a counting task with no upload at all.
+  emoji: string;
+  imageSrc?: string;
+  // How many to draw, and therefore the answer.
+  count: number;
+  // The highest number offered as a choice. The buttons run 1..maxChoice.
+  maxChoice: number;
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -386,6 +449,9 @@ export type CanvasElement =
   | PracticeDrillElement
   | DrawPadElement
   | LongAnswerElement
+  | YesNoElement
+  | FlashcardsElement
+  | CountTapElement
   | ListElement
   | WritingLinesElement
   | ChecklistElement
@@ -405,6 +471,9 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "practiceDrill",
   "drawPad",
   "longAnswer",
+  "yesNo",
+  "flashcards",
+  "countTap",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

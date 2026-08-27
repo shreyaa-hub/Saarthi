@@ -16,6 +16,9 @@ import type {
   PracticeDrillElement,
   DrawPadElement,
   LongAnswerElement,
+  YesNoElement,
+  FlashcardsElement,
+  CountTapElement,
   ChecklistElement,
   TableElement,
   InteractiveAppearance,
@@ -433,6 +436,27 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         <>
           <DrawPadFields element={selected} patch={patch} />
           <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "yesNo" && (
+        <>
+          <YesNoFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "flashcards" && (
+        <>
+          <FlashcardsFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "countTap" && (
+        <>
+          <CountTapFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
         </>
       )}
 
@@ -1529,6 +1553,187 @@ function LongAnswerFields({
       <p className="text-[11px] text-muted-foreground">
         Nothing here is marked right or wrong — it counts as done once the patient has written
         that many words. Leave it at 0 to accept any answer.
+      </p>
+    </>
+  );
+}
+
+function YesNoFields({
+  element,
+  patch,
+}: {
+  element: YesNoElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Question">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Picture (optional)">
+        <div className="flex flex-col gap-1.5">
+          <ImageUploadButton onUploaded={(src) => patch({ imageSrc: src })} />
+          {element.imageSrc && (
+            <button
+              type="button"
+              onClick={() => patch({ imageSrc: undefined })}
+              className="self-start text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              Remove picture
+            </button>
+          )}
+        </div>
+      </Field>
+      <Field label="Correct answer">
+        <Select
+          value={element.answer}
+          onValueChange={(v) => patch({ answer: v as "yes" | "no" })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="yes">{element.yesLabel || "Yes"}</SelectItem>
+            <SelectItem value="no">{element.noLabel || "No"}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Left button">
+          <Input value={element.yesLabel} onChange={(e) => patch({ yesLabel: e.target.value })} />
+        </Field>
+        <Field label="Right button">
+          <Input value={element.noLabel} onChange={(e) => patch({ noLabel: e.target.value })} />
+        </Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Rename the buttons for &ldquo;Same / Different&rdquo; or &ldquo;👍 / 👎&rdquo; — the same task,
+        different words.
+      </p>
+    </>
+  );
+}
+
+function FlashcardsFields({
+  element,
+  patch,
+}: {
+  element: FlashcardsElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<FlashcardsElement["cards"][number]>) => {
+    patch({ cards: element.cards.map((c, idx) => (idx === i ? { ...c, ...p } : c)) });
+  };
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Cards</Label>
+        <p className="text-[11px] text-muted-foreground">
+          The front is what the child sees first; tapping turns it over to the back. Nothing here is
+          marked — the child says whether they knew it.
+        </p>
+        {element.cards.map((c, i) => (
+          <div key={c.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <PairImagePicker src={c.frontImage} onChange={(v) => update(i, { frontImage: v })} label="front" />
+              <Input
+                value={c.front}
+                onChange={(e) => update(i, { front: e.target.value })}
+                placeholder="Front"
+                className="flex-1"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <PairImagePicker src={c.backImage} onChange={(v) => update(i, { backImage: v })} label="back" />
+              <Input
+                value={c.back}
+                onChange={(e) => update(i, { back: e.target.value })}
+                placeholder="Back"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ cards: element.cards.filter((_, idx) => idx !== i) })}
+                className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ cards: [...element.cards, { id: nanoid(8), front: "Front", back: "Back" }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add card
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function CountTapFields({
+  element,
+  patch,
+}: {
+  element: CountTapElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Question">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="How many">
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={element.count}
+            onChange={(e) => patch({ count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+          />
+        </Field>
+        <Field label="Highest choice">
+          <Input
+            type="number"
+            min={2}
+            max={10}
+            value={element.maxChoice}
+            onChange={(e) => patch({ maxChoice: Math.max(2, Math.min(10, Number(e.target.value) || 5)) })}
+          />
+        </Field>
+      </div>
+      <Field label="What to count">
+        <Input
+          value={element.emoji}
+          onChange={(e) => patch({ emoji: e.target.value })}
+          placeholder="🍎"
+        />
+      </Field>
+      <Field label="Or use a picture">
+        <div className="flex flex-col gap-1.5">
+          <ImageUploadButton onUploaded={(src) => patch({ imageSrc: src })} />
+          {element.imageSrc && (
+            <button
+              type="button"
+              onClick={() => patch({ imageSrc: undefined })}
+              className="self-start text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              Use the emoji instead
+            </button>
+          )}
+        </div>
+      </Field>
+      <p className="text-[11px] text-muted-foreground">
+        The number of pictures IS the answer, so it is never shown. The choices always run high
+        enough to include it.
       </p>
     </>
   );

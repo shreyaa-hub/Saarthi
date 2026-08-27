@@ -18,6 +18,9 @@ import type {
   PracticeDrillElement,
   DrawPadElement,
   LongAnswerElement,
+  YesNoElement,
+  FlashcardsElement,
+  CountTapElement,
   ListElement,
   WritingLinesElement,
   ChecklistElement,
@@ -251,6 +254,44 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         lines: 5,
       } satisfies LongAnswerElement;
 
+    case "yesNo":
+      return {
+        ...base,
+        type: "yesNo",
+        w: 380,
+        h: 260,
+        prompt: "Is this a dog?",
+        answer: "yes",
+        yesLabel: "Yes",
+        noLabel: "No",
+      } satisfies YesNoElement;
+
+    case "flashcards":
+      return {
+        ...base,
+        type: "flashcards",
+        w: 380,
+        h: 300,
+        prompt: "Tap the card to turn it over.",
+        cards: [
+          { id: id(), front: "Sun", back: "☀️" },
+          { id: id(), front: "Cat", back: "🐱" },
+          { id: id(), front: "Ball", back: "⚽" },
+        ],
+      } satisfies FlashcardsElement;
+
+    case "countTap":
+      return {
+        ...base,
+        type: "countTap",
+        w: 420,
+        h: 260,
+        prompt: "How many apples?",
+        emoji: "🍎",
+        count: 3,
+        maxChoice: 5,
+      } satisfies CountTapElement;
+
     case "list":
       return {
         ...base,
@@ -348,6 +389,9 @@ export const ELEMENT_LIBRARY: {
   { type: "practiceDrill", label: "Practice drill", group: "interactive", surfaces: ["activity"] },
   { type: "drawPad", label: "Draw / trace", group: "interactive", surfaces: ["activity"] },
   { type: "longAnswer", label: "Written answer", group: "interactive", surfaces: ["activity"] },
+  { type: "yesNo", label: "Yes or no", group: "interactive", surfaces: ["activity"] },
+  { type: "flashcards", label: "Flashcards", group: "interactive", surfaces: ["activity"] },
+  { type: "countTap", label: "How many?", group: "interactive", surfaces: ["activity"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {

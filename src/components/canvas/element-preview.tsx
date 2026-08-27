@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, Hash, ArrowRight } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
@@ -492,6 +492,104 @@ export function ElementPreview({
           <div className="flex min-h-0 flex-1 flex-col justify-evenly overflow-hidden">
             {Array.from({ length: Math.max(1, element.lines) }, (_, i) => (
               <span key={i} className="block border-b border-border/70" />
+            ))}
+          </div>
+        </div>
+      );
+
+    // The three simple tasks. All show the answer key on the authoring canvas
+    // and drop it under hideAnswers, same rule as every other scored type.
+    case "yesNo":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
+            {element.prompt}
+          </p>
+          {element.imageSrc && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={element.imageSrc} alt="" className="min-h-0 w-full flex-1 rounded-md object-contain" />
+          )}
+          <div className="grid shrink-0 grid-cols-2 gap-2" style={textStyle(element)}>
+            {(["yes", "no"] as const).map((side) => (
+              <div
+                key={side}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-xl border-2 py-3 font-semibold",
+                  element.answer === side && !hideAnswers
+                    ? "border-success/50 bg-success/10 text-success"
+                    : "border-border",
+                )}
+              >
+                {side === "yes" ? <ThumbsUp className="size-4" /> : <ThumbsDown className="size-4" />}
+                {side === "yes" ? element.yesLabel : element.noLabel}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "flashcards":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex shrink-0 items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Layers2 className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          {/* Both faces of every card, which is the one thing the player
+              cannot show — it turns one card at a time — and exactly what a
+              clinician checking the deck needs to see. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden" style={textStyle(element)}>
+            {element.cards.map((c) => (
+              <div key={c.id} className="flex min-w-0 items-center gap-1.5 rounded-md border border-border px-2 py-1">
+                <span className="min-w-0 flex-1 truncate">{c.front}</span>
+                <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">{c.back}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "countTap":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
+            {element.prompt}
+          </p>
+          <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-1.5 overflow-hidden">
+            {Array.from({ length: Math.max(0, Math.min(20, Math.round(element.count))) }, (_, i) =>
+              element.imageSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={element.imageSrc} alt="" className="rounded object-cover" style={imageStyle(element)} />
+              ) : (
+                <span key={i} className="text-2xl leading-none">{element.emoji}</span>
+              ),
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap justify-center gap-1.5">
+            {Array.from(
+              { length: Math.max(Math.round(element.count), Math.min(10, Math.round(element.maxChoice) || 5)) },
+              (_, i) => i + 1,
+            ).map((n) => (
+              <span
+                key={n}
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-lg border-2 text-sm font-bold",
+                  n === element.count && !hideAnswers
+                    ? "border-success/50 bg-success/10 text-success"
+                    : "border-border",
+                )}
+              >
+                {n}
+              </span>
             ))}
           </div>
         </div>

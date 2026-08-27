@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Volume2, Check, X, Brain, Plus, Minus, Undo2, Eraser } from "lucide-react";
+import { Volume2, Check, X, Brain, Plus, Minus, Undo2, Eraser, ThumbsUp, ThumbsDown, RotateCw, ArrowRight } from "lucide-react";
 import type { CanvasElement, DrawStroke } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
@@ -243,6 +243,21 @@ export function ElementPlayer({
     case "longAnswer": {
       const text = typeof response === "string" ? response : "";
       return <LongAnswerPlayer element={element} text={text} onChange={onChange} locked={locked} />;
+    }
+
+    case "yesNo": {
+      const picked = response === "yes" || response === "no" ? response : null;
+      return <YesNoPlayer element={element} picked={picked} onChange={onChange} locked={locked} />;
+    }
+
+    case "flashcards": {
+      const known = Array.isArray(response) ? (response as string[]) : [];
+      return <FlashcardsPlayer element={element} known={known} onChange={onChange} locked={locked} />;
+    }
+
+    case "countTap": {
+      const picked = typeof response === "number" ? response : null;
+      return <CountTapPlayer element={element} picked={picked} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -1299,6 +1314,275 @@ function LongAnswerPlayer({
           </span>
         )}
       </p>
+    </div>
+  );
+}
+
+// Two very large buttons and nothing else. Sized by the element rather than
+// by a font scale, so a clinician who wants a bigger target just makes the
+// element bigger — which is the control a three-year-old's reach actually
+// needs, and one no font-size field would give them.
+function YesNoPlayer({
+  element,
+  picked,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "yesNo" }>;
+  picked: "yes" | "no" | null;
+  onChange: (value: string) => void;
+  locked: boolean;
+}) {
+  const answered = picked !== null;
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      {element.imageSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={element.imageSrc}
+          alt=""
+          className="min-h-0 w-full flex-1 rounded-md object-contain"
+        />
+      )}
+
+      <div className="grid shrink-0 grid-cols-2 gap-3">
+        {(["yes", "no"] as const).map((side) => {
+          const isPicked = picked === side;
+          const isAnswer = element.answer === side;
+          return (
+            <button
+              key={side}
+              type="button"
+              disabled={locked}
+              onClick={() => onChange(side)}
+              style={textStyle(element)}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl border-2 py-4 font-semibold transition-colors",
+                isPicked ? "border-primary bg-secondary" : "border-border hover:bg-muted",
+                // After submitting: the right answer is marked whether or not
+                // it was chosen, so a child who got it wrong is shown what the
+                // answer was rather than only that they were wrong.
+                locked && isAnswer && "border-success bg-success/15",
+                locked && isPicked && !isAnswer && "border-destructive bg-destructive/15",
+              )}
+            >
+              {side === "yes" ? <ThumbsUp className="size-5" /> : <ThumbsDown className="size-5" />}
+              {side === "yes" ? element.yesLabel : element.noLabel}
+              {locked && isAnswer && <Check className="size-4 text-success" />}
+              {locked && isPicked && !isAnswer && <X className="size-4 text-destructive" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {!locked && !answered && (
+        <p className="shrink-0 text-center text-xs text-muted-foreground">Tap one.</p>
+      )}
+    </div>
+  );
+}
+
+// One card at a time, filling the element. A deck rather than a page of
+// questions is the whole design: one card is the entire visual field, which
+// is what makes this usable for a child who cannot scan a grid.
+//
+// Nothing here is marked by the app — there is no input to check — so the
+// buttons say "I knew it" and "Practise again" rather than right and wrong.
+// What gets recorded is the child's own rating, which is the thing a
+// clinician asks for anyway.
+function FlashcardsPlayer({
+  element,
+  known,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "flashcards" }>;
+  known: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+
+  const card = element.cards[Math.min(index, element.cards.length - 1)];
+  const knownSet = new Set(known);
+  const atEnd = index >= element.cards.length - 1;
+
+  if (!card) {
+    return (
+      <div className="flex size-full items-center justify-center rounded-lg border border-border bg-card p-3">
+        <p className="text-center text-xs text-muted-foreground">No cards yet.</p>
+      </div>
+    );
+  }
+
+  const rate = (gotIt: boolean) => {
+    if (locked) return;
+    // Re-rating a card already seen replaces the old rating rather than
+    // adding a second one, so the count can never exceed the deck.
+    const next = known.filter((id) => id !== card.id);
+    onChange(gotIt ? [...next, card.id] : next);
+    setFlipped(false);
+    if (!atEnd) setIndex((i) => i + 1);
+  };
+
+  const face = flipped ? { text: card.back, image: card.backImage } : { text: card.front, image: card.frontImage };
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <div className="flex shrink-0 items-center gap-2">
+        <p className="min-w-0 flex-1 truncate font-semibold" style={textStyle(element)}>
+          {element.prompt}
+        </p>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {index + 1}/{element.cards.length} · {knownSet.size} known
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setFlipped((f) => !f)}
+        aria-label={flipped ? "Turn the card back" : "Turn the card over"}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-center transition-colors",
+          flipped ? "border-primary bg-secondary" : "border-border bg-muted/40 hover:bg-muted",
+        )}
+        style={textStyle(element)}
+      >
+        {face.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={face.image} alt="" className="max-h-full min-h-0 max-w-full flex-1 object-contain" />
+        )}
+        <span className="max-w-full break-words text-2xl font-semibold">{face.text}</span>
+        <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+          <RotateCw className="size-3" /> {flipped ? "Tap to go back" : "Tap to turn over"}
+        </span>
+      </button>
+
+      <div className="grid shrink-0 grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => rate(false)}
+          className="rounded-lg border border-border py-2 text-sm font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
+        >
+          Practise again
+        </button>
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => rate(true)}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium cursor-pointer disabled:opacity-40",
+            knownSet.has(card.id)
+              ? "border-success bg-success/15 text-success"
+              : "border-border hover:bg-muted",
+          )}
+        >
+          <Check className="size-4" /> I knew it
+        </button>
+      </div>
+
+      {!atEnd && (
+        <button
+          type="button"
+          onClick={() => {
+            setFlipped(false);
+            setIndex((i) => i + 1);
+          }}
+          className="flex shrink-0 items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          Skip to the next card <ArrowRight className="size-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Count the pictures, tap the number. Counting is the one early-cognitive
+// skill none of the other types touch, and the whole interaction is a single
+// tap on a big number.
+function CountTapPlayer({
+  element,
+  picked,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "countTap" }>;
+  picked: number | null;
+  onChange: (value: number) => void;
+  locked: boolean;
+}) {
+  // Clamped so a mis-typed count cannot render ten thousand apples and hang
+  // the page, and so the choices always at least reach the right answer —
+  // a task whose answer is not on offer is unanswerable.
+  const count = Math.max(0, Math.min(20, Math.round(element.count)));
+  const maxChoice = Math.max(count, Math.min(10, Math.round(element.maxChoice) || 5));
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-2 overflow-hidden">
+        {Array.from({ length: count }, (_, i) =>
+          element.imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={element.imageSrc}
+              alt=""
+              className="rounded object-cover"
+              style={imageStyle(element)}
+            />
+          ) : (
+            <span key={i} className="text-3xl leading-none" aria-hidden>
+              {element.emoji}
+            </span>
+          ),
+        )}
+        {/* The count is the answer, so it must not be announced — but the
+            picture still needs a name for anyone using a screen reader. */}
+        <span className="sr-only">A group of {element.emoji || "pictures"} to count</span>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap justify-center gap-2">
+        {Array.from({ length: maxChoice }, (_, i) => i + 1).map((n) => {
+          const isPicked = picked === n;
+          const isAnswer = n === count;
+          return (
+            <button
+              key={n}
+              type="button"
+              disabled={locked}
+              onClick={() => onChange(n)}
+              className={cn(
+                "flex size-11 items-center justify-center rounded-xl border-2 text-lg font-bold transition-colors",
+                isPicked ? "border-primary bg-secondary" : "border-border hover:bg-muted",
+                locked && isAnswer && "border-success bg-success/15",
+                locked && isPicked && !isAnswer && "border-destructive bg-destructive/15",
+              )}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
