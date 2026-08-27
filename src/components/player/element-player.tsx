@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { Volume2, Check, X, Brain } from "lucide-react";
+import { Volume2, Check, X, Brain, Plus, Minus } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
+import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { seededShuffle } from "@/lib/canvas/shuffle";
@@ -194,6 +195,16 @@ export function ElementPlayer({
     case "wordHunt": {
       const tapped = Array.isArray(response) ? (response as number[]) : [];
       return <WordHuntPlayer element={element} tapped={tapped} onChange={onChange} locked={locked} />;
+    }
+
+    case "imageHotspots": {
+      const found = Array.isArray(response) ? (response as string[]) : [];
+      return <ImageHotspotsPlayer element={element} found={found} onChange={onChange} locked={locked} />;
+    }
+
+    case "practiceDrill": {
+      const counts = (response ?? {}) as Record<string, number>;
+      return <PracticeDrillPlayer element={element} counts={counts} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -669,10 +680,16 @@ function MemoryMatchPlayer({
   const cards = useMemo(
     () =>
       seededShuffle(
-        element.pairs.flatMap((p) => [
-          { id: `${p.id}-a`, pairKey: p.id, label: p.label, image: p.image },
-          { id: `${p.id}-b`, pairKey: p.id, label: p.label, image: p.image },
-        ]),
+        element.pairs.flatMap((p) => {
+          // Each pair can show two different things (a photo on one card,
+          // the word on the other). memoryPairFaces owns the "side B falls
+          // back to side A" rule so this does not restate it.
+          const { a, b } = memoryPairFaces(p);
+          return [
+            { id: `${p.id}-a`, pairKey: p.id, ...a },
+            { id: `${p.id}-b`, pairKey: p.id, ...b },
+          ];
+        }),
         `${element.id}:cards`,
       ),
     [element.pairs, element.id],
@@ -829,6 +846,199 @@ function WordHuntPlayer({
           );
         })}
       </p>
+    </div>
+  );
+}
+
+// A picture the patient searches and taps — the one spatial interaction in
+// this file; everything else is a list of authored choices.
+//
+// Hotspots are positioned as percentages of the image box, so a target keeps
+// covering the thing it marks at any element size or player zoom. The image
+// uses object-contain inside a relatively-positioned box and the overlay
+// shares that box, which keeps the two coordinate systems identical.
+function ImageHotspotsPlayer({
+  element,
+  found,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "imageHotspots" }>;
+  found: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const foundSet = new Set(found);
+
+  const toggle = (id: string) => {
+    if (locked) return;
+    const next = new Set(foundSet);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange([...next]);
+  };
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Found {foundSet.size} of {element.hotspots.length}
+      </p>
+
+      <div className="relative min-h-0 flex-1">
+        {element.src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={element.src} alt={element.alt} className="size-full object-contain" />
+        ) : (
+          <div className="flex size-full items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
+            No picture set yet
+          </div>
+        )}
+
+        {element.hotspots.map((h) => {
+          const isFound = foundSet.has(h.id);
+          return (
+            <button
+              key={h.id}
+              type="button"
+              disabled={locked}
+              onClick={() => toggle(h.id)}
+              title={isFound || locked ? h.label : undefined}
+              aria-label={h.label}
+              className={cn(
+                "absolute rounded-md border-2 transition-colors",
+                isFound && "border-success bg-success/25",
+                // Review reveals every target, so a patient looking back can
+                // see what they missed rather than just their own taps.
+                !isFound && locked && "border-destructive border-dashed bg-destructive/10",
+                !isFound && !locked && element.showOutlines && "border-primary/70 bg-primary/10",
+                // The real activity: no outline at all until it is found, so
+                // the picture has to actually be searched. Still a real
+                // button — focusable, and hit-testable by a screen reader.
+                !isFound && !locked && !element.showOutlines && "border-transparent hover:bg-white/20",
+              )}
+              style={{
+                left: `${h.xPct}%`,
+                top: `${h.yPct}%`,
+                width: `${h.wPct}%`,
+                height: `${h.hPct}%`,
+              }}
+            >
+              {(isFound || locked) && (
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 text-[10px] text-white">
+                  {h.label}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Repetition counting — the shape of real articulation drill work, where the
+// unit is "say it five times", not "answer once". Tapping increments; the
+// word is done when it reaches its target.
+function PracticeDrillPlayer({
+  element,
+  counts,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "practiceDrill" }>;
+  counts: Record<string, number>;
+  onChange: (value: Record<string, number>) => void;
+  locked: boolean;
+}) {
+  const bump = (id: string, delta: number, target: number) => {
+    if (locked) return;
+    const current = counts[id] ?? 0;
+    // Clamped at the target rather than counting past it: the number on
+    // screen is a progress indicator, and letting it run to 9/5 makes the
+    // "am I finished" question harder to answer at a glance. Clamped at 0
+    // below so an over-tap can always be undone.
+    const next = Math.max(0, Math.min(target, current + delta));
+    onChange({ ...counts, [id]: next });
+  };
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {element.words.map((w) => {
+          const count = counts[w.id] ?? 0;
+          const done = count >= w.target;
+          return (
+            <div
+              key={w.id}
+              className={cn(
+                "flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
+                done ? "border-success bg-success/10" : "border-border",
+              )}
+              style={textStyle(element)}
+            >
+              {w.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={w.image}
+                  alt=""
+                  className="shrink-0 rounded object-cover"
+                  style={imageStyle(element)}
+                />
+              )}
+              <span className="min-w-0 flex-1 truncate font-medium">{w.label}</span>
+
+              {/* Dots rather than a bare number: a child counting five
+                  repetitions can see at a glance how many are left without
+                  reading, which a "3/5" cannot do. */}
+              <span className="flex shrink-0 items-center gap-1" aria-hidden>
+                {Array.from({ length: w.target }, (_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "size-2 rounded-full",
+                      i < count ? "bg-success" : "bg-muted-foreground/25",
+                    )}
+                  />
+                ))}
+              </span>
+              <span className="sr-only">
+                {count} of {w.target} said
+              </span>
+
+              <button
+                type="button"
+                disabled={locked || count === 0}
+                onClick={() => bump(w.id, -1, w.target)}
+                aria-label={`Undo one repetition of ${w.label}`}
+                className="flex size-6 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+              >
+                <Minus className="size-3" />
+              </button>
+              <button
+                type="button"
+                disabled={locked || done}
+                onClick={() => bump(w.id, 1, w.target)}
+                aria-label={`Count one repetition of ${w.label}`}
+                className="flex size-6 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 cursor-pointer"
+              >
+                {done ? <Check className="size-3" /> : <Plus className="size-3" />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

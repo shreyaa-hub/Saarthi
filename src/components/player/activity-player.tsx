@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 import type { TemplateCanvas } from "@/lib/types/canvas";
 import { isInteractive, allPages } from "@/lib/types/canvas";
@@ -13,6 +13,7 @@ import { submitAttempt } from "@/lib/actions/patient";
 import { ElementPlayer } from "./element-player";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useFullscreen } from "@/lib/canvas/use-fullscreen";
 import { cn } from "@/lib/utils";
 
 // `practice` runs the same player over a library item the patient chose
@@ -46,6 +47,12 @@ export function ActivityPlayer({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+
+  // The whole player goes fullscreen, not just the canvas, so the header
+  // (progress, Submit) and the slide navigation stay reachable — a patient
+  // dropped into a bare canvas with no way to submit would be stuck.
+  const shellRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, supported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen();
 
   // An activity can be several slides (a worksheet, several pages). Page 1
   // lives in canvas.elements and the rest in canvas.pages; allPages is the
@@ -155,7 +162,7 @@ export function ActivityPlayer({
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div ref={shellRef} className="flex h-screen flex-col bg-background">
       <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
           <Link href={backHref} className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
@@ -171,6 +178,17 @@ export function ActivityPlayer({
                 {answeredCount}/{interactiveCount}
               </span>
             </div>
+          )}
+          {fullscreenSupported && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => toggleFullscreen(shellRef.current)}
+              title={isFullscreen ? "Leave fullscreen" : "Fullscreen"}
+              aria-label={isFullscreen ? "Leave fullscreen" : "Enter fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </Button>
           )}
           {locked ? (
             <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>

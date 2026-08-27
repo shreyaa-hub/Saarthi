@@ -1,6 +1,7 @@
 import { Fragment } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2 } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
+import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
@@ -8,7 +9,18 @@ import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
 // authoring canvas. The activity player has its own interactive renderer.
-export function ElementPreview({ element }: { element: CanvasElement }) {
+//
+// suppressHotspots turns off this component's own "find in picture" target
+// markers, for when the caller is drawing its own draggable ones on top
+// (ElementBox does, while the element is selected). Without it the target is
+// outlined and labelled twice, which reads as two overlapping targets.
+export function ElementPreview({
+  element,
+  suppressHotspots = false,
+}: {
+  element: CanvasElement;
+  suppressHotspots?: boolean;
+}) {
   switch (element.type) {
     case "text":
       return (
@@ -241,19 +253,38 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
           <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
             <Brain className="size-3.5 shrink-0" /> {element.prompt}
           </div>
-          <div className="grid flex-1 grid-cols-3 gap-1.5 overflow-hidden" style={textStyle(element)}>
-            {element.pairs.map((p) => (
-              <div
-                key={p.id}
-                className="flex flex-col items-center justify-center gap-1 truncate rounded-md border border-border px-1.5 py-1.5 text-center"
-              >
-                {p.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt="" className="rounded object-cover" style={imageStyle(element)} />
-                )}
-                <span className="truncate">{p.label}</span>
-              </div>
-            ))}
+          {/* Shows both faces of every pair, bracketed together. The patient
+              sees these shuffled and face-down; this view exists so the
+              clinician can check what actually matches what — which is
+              impossible to see if only one face of each pair is drawn. */}
+          <div className="grid flex-1 grid-cols-2 gap-1.5 overflow-hidden" style={textStyle(element)}>
+            {element.pairs.map((p) => {
+              const { a, b } = memoryPairFaces(p);
+              return (
+                <div
+                  key={p.id}
+                  className="flex min-w-0 items-center gap-1 rounded-md border border-dashed border-border p-1"
+                >
+                  {[a, b].map((face, i) => (
+                    <div
+                      key={i}
+                      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded border border-border px-1 py-1 text-center"
+                    >
+                      {face.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={face.image}
+                          alt=""
+                          className="rounded object-cover"
+                          style={imageStyle(element)}
+                        />
+                      )}
+                      <span className="w-full truncate">{face.label}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -280,6 +311,80 @@ export function ElementPreview({ element }: { element: CanvasElement }) {
         </div>
       );
     }
+
+    case "imageHotspots":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <ScanSearch className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          {/* Every target is outlined and labelled here regardless of the
+              element's showOutlines setting — the clinician is checking
+              placement, and an authoring view that hid the targets would be
+              impossible to work in. */}
+          <div className="relative min-h-0 flex-1">
+            {element.src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={element.src} alt={element.alt} className="size-full object-contain" />
+            ) : (
+              <div className="flex size-full flex-col items-center justify-center gap-1 rounded border border-dashed border-border text-xs text-muted-foreground">
+                <ImageIcon className="size-5" />
+                Add a picture in the panel
+              </div>
+            )}
+            {!suppressHotspots && element.hotspots.map((h) => (
+              <div
+                key={h.id}
+                className="absolute rounded-md border-2 border-primary/70 bg-primary/10"
+                style={{
+                  left: `${h.xPct}%`,
+                  top: `${h.yPct}%`,
+                  width: `${h.wPct}%`,
+                  height: `${h.hPct}%`,
+                }}
+              >
+                <span className="absolute inset-x-0 bottom-0 truncate bg-primary/80 px-1 text-[10px] text-primary-foreground">
+                  {h.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "practiceDrill":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Repeat2 className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="flex flex-col gap-1 overflow-hidden" style={textStyle(element)}>
+            {element.words.map((w) => (
+              <div
+                key={w.id}
+                className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2 py-1"
+              >
+                {w.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={w.image} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
+                )}
+                <span className="min-w-0 flex-1 truncate">{w.label}</span>
+                <span className="flex shrink-0 items-center gap-1">
+                  {Array.from({ length: w.target }, (_, i) => (
+                    <span key={i} className="size-2 rounded-full bg-muted-foreground/25" />
+                  ))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
 
     case "list":
       return <ListBlock element={element} />;

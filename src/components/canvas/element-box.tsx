@@ -5,6 +5,7 @@ import { Trash2, Copy, ChevronUp, ChevronDown, Lock, Unlock } from "lucide-react
 import type { CanvasElement } from "@/lib/types/canvas";
 import { snapToGridValue } from "@/lib/canvas/alignment";
 import { ElementPreview } from "./element-preview";
+import { HotspotEditor } from "./hotspot-editor";
 import { cn } from "@/lib/utils";
 
 type Handle = "nw" | "ne" | "sw" | "se";
@@ -141,6 +142,9 @@ export function ElementBox({
     resizeState.current = null;
   }, []);
 
+  const editingHotspots =
+    element.type === "imageHotspots" && soleSelected && !readOnly && !element.locked;
+
   return (
     <div
       className={cn(
@@ -160,7 +164,14 @@ export function ElementBox({
       onPointerUp={handleMoveUp}
       onClick={(e) => e.stopPropagation()}
     >
-      <ElementPreview element={element} />
+      {/* Spatial elements get direct manipulation of their own inner parts
+          while selected — placing a target over the thing it marks is not
+          something four percentage fields can do. The preview stops drawing
+          its own markers while that overlay is up, or each target would be
+          outlined and labelled twice. */}
+      <ElementPreview element={element} suppressHotspots={editingHotspots} />
+
+      {editingHotspots && <HotspotEditor element={element} scale={scale} onChange={onChange} />}
 
       {soleSelected && !readOnly && (
         <>

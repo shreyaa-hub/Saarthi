@@ -8,6 +8,8 @@ import type {
   SortCategorizeElement,
   MemoryMatchElement,
   WordHuntElement,
+  ImageHotspotsElement,
+  PracticeDrillElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -259,6 +261,68 @@ describe("isElementCorrect: wordHunt", () => {
 
   it("is wrong with nothing tapped", () => {
     expect(isElementCorrect(el, undefined)).toBe(false);
+  });
+});
+
+describe("isElementCorrect: imageHotspots", () => {
+  const el: ImageHotspotsElement = {
+    ...base,
+    type: "imageHotspots",
+    prompt: "Find them",
+    src: "x.png",
+    alt: "",
+    showOutlines: false,
+    hotspots: [
+      { id: "h1", label: "Ball", xPct: 10, yPct: 10, wPct: 20, hPct: 20 },
+      { id: "h2", label: "Cup", xPct: 50, yPct: 50, wPct: 20, hPct: 20 },
+    ],
+  };
+
+  it("is correct when every target has been found", () => {
+    expect(isElementCorrect(el, ["h1", "h2"])).toBe(true);
+  });
+
+  it("does not care what order they were found in", () => {
+    expect(isElementCorrect(el, ["h2", "h1"])).toBe(true);
+  });
+
+  it("is wrong when one is missed", () => {
+    expect(isElementCorrect(el, ["h1"])).toBe(false);
+  });
+
+  it("is wrong with nothing found", () => {
+    expect(isElementCorrect(el, undefined)).toBe(false);
+  });
+});
+
+describe("isElementCorrect: practiceDrill", () => {
+  const el: PracticeDrillElement = {
+    ...base,
+    type: "practiceDrill",
+    prompt: "Say each five times",
+    words: [
+      { id: "w1", label: "Sun", target: 5 },
+      { id: "w2", label: "Soap", target: 3 },
+    ],
+  };
+
+  it("is complete when every word reaches its own target", () => {
+    expect(isElementCorrect(el, { w1: 5, w2: 3 })).toBe(true);
+  });
+
+  it("respects per-word targets rather than one shared number", () => {
+    // w2 only needs 3, so 3 is enough for it even though w1 needs 5.
+    expect(isElementCorrect(el, { w1: 5, w2: 3 })).toBe(true);
+    expect(isElementCorrect(el, { w1: 3, w2: 3 })).toBe(false);
+  });
+
+  it("counts above the target still count as done", () => {
+    expect(isElementCorrect(el, { w1: 9, w2: 4 })).toBe(true);
+  });
+
+  it("is incomplete when a word is short or missing", () => {
+    expect(isElementCorrect(el, { w1: 5 })).toBe(false);
+    expect(isElementCorrect(el, {})).toBe(false);
   });
 });
 

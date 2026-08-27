@@ -152,11 +152,37 @@ export type SortCategorizeElement = ElementBase & InteractiveAppearance & {
 // play time (ids `${id}-a` / `${id}-b`, shuffled together), not stored as
 // individual cards here. A clinician thinks in terms of "the six things to
 // find pairs of," not "twelve cards, coincidentally in matching pairs."
+//
+// The two cards can show different things. label/image are side A; labelB
+// and imageB are side B, and when they are unset side B mirrors side A —
+// which is both the classic identical-cards game and exactly how every pair
+// authored before these fields existed keeps behaving.
+//
+// Two different sides is what makes the game teach something: a photo of a
+// dog paired with the written word "Dog" trains the association, where two
+// identical cards only train recall of position.
 export type MemoryPair = {
   id: string;
   label: string;
   image?: string;
+  labelB?: string;
+  imageB?: string;
 };
+
+// The two faces of one pair, resolved. Side B falls back to side A so
+// callers never repeat the mirroring rule.
+export function memoryPairFaces(pair: MemoryPair): {
+  a: { label: string; image?: string };
+  b: { label: string; image?: string };
+} {
+  const bHasOwnContent = Boolean(pair.labelB?.trim() || pair.imageB);
+  return {
+    a: { label: pair.label, image: pair.image },
+    b: bHasOwnContent
+      ? { label: pair.labelB?.trim() || "", image: pair.imageB }
+      : { label: pair.label, image: pair.image },
+  };
+}
 
 export type MemoryMatchElement = ElementBase & InteractiveAppearance & {
   type: "memoryMatch";
@@ -170,6 +196,52 @@ export type WordHuntElement = ElementBase & {
   passage: string;
   // Matched case-insensitively against the passage (see lib/canvas/word-hunt.ts).
   targetWords: string[];
+};
+
+// A region of the picture the patient is meant to find and tap. Position and
+// size are percentages of the image box (0-100), never pixels: the image is
+// scaled to fit whatever the element is resized to and whatever zoom the
+// player is at, and a pixel offset would drift away from the thing it marks
+// the moment either changed.
+export type Hotspot = {
+  id: string;
+  label: string;
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
+};
+
+// "Find the things in the picture" — a picture scene the patient taps
+// directly, which is the one interaction none of the other types cover:
+// every other type is a list of authored choices, this one is spatial.
+// Widely used in speech therapy for scene description and vocabulary work.
+export type ImageHotspotsElement = ElementBase & InteractiveAppearance & {
+  type: "imageHotspots";
+  prompt: string;
+  src: string;
+  alt: string;
+  hotspots: Hotspot[];
+  // Whether an outline is drawn around each target before it is found. Off
+  // is the real activity (the patient has to search); on turns it into a
+  // labelling exercise, useful for a younger or more impaired patient.
+  showOutlines: boolean;
+};
+
+// One word to drill, and how many times it should be produced. Articulation
+// practice is repetition-counted ("say it five times"), which no existing
+// type expresses — every other one is answered once and done.
+export type DrillWord = {
+  id: string;
+  label: string;
+  image?: string;
+  target: number;
+};
+
+export type PracticeDrillElement = ElementBase & InteractiveAppearance & {
+  type: "practiceDrill";
+  prompt: string;
+  words: DrillWord[];
 };
 
 // --- Worksheet elements -----------------------------------------------------
@@ -209,6 +281,8 @@ export type CanvasElement =
   | SortCategorizeElement
   | MemoryMatchElement
   | WordHuntElement
+  | ImageHotspotsElement
+  | PracticeDrillElement
   | ListElement
   | WritingLinesElement;
 
@@ -222,6 +296,8 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "sortCategorize",
   "memoryMatch",
   "wordHunt",
+  "imageHotspots",
+  "practiceDrill",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

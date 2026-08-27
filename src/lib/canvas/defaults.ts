@@ -14,6 +14,8 @@ import type {
   SortCategorizeElement,
   MemoryMatchElement,
   WordHuntElement,
+  ImageHotspotsElement,
+  PracticeDrillElement,
   ListElement,
   WritingLinesElement,
 } from "@/lib/types/canvas";
@@ -188,6 +190,39 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         targetWords: ["sun", "so", "Sam", "sunglasses", "sat", "soft"],
       } satisfies WordHuntElement;
 
+    case "imageHotspots":
+      return {
+        ...base,
+        type: "imageHotspots",
+        w: 460,
+        h: 340,
+        prompt: "Find and tap each thing in the picture.",
+        src: "",
+        alt: "",
+        showOutlines: false,
+        // Two starter regions in sensible spots so the element is usable the
+        // moment it is dropped — the clinician drags them onto the real
+        // objects once they have added their own picture.
+        hotspots: [
+          { id: id(), label: "First thing", xPct: 15, yPct: 20, wPct: 22, hPct: 22 },
+          { id: id(), label: "Second thing", xPct: 60, yPct: 55, wPct: 22, hPct: 22 },
+        ],
+      } satisfies ImageHotspotsElement;
+
+    case "practiceDrill":
+      return {
+        ...base,
+        type: "practiceDrill",
+        w: 420,
+        h: 300,
+        prompt: "Say each word five times. Tap once for every try.",
+        words: [
+          { id: id(), label: "Sun", target: 5 },
+          { id: id(), label: "Soap", target: 5 },
+          { id: id(), label: "Sock", target: 5 },
+        ],
+      } satisfies PracticeDrillElement;
+
     case "list":
       return {
         ...base,
@@ -248,6 +283,8 @@ export const ELEMENT_LIBRARY: {
   { type: "sortCategorize", label: "Sort into categories", group: "interactive", surfaces: ["activity"] },
   { type: "memoryMatch", label: "Memory match", group: "interactive", surfaces: ["activity"] },
   { type: "wordHunt", label: "Word hunt", group: "interactive", surfaces: ["activity"] },
+  { type: "imageHotspots", label: "Find in picture", group: "interactive", surfaces: ["activity"] },
+  { type: "practiceDrill", label: "Practice drill", group: "interactive", surfaces: ["activity"] },
 ];
 
 export function elementsForSurface(surface: ElementSurface) {

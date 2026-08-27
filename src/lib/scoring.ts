@@ -40,6 +40,21 @@ export function isElementCorrect(element: CanvasElement, response: unknown): boo
       const matched = new Set(Array.isArray(response) ? (response as string[]) : []);
       return element.pairs.every((p) => matched.has(`${p.id}-a`) && matched.has(`${p.id}-b`));
     }
+    case "imageHotspots": {
+      // Same shape as wordHunt: the exact set of targets, nothing missed and
+      // nothing spurious. A patient who taps everywhere would otherwise score
+      // full marks for finding nothing.
+      const found = new Set(Array.isArray(response) ? (response as string[]) : []);
+      if (found.size !== element.hotspots.length) return false;
+      return element.hotspots.every((h) => found.has(h.id));
+    }
+    case "practiceDrill": {
+      // Complete when every word has been produced at least its target
+      // number of times. Counts above target are fine — a patient doing
+      // extra repetitions has not got it wrong.
+      const counts = (response ?? {}) as Record<string, number>;
+      return element.words.every((w) => (counts[w.id] ?? 0) >= w.target);
+    }
     case "wordHunt": {
       const tapped = new Set(Array.isArray(response) ? (response as number[]) : []);
       const tokens = tokenizeWordHunt(element.passage);

@@ -12,6 +12,8 @@ import type {
   SortCategorizeElement,
   MemoryMatchElement,
   WordHuntElement,
+  ImageHotspotsElement,
+  PracticeDrillElement,
   InteractiveAppearance,
   ListElement,
   WritingLinesElement,
@@ -397,6 +399,20 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       )}
 
       {selected.type === "wordHunt" && <WordHuntFields element={selected} patch={patch} />}
+
+      {selected.type === "imageHotspots" && (
+        <>
+          <ImageHotspotsFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "practiceDrill" && (
+        <>
+          <PracticeDrillFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
 
       {selected.type === "list" && <ListFields element={selected} patch={patch} />}
 
@@ -955,26 +971,67 @@ function MemoryMatchFields({
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Pairs to find</Label>
         <p className="text-[11px] text-muted-foreground">
-          Each one becomes two face-down cards, shuffled, that the patient flips to find.
+          Each pair becomes two face-down cards, shuffled, that the patient flips to find.
+          Fill in the second card to make the two sides different — a photo and its word,
+          say. Leave it blank and both cards show the same thing.
         </p>
-        {element.pairs.map((p, i) => (
-          <div key={p.id} className="flex items-center gap-2">
-            <PairImagePicker src={p.image} onChange={(v) => updatePair(i, { image: v })} label="card" />
-            <Input
-              value={p.label}
-              onChange={(e) => updatePair(i, { label: e.target.value })}
-              className="flex-1"
-            />
-            <button
-              type="button"
-              onClick={() => patch({ pairs: element.pairs.filter((_, idx) => idx !== i) })}
-              disabled={element.pairs.length <= 2}
-              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer disabled:opacity-30"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          </div>
-        ))}
+        {element.pairs.map((p, i) => {
+          const twoSided = Boolean(p.labelB?.trim() || p.imageB);
+          return (
+            <div key={p.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+              <div className="flex items-center gap-2">
+                <span className="w-8 shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">
+                  Card 1
+                </span>
+                <PairImagePicker
+                  src={p.image}
+                  onChange={(v) => updatePair(i, { image: v })}
+                  label="first card"
+                />
+                <Input
+                  value={p.label}
+                  onChange={(e) => updatePair(i, { label: e.target.value })}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => patch({ pairs: element.pairs.filter((_, idx) => idx !== i) })}
+                  disabled={element.pairs.length <= 2}
+                  title="Remove this pair"
+                  className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer disabled:opacity-30"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-8 shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">
+                  Card 2
+                </span>
+                <PairImagePicker
+                  src={p.imageB}
+                  onChange={(v) => updatePair(i, { imageB: v })}
+                  label="second card"
+                />
+                <Input
+                  value={p.labelB ?? ""}
+                  placeholder="Same as card 1"
+                  onChange={(e) => updatePair(i, { labelB: e.target.value || undefined })}
+                  className="flex-1"
+                />
+                {twoSided && (
+                  <button
+                    type="button"
+                    onClick={() => updatePair(i, { labelB: undefined, imageB: undefined })}
+                    title="Make both cards the same again"
+                    className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
         <Button
           type="button"
           variant="outline"
@@ -1056,6 +1113,153 @@ function WordHuntFields({
             <Plus className="size-3.5" />
           </Button>
         </div>
+      </div>
+    </>
+  );
+}
+
+function ImageHotspotsFields({
+  element,
+  patch,
+}: {
+  element: ImageHotspotsElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const updateSpot = (i: number, p: Partial<ImageHotspotsElement["hotspots"][number]>) => {
+    patch({ hotspots: element.hotspots.map((h, idx) => (idx === i ? { ...h, ...p } : h)) });
+  };
+
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+
+      <Field label="Picture">
+        <ImageUploadButton onUploaded={(url) => patch({ src: url })} />
+      </Field>
+      <Field label="Picture URL">
+        <Input value={element.src} onChange={(e) => patch({ src: e.target.value })} placeholder="https://…" />
+      </Field>
+      <Field label="Alt text">
+        <Input value={element.alt} onChange={(e) => patch({ alt: e.target.value })} />
+      </Field>
+
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="hotspot-outlines"
+          checked={element.showOutlines}
+          onCheckedChange={(v) => patch({ showOutlines: Boolean(v) })}
+        />
+        <Label htmlFor="hotspot-outlines" className="text-xs font-normal">
+          Show outlines to the patient
+        </Label>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Things to find</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Drag a target on the canvas to move it, or drag its bottom-right corner to resize.
+        </p>
+        {element.hotspots.map((h, i) => (
+          <div key={h.id} className="flex items-center gap-2">
+            <Input
+              value={h.label}
+              onChange={(e) => updateSpot(i, { label: e.target.value })}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => patch({ hotspots: element.hotspots.filter((_, idx) => idx !== i) })}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({
+              hotspots: [
+                ...element.hotspots,
+                // Dropped near the middle, offset a little per target so a
+                // run of new ones does not stack invisibly on one spot.
+                {
+                  id: nanoid(8),
+                  label: "New thing",
+                  xPct: Math.min(70, 35 + element.hotspots.length * 5),
+                  yPct: Math.min(70, 35 + element.hotspots.length * 5),
+                  wPct: 20,
+                  hPct: 20,
+                },
+              ],
+            })
+          }
+        >
+          <Plus className="size-3.5" /> Add a thing to find
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function PracticeDrillFields({
+  element,
+  patch,
+}: {
+  element: PracticeDrillElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const updateWord = (i: number, p: Partial<PracticeDrillElement["words"][number]>) => {
+    patch({ words: element.words.map((w, idx) => (idx === i ? { ...w, ...p } : w)) });
+  };
+
+  return (
+    <>
+      <Field label="Prompt">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Words and repetitions</Label>
+        {element.words.map((w, i) => (
+          <div key={w.id} className="flex items-center gap-2">
+            <PairImagePicker src={w.image} onChange={(v) => updateWord(i, { image: v })} label="word" />
+            <Input
+              value={w.label}
+              onChange={(e) => updateWord(i, { label: e.target.value })}
+              className="flex-1"
+            />
+            <Input
+              type="number"
+              min={1}
+              max={20}
+              value={w.target}
+              onChange={(e) => updateWord(i, { target: Math.max(1, Number(e.target.value) || 1) })}
+              className="w-14"
+              title="How many times to say it"
+            />
+            <button
+              type="button"
+              onClick={() => patch({ words: element.words.filter((_, idx) => idx !== i) })}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ words: [...element.words, { id: nanoid(8), label: "New word", target: 5 }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add word
+        </Button>
       </div>
     </>
   );
