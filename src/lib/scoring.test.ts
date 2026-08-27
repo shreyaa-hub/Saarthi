@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isElementCorrect, scoreCanvas } from "@/lib/scoring";
+import { isElementCorrect, scoreElement, scoreCanvas } from "@/lib/scoring";
 import type {
   MultipleChoiceElement,
   FillBlankElement,
@@ -472,5 +472,174 @@ describe("scoreCanvas", () => {
     };
     const result = scoreCanvas(canvas, { fb1: "yes", fb2: "wrong" });
     expect(result).toEqual({ correct: 1, total: 2 });
+  });
+});
+
+// Partial credit is the whole point of scoreElement. An activity used to be
+// marked one element at a time, so matching two of three pairs scored the
+// same as matching none — which is both unfair and clinically useless, since
+// "two of three today, one of three last week" is exactly the signal a
+// clinician reads.
+describe("scoreElement: partial credit", () => {
+  it("gives drag-to-match a mark per pair", () => {
+    const el: DragMatchElement = {
+      ...base,
+      type: "dragMatch",
+      prompt: "Match",
+      pairs: [
+        { id: "p1", left: "Dog", right: "Woof" },
+        { id: "p2", left: "Cat", right: "Meow" },
+        { id: "p3", left: "Cow", right: "Moo" },
+      ],
+    };
+    // The reported case: one right, two wrong, used to score zero.
+    expect(scoreElement(el, { p1: "p1", p2: "p3", p3: "p2" })).toEqual({ correct: 1, total: 3 });
+    expect(scoreElement(el, { p1: "p1", p2: "p2" })).toEqual({ correct: 2, total: 3 });
+    expect(scoreElement(el, {})).toEqual({ correct: 0, total: 3 });
+    expect(scoreElement(el, { p1: "p1", p2: "p2", p3: "p3" })).toEqual({ correct: 3, total: 3 });
+  });
+
+  it("gives sorting a mark per item placed in the right category", () => {
+    const el: SortCategorizeElement = {
+      ...base,
+      type: "sortCategorize",
+      prompt: "Sort",
+      categories: [{ id: "c1", label: "Animals" }, { id: "c2", label: "Food" }],
+      items: [
+        { id: "i1", label: "Dog", categoryId: "c1" },
+        { id: "i2", label: "Apple", categoryId: "c2" },
+        { id: "i3", label: "Cat", categoryId: "c1" },
+      ],
+    };
+    expect(scoreElement(el, { i1: "c1", i2: "c1", i3: "c1" })).toEqual({ correct: 2, total: 3 });
+  });
+
+  it("gives sequencing a mark per step in the right position", () => {
+    const el: SequenceElement = {
+      ...base,
+      type: "sequence",
+      prompt: "Order",
+      items: [
+        { id: "s1", label: "One", order: 1 },
+        { id: "s2", label: "Two", order: 2 },
+        { id: "s3", label: "Three", order: 3 },
+      ],
+    };
+    // First two right, then astray — the first two are genuinely right.
+    expect(scoreElement(el, ["s1", "s2"])).toEqual({ correct: 2, total: 3 });
+    expect(scoreElement(el, ["s1", "s3", "s2"])).toEqual({ correct: 1, total: 3 });
+    expect(scoreElement(el, [])).toEqual({ correct: 0, total: 3 });
+  });
+
+  it("gives memory match a mark per pair found", () => {
+    const el: MemoryMatchElement = {
+      ...base,
+      type: "memoryMatch",
+      prompt: "Pairs",
+      pairs: [{ id: "m1", label: "A" }, { id: "m2", label: "B" }],
+    };
+    expect(scoreElement(el, ["m1-a", "m1-b"])).toEqual({ correct: 1, total: 2 });
+  });
+
+  it("gives the picture hunt a mark per target found", () => {
+    const el: ImageHotspotsElement = {
+      ...base,
+      type: "imageHotspots",
+      prompt: "Find", src: "", alt: "", showOutlines: false,
+      hotspots: [
+        { id: "h1", label: "Dog", xPct: 0, yPct: 0, wPct: 10, hPct: 10 },
+        { id: "h2", label: "Ball", xPct: 20, yPct: 20, wPct: 10, hPct: 10 },
+      ],
+    };
+    expect(scoreElement(el, ["h1"])).toEqual({ correct: 1, total: 2 });
+  });
+
+  it("gives the practice drill a mark per word that reached its target", () => {
+    const el: PracticeDrillElement = {
+      ...base,
+      type: "practiceDrill",
+      prompt: "Say it",
+      words: [
+        { id: "w1", label: "Sun", target: 5 },
+        { id: "w2", label: "Soap", target: 3 },
+      ],
+    };
+    // Deliberately not one mark per repetition: a five-repetition drill would
+    // otherwise outweigh a five-pair matching task in the same activity.
+    expect(scoreElement(el, { w1: 5, w2: 1 })).toEqual({ correct: 1, total: 2 });
+  });
+
+  it("subtracts wrong taps in a word hunt, so tapping everything scores nothing", () => {
+    const el: WordHuntElement = {
+      ...base,
+      type: "wordHunt",
+      prompt: "Tap /s/ words",
+      passage: "The sun sat on soft grass",
+      targetWords: ["sun", "sat", "soft"],
+    };
+    const tokens = ["The", " ", "sun", " ", "sat", " ", "on", " ", "soft", " ", "grass"];
+    const idx = (w: string) => tokens.indexOf(w);
+
+    expect(scoreElement(el, [idx("sun"), idx("sat")])).toEqual({ correct: 2, total: 3 });
+    // Two right and two wrong nets zero, not two.
+    expect(scoreElement(el, [idx("sun"), idx("sat"), idx("The"), idx("on")])).toEqual({
+      correct: 0,
+      total: 3,
+    });
+  });
+
+  it("subtracts wrong choices in a multi-answer question", () => {
+    const el: MultipleChoiceElement = {
+      ...base,
+      type: "multipleChoice",
+      prompt: "Which are animals?",
+      allowMultiple: true,
+      options: [
+        { id: "a", label: "Dog", correct: true },
+        { id: "b", label: "Cat", correct: true },
+        { id: "c", label: "Rock", correct: false },
+      ],
+    };
+    expect(scoreElement(el, ["a"])).toEqual({ correct: 1, total: 2 });
+    expect(scoreElement(el, ["a", "b"])).toEqual({ correct: 2, total: 2 });
+    // Ticking everything must not score full marks.
+    expect(scoreElement(el, ["a", "b", "c"])).toEqual({ correct: 1, total: 2 });
+  });
+
+  it("leaves an unfinished element out of the denominator entirely", () => {
+    // Neither credited nor penalised: the patient should not lose a mark
+    // because the author never ticked a correct answer.
+    const noKey: MultipleChoiceElement = {
+      ...base,
+      type: "multipleChoice",
+      prompt: "Unfinished",
+      allowMultiple: false,
+      options: [{ id: "a", label: "A", correct: false }],
+    };
+    expect(scoreElement(noKey, ["a"])).toEqual({ correct: 0, total: 0 });
+    expect(isElementCorrect(noKey, ["a"])).toBe(true);
+  });
+});
+
+describe("scoreCanvas: partial credit across an activity", () => {
+  it("counts items, not elements, so a part-right question is part-right", () => {
+    const canvas: TemplateCanvas = {
+      width: 900, height: 600, background: "#fff",
+      elements: [
+        {
+          ...base, id: "dm", type: "dragMatch", prompt: "Match",
+          pairs: [
+            { id: "p1", left: "a", right: "1" },
+            { id: "p2", left: "b", right: "2" },
+            { id: "p3", left: "c", right: "3" },
+          ],
+        },
+        { ...base, id: "fb", type: "fillBlank", template: "___", answer: "yes", caseSensitive: false },
+      ],
+    };
+
+    // One pair of three, plus the blank right: 2 of 4, not 1 of 2 and
+    // certainly not 1 of 2 with the match counted as a total failure.
+    expect(scoreCanvas(canvas, { dm: { p1: "p1" }, fb: "yes" })).toEqual({ correct: 2, total: 4 });
   });
 });
