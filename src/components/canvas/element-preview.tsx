@@ -4,8 +4,9 @@ import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
-import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
+import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "./hotspot-frame";
+import { OptionPicture } from "./option-picture";
 import { cn } from "@/lib/utils";
 
 // Static, non-interactive rendering of a canvas element — used by the
@@ -107,39 +108,44 @@ export function ElementPreview({
         </button>
       );
 
-    case "multipleChoice":
+    case "multipleChoice": {
+      // A picture-choice question lays its answers out side by side, with the
+      // photograph as the answer rather than a thumbnail next to the words.
+      const grid = element.layout === "grid";
       return (
         <div
           className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
           style={cardStyle(element)}
         >
           <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
-          <div className="flex flex-1 flex-col gap-1.5 overflow-hidden" style={textStyle(element)}>
+          <div
+            className={cn(
+              "flex-1 overflow-hidden",
+              grid ? "grid content-start gap-2" : "flex flex-col gap-1.5",
+            )}
+            style={{ ...textStyle(element), ...(grid ? mcGridStyle(element) : {}) }}
+          >
             {element.options.map((o) => (
               <div
                 key={o.id}
                 className={cn(
-                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1",
+                  "min-w-0 rounded-md border",
+                  grid
+                    ? "flex flex-col items-center gap-1.5 p-2 text-center"
+                    : "flex items-center gap-1.5 px-2 py-1",
                   o.correct && !hideAnswers
                     ? "border-success/40 bg-success/10 text-success"
                     : "border-border",
                 )}
               >
-                {o.imageSrc && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={o.imageSrc}
-                    alt=""
-                    className="shrink-0 rounded object-cover"
-                    style={imageStyle(element)}
-                  />
-                )}
-                <span className="truncate">{o.label}</span>
+                <OptionPicture element={element} option={o} grid={grid} />
+                <span className={cn("truncate", grid && "w-full")}>{o.label}</span>
               </div>
             ))}
           </div>
         </div>
       );
+    }
 
     case "fillBlank":
       return (

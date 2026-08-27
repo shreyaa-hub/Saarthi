@@ -23,7 +23,7 @@ import type {
   WritingLinesElement,
   PageStyle,
 } from "@/lib/types/canvas";
-import { APPEARANCE_DEFAULTS } from "@/lib/types/canvas";
+import { APPEARANCE_DEFAULTS, MC_DEFAULT_COLUMNS } from "@/lib/types/canvas";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -575,6 +575,21 @@ function WritingLinesFields({
   );
 }
 
+// A picture the patient is meant to point at needs to be big enough to be a
+// picture. 140px per column is about the smallest that stays recognisable on
+// a tablet held at arm's length, and it is what the auto-widen below aims at.
+const MIN_PICTURE_COLUMN_PX = 140;
+
+// The picture height a picture-choice answer gets when the author switches to
+// that layout. The 28px list thumbnail default is right beside a word and
+// absurd as the answer itself.
+const PICTURE_CHOICE_IMAGE_PX = 96;
+
+function columnCount(element: MultipleChoiceElement): number {
+  const wanted = element.columns ?? MC_DEFAULT_COLUMNS;
+  return Math.max(1, Math.min(wanted, element.options.length || 1));
+}
+
 function MultipleChoiceFields({
   element,
   patch,
@@ -600,6 +615,60 @@ function MultipleChoiceFields({
         />
         <Label htmlFor="allow-multiple" className="text-xs font-normal">Allow multiple correct answers</Label>
       </div>
+
+      <Field label="Answer layout">
+        <Select
+          value={element.layout ?? "list"}
+          onValueChange={(v) => {
+            const layout = v as "list" | "grid";
+            if (layout !== "grid") {
+              patch({ layout });
+              return;
+            }
+            // Switching to pictures side by side in a box sized for a stacked
+            // list gives four columns about 80px wide, and a 28px-tall
+            // thumbnail, which is not a picture anyone can point at. Size the
+            // box and the pictures for what the layout is actually for — and
+            // only ever grow them, so an author who has already set a size
+            // themselves keeps it.
+            const needed = columnCount(element) * MIN_PICTURE_COLUMN_PX;
+            const currentPicture = element.imageSize ?? APPEARANCE_DEFAULTS.imageSize;
+            patch({
+              layout,
+              ...(element.w < needed ? { w: needed } : {}),
+              ...(currentPicture < PICTURE_CHOICE_IMAGE_PX
+                ? { imageSize: PICTURE_CHOICE_IMAGE_PX }
+                : {}),
+            });
+          }}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="list">List — answers stacked as rows</SelectItem>
+            <SelectItem value="grid">Picture choice — answers side by side</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {element.layout === "grid" && (
+        <Field label="Pictures across">
+          <Select
+            value={String(element.columns ?? MC_DEFAULT_COLUMNS)}
+            onValueChange={(v) => {
+              const columns = Number(v);
+              const needed = Math.min(columns, element.options.length || 1) * MIN_PICTURE_COLUMN_PX;
+              patch({ columns, ...(element.w < needed ? { w: needed } : {}) });
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[2, 3, 4, 5, 6].map((n) => (
+                <SelectItem key={n} value={String(n)}>{n} across</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
       <div className="flex flex-col gap-2">
         <Label className="text-xs text-muted-foreground">Options</Label>
         <p className="text-[11px] text-muted-foreground">
@@ -627,11 +696,17 @@ function MultipleChoiceFields({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() =>
-            patch({
-              options: [...element.options, { id: nanoid(8), label: "New option", correct: false }],
-            })
-          }
+          onClick={() => {
+            const options = [...element.options, { id: nanoid(8), label: "New option", correct: false }];
+            // In a picture-choice grid a new answer is a new column, so the
+            // box has to grow with it — otherwise going from three pictures
+            // to four just squeezes all four narrower.
+            const needed =
+              element.layout === "grid"
+                ? Math.min(element.columns ?? MC_DEFAULT_COLUMNS, options.length) * MIN_PICTURE_COLUMN_PX
+                : 0;
+            patch({ options, ...(element.w < needed ? { w: needed } : {}) });
+          }}
         >
           <Plus className="size-3.5" /> Add option
         </Button>

@@ -8,8 +8,9 @@ import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock } from "@/components/canvas/worksheet-elements";
 import { seededShuffle } from "@/lib/canvas/shuffle";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
-import { textStyle, cardStyle, imageStyle } from "@/lib/canvas/appearance";
+import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
+import { OptionPicture } from "@/components/canvas/option-picture";
 import { cn } from "@/lib/utils";
 
 // `preview` is not the same thing as `locked`, and conflating them leaked
@@ -112,6 +113,7 @@ export function ElementPlayer({
         }
         onChange([...next]);
       };
+      const grid = element.layout === "grid";
       return (
         <div
           className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
@@ -120,7 +122,10 @@ export function ElementPlayer({
           <p className="font-semibold" style={textStyle(element)}>
             {element.prompt}
           </p>
-          <div className="flex flex-1 flex-col gap-1.5">
+          <div
+            className={cn("flex-1", grid ? "grid content-start gap-2" : "flex flex-col gap-1.5")}
+            style={grid ? mcGridStyle(element) : undefined}
+          >
             {element.options.map((o) => {
               const isSelected = selected.has(o.id);
               const showResult = locked;
@@ -132,22 +137,17 @@ export function ElementPlayer({
                   disabled={locked}
                   style={textStyle(element)}
                   className={cn(
-                    "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+                    "rounded-md border transition-colors",
+                    grid
+                      ? "flex min-w-0 flex-col items-center gap-1.5 p-2 text-center"
+                      : "flex items-center gap-2 px-3 py-2 text-left",
                     isSelected ? "border-primary bg-secondary" : "border-border hover:bg-muted",
                     showResult && o.correct && "border-success bg-success/10",
                     showResult && isSelected && !o.correct && "border-destructive bg-destructive/10",
                   )}
                 >
-                  {o.imageSrc && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={o.imageSrc}
-                      alt=""
-                      className="shrink-0 rounded object-cover"
-                      style={imageStyle(element)}
-                    />
-                  )}
-                  <span className="min-w-0 flex-1">{o.label}</span>
+                  <OptionPicture element={element} option={o} grid={grid} />
+                  <span className={cn("min-w-0", grid ? "w-full truncate" : "flex-1")}>{o.label}</span>
                   {showResult && o.correct && <Check className="size-4 shrink-0 text-success" />}
                   {showResult && isSelected && !o.correct && <X className="size-4 shrink-0 text-destructive" />}
                 </button>

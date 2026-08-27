@@ -93,7 +93,25 @@ export type MultipleChoiceElement = ElementBase & InteractiveAppearance & {
   prompt: string;
   options: MultipleChoiceOption[];
   allowMultiple: boolean;
+  // How the answers are laid out under the question.
+  //
+  // "list" stacks them as rows of text with an optional thumbnail — right for
+  // a reading task, where the words are the answer.
+  //
+  // "grid" puts them side by side as picture cards, which is the standard
+  // picture-choice format: the clinician says the word and the patient points
+  // at one of four photographs. The picture is the answer there, so it fills
+  // the card rather than sitting beside the text as a thumbnail.
+  //
+  // Optional, defaulting to "list", so every question authored before this
+  // renders exactly as it always did.
+  layout?: "list" | "grid";
+  // Pictures across, in grid layout. Four is the usual field of choices in
+  // therapy materials, which is why it is the default.
+  columns?: number;
 };
+
+export const MC_DEFAULT_COLUMNS = 4;
 
 export type FillBlankElement = ElementBase & InteractiveAppearance & {
   type: "fillBlank";
