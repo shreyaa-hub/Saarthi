@@ -6,7 +6,7 @@ import { MessageSquarePlus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { setAttemptNote } from "@/lib/actions/attempts";
-import { AttemptReview } from "@/components/clinician/attempt-review";
+import { AttemptReview } from "@/components/attempt-review";
 import { formatDate } from "@/lib/utils";
 
 type Attempt = {

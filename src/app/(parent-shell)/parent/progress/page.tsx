@@ -6,6 +6,7 @@ import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { NoChildState } from "@/components/parent/no-child-state";
+import { AttemptReview } from "@/components/attempt-review";
 import { formatDate } from "@/lib/utils";
 
 export default async function ParentProgressPage() {
@@ -100,6 +101,7 @@ export default async function ParentProgressPage() {
                       {a.correct_count}/{a.total_count} ({a.score ?? 0}%)
                     </p>
                   </div>
+                  <AttemptReview attemptId={a.id} answeredLabel={`${firstName} answered`} />
                   {a.clinician_note && (
                     <p className="flex items-start gap-1.5 rounded-md bg-secondary px-3 py-2 text-xs text-secondary-foreground">
                       <MessageSquare className="mt-0.5 size-3.5 shrink-0" />

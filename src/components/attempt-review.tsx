@@ -26,7 +26,15 @@ const STATUS: Record<
   unscored: { label: "Not marked", icon: Minus, className: "text-muted-foreground" },
 };
 
-export function AttemptReview({ attemptId }: { attemptId: string }) {
+export function AttemptReview({
+  attemptId,
+  answeredLabel = "Patient answered",
+}: {
+  attemptId: string;
+  // A parent reads this about their own child, where "Patient answered" is
+  // both cold and slightly wrong. The caller passes the name it should use.
+  answeredLabel?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,10 +70,12 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
           {error && <p className="text-xs text-destructive">{error}</p>}
           {items?.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              This activity had nothing for the patient to answer.
+              This activity had no questions to answer.
             </p>
           )}
-          {items && items.length > 0 && <AttemptReviewList items={items} />}
+          {items && items.length > 0 && (
+            <AttemptReviewList items={items} answeredLabel={answeredLabel} />
+          )}
         </div>
       )}
     </div>
@@ -74,17 +84,23 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
 // The rows themselves, separated from the fetching around them so the same
 // markup can be rendered from any source of ReviewItems.
-export function AttemptReviewList({ items }: { items: ReviewItem[] }) {
+export function AttemptReviewList({
+  items,
+  answeredLabel = "Patient answered",
+}: {
+  items: ReviewItem[];
+  answeredLabel?: string;
+}) {
   return (
     <ol className="flex flex-col gap-3">
       {items.map((item) => (
-        <ReviewRow key={item.elementId} item={item} />
+        <ReviewRow key={item.elementId} item={item} answeredLabel={answeredLabel} />
       ))}
     </ol>
   );
 }
 
-function ReviewRow({ item }: { item: ReviewItem }) {
+function ReviewRow({ item, answeredLabel }: { item: ReviewItem; answeredLabel: string }) {
   const status = STATUS[item.status];
   const Icon = status.icon;
   // Only worth showing the key when the patient did not match it — repeating
@@ -114,7 +130,7 @@ function ReviewRow({ item }: { item: ReviewItem }) {
       </div>
 
       <dl className="mt-2 grid gap-1 text-xs sm:grid-cols-[7rem_1fr]">
-        <dt className="text-muted-foreground">Patient answered</dt>
+        <dt className="text-muted-foreground">{answeredLabel}</dt>
         <dd className={cn(item.given.length === 0 && "text-muted-foreground")}>
           {item.given.length === 0 ? "Nothing" : <Lines lines={item.given} />}
         </dd>

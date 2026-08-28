@@ -21,10 +21,11 @@ import type { TemplateCanvas } from "@/lib/types/canvas";
 // made against it, and a past attempt would start showing questions the
 // patient was never asked.
 //
-// No authorization here on purpose: activity_attempts_clinician_select
-// already scopes this select to attempts the caller may read, so a row for
-// somebody else's patient comes back empty rather than needing a second
-// check that could drift from the policy.
+// Serves the clinician and the child's guardian from one place. No
+// authorization here on purpose: activity_attempts_clinician_select and
+// activity_attempts_guardian_select already scope this select to attempts the
+// caller may read, so somebody else's child comes back empty rather than
+// needing a second check here that could drift from the policies.
 export async function getAttemptReview(
   attemptId: string,
 ): Promise<{ error: string | null; items?: ReviewItem[]; title?: string }> {
