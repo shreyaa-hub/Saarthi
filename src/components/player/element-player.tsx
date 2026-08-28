@@ -7,6 +7,7 @@ import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";
 import { seededShuffle } from "@/lib/canvas/shuffle";
+import { buildWordSearch, runBetween, matchWord } from "@/lib/canvas/word-search";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
@@ -258,6 +259,21 @@ export function ElementPlayer({
     case "countTap": {
       const picked = typeof response === "number" ? response : null;
       return <CountTapPlayer element={element} picked={picked} onChange={onChange} locked={locked} />;
+    }
+
+    case "wordSearch": {
+      const found = Array.isArray(response) ? (response as string[]) : [];
+      return <WordSearchPlayer element={element} found={found} onChange={onChange} locked={locked} />;
+    }
+
+    case "unscramble": {
+      const built = (response ?? {}) as Record<string, string>;
+      return <UnscramblePlayer element={element} built={built} onChange={onChange} locked={locked} />;
+    }
+
+    case "wordChunks": {
+      const built = (response ?? {}) as Record<string, string[]>;
+      return <WordChunksPlayer element={element} built={built} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -1638,4 +1654,315 @@ function CountTapPlayer({
       </div>
     </div>
   );
+}
+
+// Tap the first letter of a word, then the last. Two taps rather than a
+// drag across the grid: a drag has to be tracked across a dozen small
+// squares without leaving any of them, which is exactly the motor control
+// the children using this often do not have, and the same two taps work
+// identically with a mouse, a finger and a keyboard.
+function WordSearchPlayer({
+  element,
+  found,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "wordSearch" }>;
+  found: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  // Rebuilt from the element rather than stored, so the board is identical
+  // on the server, in the client, and later when the attempt is marked.
+  const grid = useMemo(
+    () => buildWordSearch(element.words, element.size, element.id),
+    [element.words, element.size, element.id],
+  );
+
+  const [anchor, setAnchor] = useState<{ row: number; col: number } | null>(null);
+  const foundSet = new Set(found.map((w) => w.toUpperCase()));
+
+  // Every square belonging to a word already found, so it can stay
+  // highlighted — the reward for finding one is seeing it stay lit.
+  const solvedCells = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of grid.placements) {
+      if (!foundSet.has(p.word)) continue;
+      for (let i = 0; i < p.word.length; i++) {
+        set.add(`${p.row + p.dRow * i}:${p.col + p.dCol * i}`);
+      }
+    }
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid, found.join("|")]);
+
+  const tap = (row: number, col: number) => {
+    if (locked) return;
+    if (!anchor) {
+      setAnchor({ row, col });
+      return;
+    }
+    if (anchor.row === row && anchor.col === col) {
+      setAnchor(null); // tapping the anchor again cancels
+      return;
+    }
+    const run = runBetween(grid, anchor, { row, col });
+    setAnchor(null);
+    if (!run) return;
+    const hit = matchWord(run.word, element.words);
+    if (hit && !foundSet.has(hit)) onChange([...found, hit]);
+  };
+
+  const placedWords = grid.placements.map((p) => p.word);
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Found {foundSet.size} of {placedWords.length}
+        {anchor ? " · now tap the last letter" : " · tap the first letter of a word"}
+      </p>
+
+      <div
+        className="grid gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${grid.size}, minmax(0, 1fr))` }}
+      >
+        {grid.cells.map((row, r) =>
+          row.map((letter, c) => {
+            const isSolved = solvedCells.has(`${r}:${c}`);
+            const isAnchor = anchor?.row === r && anchor?.col === c;
+            return (
+              <button
+                key={`${r}:${c}`}
+                type="button"
+                disabled={locked}
+                onClick={() => tap(r, c)}
+                aria-label={`Row ${r + 1}, column ${c + 1}, letter ${letter}`}
+                className={cn(
+                  "flex aspect-square min-h-9 items-center justify-center rounded font-semibold uppercase transition-colors",
+                  isSolved && "bg-success/25 text-success",
+                  !isSolved && isAnchor && "bg-primary text-primary-foreground",
+                  !isSolved && !isAnchor && "bg-muted/60 hover:bg-muted",
+                )}
+              >
+                {letter}
+              </button>
+            );
+          }),
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5" style={textStyle(element)}>
+        {placedWords.map((w) => (
+          <span
+            key={w}
+            className={cn(
+              "rounded-md border px-2 py-1",
+              foundSet.has(w)
+                ? "border-success bg-success/10 text-success line-through"
+                : "border-border",
+            )}
+          >
+            {w}
+          </span>
+        ))}
+      </div>
+
+      {/* A word the grid could not fit is left off the list entirely rather
+          than shown as a word to find that is not there. */}
+      {grid.skipped.length > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Too long for this grid: {grid.skipped.join(", ")}. Make the grid bigger to include them.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Shared by Unscramble and Word Chunks: a row of shuffled tiles, and the
+// answer being built above it. Tapping a tile moves it up, tapping a built
+// tile sends it back — no dragging, because dropping a letter precisely is a
+// motor task and this is a spelling task.
+function TileBuilder({
+  tiles,
+  built,
+  onBuiltChange,
+  locked,
+  correct,
+  style,
+}: {
+  tiles: string[];
+  built: number[];
+  onBuiltChange: (next: number[]) => void;
+  locked: boolean;
+  correct: boolean | null;
+  style?: React.CSSProperties;
+}) {
+  const used = new Set(built);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div
+        className={cn(
+          "flex min-h-11 flex-wrap items-center gap-1 rounded-md border-2 border-dashed p-1.5",
+          correct === true && "border-success bg-success/10",
+          correct === false && "border-destructive bg-destructive/10",
+          correct === null && "border-border",
+        )}
+        style={style}
+      >
+        {built.length === 0 && (
+          <span className="px-1 text-xs text-muted-foreground">Tap the tiles below</span>
+        )}
+        {built.map((tileIndex, position) => (
+          <button
+            key={`${tileIndex}-${position}`}
+            type="button"
+            disabled={locked}
+            onClick={() => onBuiltChange(built.filter((_, i) => i !== position))}
+            aria-label={`Remove ${tiles[tileIndex]}`}
+            className="min-h-9 rounded border border-primary bg-secondary px-2 py-1 font-semibold uppercase cursor-pointer disabled:cursor-default"
+          >
+            {tiles[tileIndex]}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {tiles.map((tile, i) =>
+          used.has(i) ? null : (
+            <button
+              key={i}
+              type="button"
+              disabled={locked}
+              onClick={() => onBuiltChange([...built, i])}
+              className="min-h-11 rounded-md border border-border bg-muted/50 px-3 py-1.5 font-semibold uppercase hover:bg-muted cursor-pointer disabled:cursor-default"
+            >
+              {tile}
+            </button>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UnscramblePlayer({
+  element,
+  built,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "unscramble" }>;
+  built: Record<string, string>;
+  onChange: (value: Record<string, string>) => void;
+  locked: boolean;
+}) {
+  return (
+    <div
+      className="flex size-full flex-col gap-3 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      {element.words.map((w) => {
+        const target = w.word.toUpperCase().replace(/\s+/g, "");
+        // Shuffled per word and seeded, so the scramble is stable across the
+        // server and client passes — and deranged, so no letter is left where
+        // it started and the word is never already spelled out.
+        const tiles = seededShuffle([...target], `${element.id}:${w.id}`);
+        const attempt = built[w.id] ?? "";
+        const indices = attemptToIndices(attempt, tiles);
+        const isRight = attempt.length > 0 ? attempt.toUpperCase() === target : null;
+
+        return (
+          <div key={w.id} className="flex flex-col gap-1" style={textStyle(element)}>
+            {w.hint && <p className="text-xs text-muted-foreground">{w.hint}</p>}
+            <TileBuilder
+              tiles={tiles}
+              built={indices}
+              locked={locked}
+              correct={locked ? attempt.toUpperCase() === target : isRight}
+              style={textStyle(element)}
+              onBuiltChange={(next) =>
+                onChange({ ...built, [w.id]: next.map((i) => tiles[i]).join("") })
+              }
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WordChunksPlayer({
+  element,
+  built,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "wordChunks" }>;
+  built: Record<string, string[]>;
+  onChange: (value: Record<string, string[]>) => void;
+  locked: boolean;
+}) {
+  return (
+    <div
+      className="flex size-full flex-col gap-3 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      {element.items.map((item) => {
+        const tiles = seededShuffle(item.chunks, `${element.id}:${item.id}`);
+        const attempt = built[item.id] ?? [];
+        const indices = attemptToIndices(attempt, tiles);
+        const isRight =
+          attempt.length === item.chunks.length &&
+          attempt.every((c, i) => c.toUpperCase() === item.chunks[i].toUpperCase());
+
+        return (
+          <div key={item.id} className="flex flex-col gap-1" style={textStyle(element)}>
+            <TileBuilder
+              tiles={tiles}
+              built={indices}
+              locked={locked}
+              correct={attempt.length === 0 && !locked ? null : isRight}
+              style={textStyle(element)}
+              onBuiltChange={(next) => onChange({ ...built, [item.id]: next.map((i) => tiles[i]) })}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// The response stores what the patient built, not which tiles they used, so
+// that a saved attempt still means something if the shuffle ever changes.
+// This maps it back to tile positions for rendering. Duplicate tiles (the two
+// Ts in BUTTER) are matched left to right and each consumed once, so the same
+// tile is never shown as used twice.
+function attemptToIndices(attempt: string | string[], tiles: string[]): number[] {
+  const wanted = typeof attempt === "string" ? [...attempt] : attempt;
+  const taken = new Set<number>();
+  const out: number[] = [];
+  for (const piece of wanted) {
+    const i = tiles.findIndex(
+      (t, idx) => !taken.has(idx) && t.toUpperCase() === piece.toUpperCase(),
+    );
+    if (i === -1) continue;
+    taken.add(i);
+    out.push(i);
+  }
+  return out;
 }

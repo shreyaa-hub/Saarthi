@@ -383,6 +383,58 @@ export type CountTapElement = ElementBase & InteractiveAppearance & {
   maxChoice: number;
 };
 
+
+// --- Puzzle and word-game tasks ----------------------------------------------
+// The games a teletherapy session is actually built around. Each one is a
+// task a clinician already runs on paper or with physical cards; what these
+// add is that the app can mark them and record what happened.
+
+// A letter grid with words hidden across and down. The grid itself is never
+// stored — it is rebuilt deterministically from the element's own id, so the
+// player and the answer key always agree and an attempt saved today can
+// still be marked next year. See lib/canvas/word-search.ts.
+export type WordSearchElement = ElementBase & InteractiveAppearance & {
+  type: "wordSearch";
+  prompt: string;
+  words: string[];
+  // Grid is size x size. Clamped to 4..14 when built: below four nothing
+  // fits, and above fourteen the squares are too small to tap.
+  size: number;
+};
+
+// One word to build out of tiles, and the tiles it breaks into.
+export type TileWord = {
+  id: string;
+  word: string;
+  // Shown while building, for a patient who cannot yet read the word from
+  // memory. Optional — leaving it out makes the task harder on purpose.
+  hint?: string;
+};
+
+// Scrambled letters to put back in order. Spelling, one word at a time.
+export type UnscrambleElement = ElementBase & InteractiveAppearance & {
+  type: "unscramble";
+  prompt: string;
+  words: TileWord[];
+};
+
+// The same tile mechanic at the level of syllables rather than letters, which
+// is a different skill: "but-ter-fly" is phonological awareness, "b-u-t-t-e-r"
+// is spelling, and a child can be fluent at one and not the other. Kept as
+// its own type rather than a mode of unscramble so each can grow its own
+// authoring controls.
+export type ChunkWord = {
+  id: string;
+  word: string;
+  chunks: string[];
+};
+
+export type WordChunksElement = ElementBase & InteractiveAppearance & {
+  type: "wordChunks";
+  prompt: string;
+  items: ChunkWord[];
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -561,6 +613,9 @@ export type CanvasElement =
   | YesNoElement
   | FlashcardsElement
   | CountTapElement
+  | WordSearchElement
+  | UnscrambleElement
+  | WordChunksElement
   | ListElement
   | WritingLinesElement
   | ChecklistElement
@@ -593,6 +648,9 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "yesNo",
   "flashcards",
   "countTap",
+  "wordSearch",
+  "unscramble",
+  "wordChunks",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

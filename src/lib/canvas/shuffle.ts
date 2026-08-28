@@ -36,6 +36,14 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+// A stable number in [0, 1) for a seed string. Same job as the PRNG above,
+// but keyed rather than sequential: callers that need one value per cell of a
+// grid want "the value for row 3, column 5" to be the same however many
+// other cells were computed first, which a sequential generator cannot give.
+export function seededUnit(seed: string): number {
+  return mulberry32(hashString(seed))();
+}
+
 /**
  * Fisher-Yates driven by a seeded PRNG, then forced into a *derangement*:
  * for a list of two or more, no element is left in the slot it started in.

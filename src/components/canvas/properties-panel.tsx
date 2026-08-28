@@ -19,6 +19,9 @@ import type {
   YesNoElement,
   FlashcardsElement,
   CountTapElement,
+  WordSearchElement,
+  UnscrambleElement,
+  WordChunksElement,
   ChecklistElement,
   TableElement,
   ArrowElement,
@@ -479,6 +482,27 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
         <>
           <CountTapFields element={selected} patch={patch} />
           <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
+
+      {selected.type === "wordSearch" && (
+        <>
+          <WordSearchFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "unscramble" && (
+        <>
+          <UnscrambleFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "wordChunks" && (
+        <>
+          <WordChunksFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
         </>
       )}
 
@@ -1769,6 +1793,169 @@ function CountTapFields({
         The number of pictures IS the answer, so it is never shown. The choices always run high
         enough to include it.
       </p>
+    </>
+  );
+}
+
+function WordSearchFields({
+  element,
+  patch,
+}: {
+  element: WordSearchElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Words to hide (one per line)">
+        <Textarea
+          value={element.words.join("\n")}
+          onChange={(e) =>
+            patch({ words: e.target.value.split("\n").map((w) => w.trim()).filter(Boolean) })
+          }
+          rows={5}
+        />
+      </Field>
+      <Field label="Grid size">
+        <Input
+          type="number"
+          min={4}
+          max={14}
+          value={element.size}
+          onChange={(e) => patch({ size: Math.max(4, Math.min(14, Number(e.target.value) || 8)) })}
+        />
+      </Field>
+      <p className="text-[11px] text-muted-foreground">
+        Words run across and down only — no diagonals or backwards, which is what makes these
+        solvable for a child. A word too long for the grid is left out and named on the canvas.
+      </p>
+    </>
+  );
+}
+
+function UnscrambleFields({
+  element,
+  patch,
+}: {
+  element: UnscrambleElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<UnscrambleElement["words"][number]>) => {
+    patch({ words: element.words.map((w, idx) => (idx === i ? { ...w, ...p } : w)) });
+  };
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Words</Label>
+        <p className="text-[11px] text-muted-foreground">
+          The letters are shuffled for the patient, and never left in the right order.
+        </p>
+        {element.words.map((w, i) => (
+          <div key={w.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <Input
+                value={w.word}
+                onChange={(e) => update(i, { word: e.target.value })}
+                placeholder="Word"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ words: element.words.filter((_, idx) => idx !== i) })}
+                className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+            <Input
+              value={w.hint ?? ""}
+              onChange={(e) => update(i, { hint: e.target.value || undefined })}
+              placeholder="Clue (optional)"
+              aria-label="Clue"
+            />
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ words: [...element.words, { id: nanoid(8), word: "word" }] })}
+        >
+          <Plus className="size-3.5" /> Add word
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function WordChunksFields({
+  element,
+  patch,
+}: {
+  element: WordChunksElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<WordChunksElement["items"][number]>) => {
+    patch({ items: element.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
+  };
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Words and their chunks</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Separate the chunks with a hyphen, like but-ter-fly. Marked on the chunks in order, not
+          the letters they spell — otherwise &ldquo;but-terf-ly&rdquo; would pass a syllable task.
+        </p>
+        {element.items.map((it, i) => (
+          <div key={it.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <Input
+                value={it.word}
+                onChange={(e) => update(i, { word: e.target.value })}
+                placeholder="Word"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ items: element.items.filter((_, idx) => idx !== i) })}
+                className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+            <Input
+              value={it.chunks.join("-")}
+              onChange={(e) =>
+                update(i, {
+                  chunks: e.target.value.split("-").map((c) => c.trim()).filter(Boolean),
+                })
+              }
+              placeholder="but-ter-fly"
+              aria-label="Chunks"
+            />
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ items: [...element.items, { id: nanoid(8), word: "word", chunks: ["wo", "rd"] }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add word
+        </Button>
+      </div>
     </>
   );
 }

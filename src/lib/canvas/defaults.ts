@@ -21,6 +21,9 @@ import type {
   YesNoElement,
   FlashcardsElement,
   CountTapElement,
+  WordSearchElement,
+  UnscrambleElement,
+  WordChunksElement,
   ListElement,
   WritingLinesElement,
   ChecklistElement,
@@ -302,6 +305,43 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         maxChoice: 5,
       } satisfies CountTapElement;
 
+    case "wordSearch":
+      return {
+        ...base,
+        type: "wordSearch",
+        w: 480,
+        h: 420,
+        prompt: "Find each word in the grid.",
+        words: ["sun", "sock", "soap", "sand"],
+        size: 8,
+      } satisfies WordSearchElement;
+
+    case "unscramble":
+      return {
+        ...base,
+        type: "unscramble",
+        w: 460,
+        h: 320,
+        prompt: "Put the letters in order.",
+        words: [
+          { id: id(), word: "sun", hint: "It shines in the sky" },
+          { id: id(), word: "cat", hint: "It says meow" },
+        ],
+      } satisfies UnscrambleElement;
+
+    case "wordChunks":
+      return {
+        ...base,
+        type: "wordChunks",
+        w: 460,
+        h: 320,
+        prompt: "Put the chunks together to build the word.",
+        items: [
+          { id: id(), word: "butterfly", chunks: ["but", "ter", "fly"] },
+          { id: id(), word: "rainbow", chunks: ["rain", "bow"] },
+        ],
+      } satisfies WordChunksElement;
+
     case "list":
       return {
         ...base,
@@ -520,6 +560,9 @@ export const ELEMENT_LIBRARY: {
   { type: "yesNo", label: "Yes or no", group: "interactive", surfaces: ["activity"] },
   { type: "flashcards", label: "Flashcards", group: "interactive", surfaces: ["activity"] },
   { type: "countTap", label: "How many?", group: "interactive", surfaces: ["activity"] },
+  { type: "wordSearch", label: "Word search", group: "interactive", surfaces: ["activity"] },
+  { type: "unscramble", label: "Unscramble", group: "interactive", surfaces: ["activity"] },
+  { type: "wordChunks", label: "Word chunks", group: "interactive", surfaces: ["activity"] },
   { type: "arrow", label: "Arrow", group: "content", surfaces: ["activity", "worksheet"] },
   { type: "divider", label: "Divider", group: "worksheet", surfaces: ["activity", "worksheet"] },
   { type: "sticker", label: "Sticker", group: "content", surfaces: ["activity", "worksheet"] },

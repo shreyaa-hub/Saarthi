@@ -1,10 +1,11 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight, Grid2x2, Shuffle, Blocks } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
 import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
+import { buildWordSearch } from "@/lib/canvas/word-search";
 import { HotspotFrame } from "./hotspot-frame";
 import { OptionPicture } from "./option-picture";
 import { cn } from "@/lib/utils";
@@ -590,6 +591,108 @@ export function ElementPreview({
               >
                 {n}
               </span>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "wordSearch": {
+      // The same grid the patient will see, built from the same seed, so the
+      // clinician is checking the real board rather than an impression of one.
+      const grid = buildWordSearch(element.words, element.size, element.id);
+      const solved = new Set<string>();
+      if (!hideAnswers) {
+        for (const p of grid.placements) {
+          for (let i = 0; i < p.word.length; i++) {
+            solved.add(`${p.row + p.dRow * i}:${p.col + p.dCol * i}`);
+          }
+        }
+      }
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Grid2x2 className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div
+            className="grid min-h-0 flex-1 gap-px text-[10px]"
+            style={{ gridTemplateColumns: `repeat(${grid.size}, minmax(0, 1fr))` }}
+          >
+            {grid.cells.map((row, r) =>
+              row.map((letter, c) => (
+                <span
+                  key={`${r}:${c}`}
+                  className={cn(
+                    "flex items-center justify-center rounded-sm font-semibold uppercase",
+                    // On the canvas the placed words are highlighted so the
+                    // author can see where they landed; on paper that would
+                    // be the answer key printed on the puzzle.
+                    solved.has(`${r}:${c}`) ? "bg-success/25 text-success" : "bg-muted/50",
+                  )}
+                >
+                  {letter}
+                </span>
+              )),
+            )}
+          </div>
+          <p className="shrink-0 truncate text-muted-foreground" style={textStyle(element)}>
+            Find: {grid.placements.map((p) => p.word).join(", ")}
+          </p>
+        </div>
+      );
+    }
+
+    case "unscramble":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Shuffle className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden" style={textStyle(element)}>
+            {element.words.map((w) => (
+              <div key={w.id} className="flex min-w-0 items-center gap-2">
+                <span className="flex flex-wrap gap-1">
+                  {[...w.word.toUpperCase()].map((ch, i) => (
+                    <span key={i} className="rounded border border-border px-1.5 py-0.5 font-semibold">
+                      {ch}
+                    </span>
+                  ))}
+                </span>
+                {!hideAnswers && (
+                  <span className="truncate text-muted-foreground">= {w.word}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "wordChunks":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Blocks className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden" style={textStyle(element)}>
+            {element.items.map((it) => (
+              <div key={it.id} className="flex min-w-0 items-center gap-2">
+                <span className="flex flex-wrap gap-1">
+                  {it.chunks.map((c, i) => (
+                    <span key={i} className="rounded border border-border px-1.5 py-0.5 font-semibold">
+                      {c}
+                    </span>
+                  ))}
+                </span>
+                {!hideAnswers && <span className="truncate text-muted-foreground">= {it.word}</span>}
+              </div>
             ))}
           </div>
         </div>

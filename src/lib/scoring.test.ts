@@ -15,6 +15,9 @@ import type {
   YesNoElement,
   FlashcardsElement,
   CountTapElement,
+  WordSearchElement,
+  UnscrambleElement,
+  WordChunksElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -685,5 +688,70 @@ describe("scoreElement: the simple child-facing tasks", () => {
     // A string "3" is not a tap on the 3 button — the player sends a number.
     expect(scoreElement(el, "3")).toEqual({ correct: 0, total: 1 });
     expect(scoreElement(el, undefined)).toEqual({ correct: 0, total: 1 });
+  });
+});
+
+describe("scoreElement: the puzzle and word games", () => {
+  const search: WordSearchElement = {
+    ...base, type: "wordSearch", prompt: "Find them",
+    words: ["sun", "sock", "soap"], size: 8,
+  };
+
+  it("counts each word found in the search", () => {
+    expect(scoreElement(search, ["SUN"])).toEqual({ correct: 1, total: 3 });
+    expect(scoreElement(search, ["SUN", "SOCK", "SOAP"])).toEqual({ correct: 3, total: 3 });
+    expect(scoreElement(search, [])).toEqual({ correct: 0, total: 3 });
+  });
+
+  it("marks the search case-insensitively and ignores words that were never hidden", () => {
+    expect(scoreElement(search, ["sun"])).toEqual({ correct: 1, total: 3 });
+    // A word the patient could not possibly have found cannot inflate the score.
+    expect(scoreElement(search, ["SUN", "ELEPHANT"])).toEqual({ correct: 1, total: 3 });
+  });
+
+  it("scores the search out of what actually fits, not what was typed", () => {
+    // ELEPHANT does not fit a 5x5 grid, so it is not on the board and must
+    // not be counted against a patient who was never shown it.
+    const tooSmall: WordSearchElement = { ...search, words: ["elephant", "cat"], size: 5 };
+    expect(scoreElement(tooSmall, ["CAT"])).toEqual({ correct: 1, total: 1 });
+  });
+
+  const scramble: UnscrambleElement = {
+    ...base, type: "unscramble", prompt: "Unscramble",
+    words: [
+      { id: "w1", word: "sun" },
+      { id: "w2", word: "cat" },
+    ],
+  };
+
+  it("counts each word spelled correctly, whatever the case", () => {
+    expect(scoreElement(scramble, { w1: "SUN" })).toEqual({ correct: 1, total: 2 });
+    expect(scoreElement(scramble, { w1: "sun", w2: "cat" })).toEqual({ correct: 2, total: 2 });
+    expect(scoreElement(scramble, { w1: "nus" })).toEqual({ correct: 0, total: 2 });
+    expect(scoreElement(scramble, {})).toEqual({ correct: 0, total: 2 });
+  });
+
+  const chunks: WordChunksElement = {
+    ...base, type: "wordChunks", prompt: "Build",
+    items: [
+      { id: "c1", word: "butterfly", chunks: ["but", "ter", "fly"] },
+      { id: "c2", word: "rainbow", chunks: ["rain", "bow"] },
+    ],
+  };
+
+  it("marks chunks on the chunks, not on the letters they spell", () => {
+    expect(scoreElement(chunks, { c1: ["but", "ter", "fly"] })).toEqual({ correct: 1, total: 2 });
+    // Spells "butterfly" correctly but is not the right syllable split, which
+    // is the whole point of the task.
+    expect(scoreElement(chunks, { c1: ["but", "terf", "ly"] })).toEqual({ correct: 0, total: 2 });
+    // Right chunks, wrong order.
+    expect(scoreElement(chunks, { c1: ["ter", "but", "fly"] })).toEqual({ correct: 0, total: 2 });
+    // Incomplete.
+    expect(scoreElement(chunks, { c1: ["but", "ter"] })).toEqual({ correct: 0, total: 2 });
+  });
+
+  it("leaves an empty word game out of the denominator", () => {
+    expect(scoreElement({ ...scramble, words: [] }, {})).toEqual({ correct: 0, total: 0 });
+    expect(scoreElement({ ...chunks, items: [] }, {})).toEqual({ correct: 0, total: 0 });
   });
 });

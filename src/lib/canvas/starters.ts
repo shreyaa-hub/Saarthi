@@ -486,6 +486,76 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
     }),
   },
 
+  {
+    id: `${STARTER_ID_PREFIX}wordSearch`,
+    title: "Starter · Word search",
+    description:
+      "A letter grid with words hidden across and down. Tap the first letter of a word, then the last.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#0d9488",
+    canvas: canvas("Find the words", {
+      id: "ws",
+      type: "wordSearch",
+      x: 60,
+      y: 110,
+      w: 480,
+      h: 440,
+      prompt: "Find each word in the grid.",
+      words: ["sun", "sock", "soap", "sand"],
+      size: 8,
+      fontSize: 15,
+    }),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}unscramble`,
+    title: "Starter · Unscramble",
+    description:
+      "Letters in the wrong order to put right. Tap the tiles to build the word; tap again to take one back.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#d97706",
+    canvas: canvas("Put the letters in order", {
+      id: "un",
+      type: "unscramble",
+      x: 60,
+      y: 110,
+      w: 520,
+      h: 380,
+      prompt: "Unscramble each word.",
+      fontSize: 18,
+      words: [
+        { id: "u1", word: "sun", hint: "It shines in the sky" },
+        { id: "u2", word: "cat", hint: "It says meow" },
+        { id: "u3", word: "hand", hint: "You have two" },
+      ],
+    }),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}wordChunks`,
+    title: "Starter · Word chunks",
+    description:
+      "Build a word out of its syllables. Phonological awareness rather than spelling — a different skill.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#4f46e5",
+    canvas: canvas("Build the word", {
+      id: "wc",
+      type: "wordChunks",
+      x: 60,
+      y: 110,
+      w: 520,
+      h: 380,
+      prompt: "Put the chunks together.",
+      fontSize: 18,
+      items: [
+        { id: "k1", word: "butterfly", chunks: ["but", "ter", "fly"] },
+        { id: "k2", word: "rainbow", chunks: ["rain", "bow"] },
+        { id: "k3", word: "banana", chunks: ["ba", "na", "na"] },
+      ],
+    }),
+  },
+
   // --- Ready-to-use activities -----------------------------------------------
   // Not demonstrations of an element type — whole session tasks, each built
   // from several elements the way a clinician actually assembles one.

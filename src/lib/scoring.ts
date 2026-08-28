@@ -1,6 +1,7 @@
 import type { CanvasElement, TemplateCanvas } from "@/lib/types/canvas";
 import { isInteractive, allPages } from "@/lib/types/canvas";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
+import { buildWordSearch } from "@/lib/canvas/word-search";
 
 export type Responses = Record<string, unknown>;
 
@@ -193,6 +194,51 @@ export function scoreElement(element: CanvasElement, response: unknown): Element
     case "countTap": {
       const picked = typeof response === "number" ? response : null;
       return { correct: picked === element.count ? 1 : 0, total: 1 };
+    }
+
+    case "wordSearch": {
+      // One mark per word found. The grid is rebuilt rather than read from
+      // the response, so what counts as findable is decided by the element
+      // and never by what the player happened to render — including for a
+      // word the builder could not fit, which is excluded from the total
+      // rather than marked against the patient.
+      const found = new Set(
+        (Array.isArray(response) ? (response as string[]) : []).map((w) => w.toUpperCase()),
+      );
+      const grid = buildWordSearch(element.words, element.size, element.id);
+      if (grid.placements.length === 0) return NOT_SCORED;
+      return {
+        correct: grid.placements.filter((p) => found.has(p.word)).length,
+        total: grid.placements.length,
+      };
+    }
+
+    case "unscramble": {
+      // The response is what the patient spelled for each word. Compared
+      // case-insensitively: a child who spells SUN in capitals has spelled it.
+      const built = (response ?? {}) as Record<string, string>;
+      if (element.words.length === 0) return NOT_SCORED;
+      return {
+        correct: element.words.filter(
+          (w) => (built[w.id] ?? "").toUpperCase() === w.word.toUpperCase().replace(/\s+/g, ""),
+        ).length,
+        total: element.words.length,
+      };
+    }
+
+    case "wordChunks": {
+      // Marked on the chunks in order, not on the letters they spell —
+      // otherwise "but-terf-ly" would pass a task about syllables.
+      const built = (response ?? {}) as Record<string, string[]>;
+      if (element.items.length === 0) return NOT_SCORED;
+      return {
+        correct: element.items.filter((item) => {
+          const attempt = built[item.id];
+          if (!Array.isArray(attempt) || attempt.length !== item.chunks.length) return false;
+          return attempt.every((c, i) => c.toUpperCase() === item.chunks[i].toUpperCase());
+        }).length,
+        total: element.items.length,
+      };
     }
 
     default:
