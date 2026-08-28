@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2, Keyboard, Printer } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Cloud, Undo2, Redo2, Keyboard, Printer, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useCanvasStore, useCanvasStoreInstance } from "@/lib/canvas/store";
 import type { CanvasElement, TemplateCanvas, TemplateDomain, TemplateMedium } from "@/lib/types/canvas";
@@ -354,6 +354,17 @@ export function CanvasEditor({
               gated on medium either — a clinician printing an activity to
               work through on paper is a real thing, and the print view
               already strips the answer key. */}
+          {/* Opens in a new tab like Print does, so the editor keeps its
+              unsaved state — but it plays the SAVED canvas, which is why the
+              editor autosaves first. Worksheet-only templates have nothing to
+              play: they are filled in on paper. */}
+          {!guest && template.medium !== "print" && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`/clinician/try/${template.id}`} target="_blank" rel="noopener noreferrer">
+                <Play className="size-3.5" /> Try it
+              </a>
+            </Button>
+          )}
           {!guest && (
             <Button asChild size="sm" variant="outline">
               <a href={`/print/template/${template.id}`} target="_blank" rel="noopener noreferrer">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { MoreHorizontal, Copy, Trash2, LayoutTemplate, Globe2 } from "lucide-react";
+import { MoreHorizontal, Copy, Trash2, LayoutTemplate, Globe2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +115,13 @@ export function TemplateCard({ template }: { template: Template }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* First in the menu: trying the activity is what you do before
+                assigning it, and it was the one thing you could not do. */}
+            <DropdownMenuItem asChild>
+              <Link href={`/clinician/try/${template.id}`}>
+                <Play className="size-4" /> Try it
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() =>
                 startTransition(async () => {

@@ -39,6 +39,7 @@ export function ActivityPlayer({
   canvas,
   alreadyCompleted,
   practice = false,
+  practiceNote,
   backHref = "/patient",
   backLabel = "my missions",
   printHref,
@@ -48,6 +49,11 @@ export function ActivityPlayer({
   canvas: TemplateCanvas;
   alreadyCompleted: boolean;
   practice?: boolean;
+  // What the results screen says about where this attempt went. The default
+  // is written for a patient practising from the library; a clinician trying
+  // out their own template is told something else, because "not sent to your
+  // clinician" is nonsense when you are the clinician.
+  practiceNote?: string;
   backHref?: string;
   backLabel?: string;
   // The printable version of this same activity. Given as a URL rather than
@@ -139,25 +145,28 @@ export function ActivityPlayer({
   const handleSubmit = async () => {
     if (locked || submitting) return;
     setSubmitting(true);
-    const { correct, total } = scoreCanvas(canvas, responses);
+    // Practice is never recorded, so it is marked here and nowhere else.
+    // A real attempt is marked by the server, and the numbers shown are the
+    // ones it actually stored — the client no longer gets a say in the score,
+    // and the results screen cannot drift from the clinician's record.
+    if (practice) {
+      const { correct, total } = scoreCanvas(canvas, responses);
+      setSubmitting(false);
+      setResult({ correct, total });
+      setLocked(true);
+      return;
+    }
 
-    if (!practice) {
-      const durationSeconds = Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000);
-      const { error } = await submitAttempt(assignmentId, {
-        responses,
-        correctCount: correct,
-        totalCount: total,
-        durationSeconds,
-      });
-      if (error) {
-        setSubmitting(false);
-        toast.error(error);
-        return;
-      }
+    const durationSeconds = Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000);
+    const result = await submitAttempt(assignmentId, { responses, durationSeconds });
+    if (result.error) {
+      setSubmitting(false);
+      toast.error(result.error);
+      return;
     }
 
     setSubmitting(false);
-    setResult({ correct, total });
+    setResult({ correct: result.correct ?? 0, total: result.total ?? 0 });
     setLocked(true);
   };
 
@@ -174,8 +183,8 @@ export function ActivityPlayer({
         </p>
         {practice && (
           <p className="max-w-sm text-sm text-muted-foreground">
-            This was practice you picked yourself, so it stays with you — it is not added to
-            your progress or sent to your clinician.
+            {practiceNote ??
+              "This was practice you picked yourself, so it stays with you — it is not added to your progress or sent to your clinician."}
           </p>
         )}
         <div className="flex flex-wrap justify-center gap-2">

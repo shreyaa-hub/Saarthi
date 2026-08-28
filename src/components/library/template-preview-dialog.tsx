@@ -121,6 +121,19 @@ export function TemplatePreviewDialog({
               <p className="mr-auto text-sm text-muted-foreground">
                 Importing makes your own private copy. Editing it never changes the original.
               </p>
+              {/* Trying it before importing is the point of a preview, and a
+                  clinician could not do it: the library offered "Try this
+                  activity" to patients only, so the one person deciding
+                  whether to use an activity was the one who could not play
+                  it. Print templates are excluded — there is nothing to play,
+                  and the full-size view is the preview. */}
+              {role === "clinician" && !isPrint && (
+                <Button variant="outline" asChild disabled={!detail}>
+                  <Link href={`/clinician/try/${templateId}`}>
+                    <Play className="size-4" /> Try it
+                  </Link>
+                </Button>
+              )}
               <Button onClick={handleImport} disabled={importing || !detail}>
                 {importing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                 Import to my library

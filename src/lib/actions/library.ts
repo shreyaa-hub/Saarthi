@@ -68,12 +68,24 @@ function starterAsDetail(s: NonNullable<ReturnType<typeof getStarter>>) {
 
 export async function setTemplatePublic(templateId: string, isPublic: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase.from("templates").update({ is_public: isPublic }).eq("id", templateId);
+  // templates_owner_all is what actually decides this, and a row it refuses
+  // is filtered out rather than raising — so without reading back what was
+  // updated, sharing somebody else's template returned success and the UI
+  // said "Shared to the Global Library" over a change that never happened.
+  const { data, error } = await supabase
+    .from("templates")
+    .update({ is_public: isPublic })
+    .eq("id", templateId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!data) return { error: "That template isn't yours to share." };
 
   revalidatePath("/clinician/studio");
   revalidatePath("/library/templates");
   revalidatePath("/library/worksheets");
-  return { error: error?.message ?? null };
+  return { error: null };
 }
 
 // Copies a published library item into the caller's own library — same idea
@@ -153,10 +165,21 @@ export async function publishAsset(url: string, alt: string) {
 
 export async function deleteAsset(assetId: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("assets").delete().eq("id", assetId);
+  // Same reasoning as setTemplatePublic: assets_owner_write filters somebody
+  // else's row out of the delete instead of refusing it, so the caller has to
+  // read back whether anything actually went.
+  const { data, error } = await supabase
+    .from("assets")
+    .delete()
+    .eq("id", assetId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!data) return { error: "That asset isn't yours to delete." };
 
   revalidatePath("/library/assets");
-  return { error: error?.message ?? null };
+  return { error: null };
 }
 
 // Loads one library item's canvas for the preview dialog. Readable by anyone,

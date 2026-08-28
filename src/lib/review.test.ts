@@ -217,3 +217,43 @@ describe("reviewCanvas", () => {
     }
   });
 });
+
+// The scoring the server now does on submit is scoreCanvas over the
+// assignment's own canvas_snapshot. These pin the properties submitAttempt
+// depends on — that the client's claimed numbers are irrelevant, and that
+// marking is decided entirely by the snapshot plus the responses.
+describe("server-side scoring of a submitted attempt", () => {
+  it("scores an empty attempt at zero however it is submitted", () => {
+    for (const starter of STARTER_TEMPLATES) {
+      const { correct } = scoreCanvas(starter.canvas, {});
+      expect(correct, `${starter.id} awards marks for nothing`).toBe(0);
+    }
+  });
+
+  it("ignores responses for elements that are not on the canvas", () => {
+    // The shape a fabricated submission takes: keys that mark nothing,
+    // because they belong to no element in the snapshot.
+    const canvas = canvasOf("starter__dragMatch");
+    const honest = scoreCanvas(canvas, {});
+    const padded = scoreCanvas(canvas, {
+      "not-an-element": [1, 2, 3],
+      "another-fake": { a: "b" },
+    });
+    expect(padded).toEqual(honest);
+  });
+
+  it("cannot be pushed above the canvas's own total", () => {
+    const canvas = canvasOf("starter__dragMatch");
+    const el = only(canvas, "dragMatch");
+    if (el.type !== "dragMatch") throw new Error("unreachable");
+    // Every pair right, plus junk mappings for pairs that do not exist.
+    const stuffed: Record<string, string> = Object.fromEntries(
+      el.pairs.map((p) => [p.id, p.id]),
+    );
+    for (let i = 0; i < 50; i++) stuffed[`ghost-${i}`] = `ghost-${i}`;
+    const { correct, total } = scoreCanvas(canvas, { [el.id]: stuffed });
+    expect(total).toBe(el.pairs.length);
+    expect(correct).toBe(total);
+    expect(correct).toBeLessThanOrEqual(total);
+  });
+});
