@@ -939,6 +939,214 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   },
 
 
+  {
+    id: `${STARTER_ID_PREFIX}spellingPractice`,
+    title: "Activity · Spelling practice",
+    description:
+      "The same four words twice over — unscramble them, then find them hidden in a grid. Recognition after recall.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#0d9488",
+    canvas: activity("This week's words", [
+      {
+        id: "sp-un", type: "unscramble", x: 60, y: 106, w: 380, h: 300,
+        prompt: "Put the letters in order.", fontSize: 17,
+        words: [
+          { id: "sw1", word: "sun", hint: "It shines in the sky" },
+          { id: "sw2", word: "sock", hint: "It goes on your foot" },
+          { id: "sw3", word: "sand", hint: "You find it at the beach" },
+        ],
+      },
+      {
+        id: "sp-ws", type: "wordSearch", x: 470, y: 106, w: 370, h: 440,
+        prompt: "Now find the same words in the grid.",
+        words: ["sun", "sock", "sand", "soap"], size: 8, fontSize: 14,
+      },
+      {
+        id: "sp-note", type: "callout", x: 60, y: 426, w: 380, h: 110,
+        title: "For the grown-up",
+        body: "Say each word out loud before they build it. Spelling follows hearing.",
+        tone: "tip", fontSize: 14,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}syllableClapping`,
+    title: "Activity · Clap the syllables",
+    description:
+      "Build words from their chunks, then say each one with a clap per syllable. Phonological awareness, out loud.",
+    domain: "Articulation",
+    medium: "interactive",
+    thumbnailColor: "#4f46e5",
+    canvas: activity("Clap it out", [
+      {
+        id: "sc-wc", type: "wordChunks", x: 60, y: 106, w: 400, h: 320,
+        prompt: "Put the chunks together to build the word.", fontSize: 17,
+        items: [
+          { id: "sc1", word: "butterfly", chunks: ["but", "ter", "fly"] },
+          { id: "sc2", word: "banana", chunks: ["ba", "na", "na"] },
+          { id: "sc3", word: "rainbow", chunks: ["rain", "bow"] },
+        ],
+      },
+      {
+        id: "sc-drill", type: "practiceDrill", x: 490, y: 106, w: 350, h: 320,
+        prompt: "Say each word with a clap for every chunk.", fontSize: 16,
+        words: [
+          { id: "sd1", label: "but-ter-fly", target: 3 },
+          { id: "sd2", label: "ba-na-na", target: 3 },
+          { id: "sd3", label: "rain-bow", target: 3 },
+        ],
+      },
+      {
+        id: "sc-stars", type: "rewardStars", x: 60, y: 446, w: 400, h: 80,
+        total: 3, earned: 0, color: "#4f46e5", label: "A star for every word",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}vocabularyHunt`,
+    title: "Activity · Find the animals",
+    description:
+      "Pick every animal out of a mixed grid, then answer a comparison about them. Category knowledge two ways.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#059669",
+    canvas: activity("Animals everywhere", [
+      {
+        id: "vh-hunt", type: "photoHunt", x: 60, y: 106, w: 780, h: 230,
+        prompt: "Tap every animal.", columns: 4, imageSize: 44, fontSize: 15,
+        items: [
+          { id: "vh1", label: "Dog", emoji: "🐶", isTarget: true },
+          { id: "vh2", label: "Apple", emoji: "🍎", isTarget: false },
+          { id: "vh3", label: "Cat", emoji: "🐱", isTarget: true },
+          { id: "vh4", label: "Car", emoji: "🚗", isTarget: false },
+          { id: "vh5", label: "Cow", emoji: "🐄", isTarget: true },
+          { id: "vh6", label: "Ball", emoji: "⚽", isTarget: false },
+          { id: "vh7", label: "Duck", emoji: "🦆", isTarget: true },
+          { id: "vh8", label: "Hat", emoji: "🎩", isTarget: false },
+        ],
+      },
+      {
+        id: "vh-cmp", type: "sideBySide", x: 60, y: 356, w: 780, h: 200,
+        prompt: "Now compare them.", imageSize: 36, fontSize: 16,
+        rounds: [
+          {
+            id: "vr1", question: "Which one is bigger?",
+            a: { label: "Cow", emoji: "🐄" }, b: { label: "Duck", emoji: "🦆" }, answer: "a",
+          },
+        ],
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}readingTogether`,
+    title: "Activity · Read it together",
+    description:
+      "A short story to read page by page, then tell back in their own words. Shared reading with a comprehension check.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#a16207",
+    canvas: activity("Read it together", [
+      {
+        id: "rt-story", type: "storyTime", x: 60, y: 106, w: 460, h: 430,
+        title: "The dog and the ball", imageSize: 36, fontSize: 17,
+        pages: [
+          { id: "rp1", text: "The dog found a ball.", emoji: "🐶" },
+          { id: "rp2", text: "He ran all the way to the park.", emoji: "🌳" },
+          { id: "rp3", text: "Oh no — the ball went in the pond!", emoji: "💦" },
+          { id: "rp4", text: "A girl helped him get it back.", emoji: "🙂" },
+        ],
+      },
+      {
+        id: "rt-tell", type: "longAnswer", x: 550, y: 106, w: 290, h: 280,
+        prompt: "What happened in the story?",
+        placeholder: "First… and then…", minWords: 10, lines: 5, fontSize: 16,
+      },
+      {
+        id: "rt-check", type: "yesNo", x: 550, y: 406, w: 290, h: 130,
+        prompt: "Did the dog get the ball back?",
+        answer: "yes", yesLabel: "Yes", noLabel: "No", fontSize: 16,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}letterFormation`,
+    title: "Activity · Letter formation",
+    description:
+      "Trace the letter with a guide, then write it freehand beside it. The step most handwriting practice skips.",
+    domain: "OT / Fine Motor",
+    medium: "interactive",
+    thumbnailColor: "#be123c",
+    canvas: activity("Learn the letter S", [
+      {
+        id: "lf-trace", type: "traceGame", x: 60, y: 106, w: 380, h: 400,
+        prompt: "Trace over the letter.",
+        glyph: "S", strokeColor: "#7c3aed", strokeWidth: 12, coverage: 0.2, fontSize: 16,
+      },
+      {
+        id: "lf-free", type: "drawPad", x: 470, y: 106, w: 370, h: 400,
+        prompt: "Now write it yourself, with no guide.",
+        strokeColor: "#2a2420", strokeWidth: 8, fontSize: 16,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}wordDetective`,
+    title: "Activity · Word detective",
+    description:
+      "Work out the secret word from a clue, then use it in a sentence. Vocabulary and then meaning.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#c026d3",
+    canvas: activity("Word detective", [
+      {
+        id: "wd-secret", type: "secretWord", x: 60, y: 106, w: 440, h: 400,
+        prompt: "Guess the letters to find the word.",
+        word: "rainbow", hint: "You see it after the rain", maxWrong: 6, fontSize: 17,
+      },
+      {
+        id: "wd-use", type: "fillBlank", x: 530, y: 106, w: 310, h: 160,
+        template: "After the rain we saw a ___.", answer: "rainbow",
+        caseSensitive: false, fontSize: 18,
+      },
+      {
+        id: "wd-bank", type: "wordBank", x: 530, y: 290, w: 310, h: 216,
+        title: "Words that might help",
+        words: ["rainbow", "puddle", "cloud", "sunshine"],
+        fontSize: 16, color: "#2a2420", borderColor: "#c9bfae",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}rewardRound`,
+    title: "Activity · Reward round",
+    description:
+      "A puzzle and a card game for the end of a session. No target, no marking — a reason to have got through the hard part.",
+    domain: "Behavioral",
+    medium: "interactive",
+    thumbnailColor: "#dc2626",
+    canvas: activity("You earned this", [
+      {
+        id: "rr-puzzle", type: "puzzle", x: 60, y: 106, w: 330, h: 430,
+        prompt: "Put the picture back together.",
+        emoji: "🦋", rows: 3, cols: 3, fontSize: 15,
+      },
+      {
+        id: "rr-battle", type: "battleTime", x: 420, y: 106, w: 420, h: 430,
+        prompt: "Take turns. Tap a card to see what you win.",
+        teamA: "Me", teamB: "You", fontSize: 15,
+        cards: [
+          { id: "rb1", label: "⭐", points: 1 },
+          { id: "rb2", label: "⭐⭐", points: 2 },
+          { id: "rb3", label: "💎", points: 3 },
+          { id: "rb4", label: "⭐", points: 1 },
+          { id: "rb5", label: "🎉", points: 5 },
+          { id: "rb6", label: "⭐⭐", points: 2 },
+        ],
+      },
+    ]),
+  },
+
   // --- Printable forms and worksheets ----------------------------------------
   // The paper a clinic actually runs on. All static: nothing here is scored,
   // because it is filled in with a pen.

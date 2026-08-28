@@ -74,6 +74,64 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// A textarea for a list where one line is one item.
+//
+// The obvious version — value={items.join("\n")}, onChange={split and filter
+// out the empties} — cannot have a new line typed into it, and that is
+// exactly the bug this replaces. Pressing Enter produces a trailing empty
+// line, the filter drops it, the array comes back unchanged, and the textarea
+// re-renders without the newline the author just typed. The list was frozen
+// at whatever it already held.
+//
+// So the raw text lives here, and only the parsed list is pushed upward.
+// `lastPushed` records what the parent should be holding as a result: when
+// the incoming value matches it, this is our own change echoing back and the
+// text is left alone; when it does not, something else changed the list — an
+// undo, or a different element selected — and the text is reset from it.
+function LinesTextarea({
+  value,
+  onChange,
+  rows = 5,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const parse = (raw: string) => raw.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  const incoming = value.join("\n");
+  const [text, setText] = useState(incoming);
+  const [lastPushed, setLastPushed] = useState(incoming);
+
+  // Adjusting state during render rather than in an effect — the documented
+  // way to react to a prop change, and the only way that does not flash the
+  // stale text for a frame first.
+  if (incoming !== lastPushed) {
+    setLastPushed(incoming);
+    setText(incoming);
+  }
+
+  return (
+    <Textarea
+      value={text}
+      rows={rows}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value;
+        const parsed = parse(raw);
+        setText(raw);
+        setLastPushed(parsed.join("\n"));
+        onChange(parsed);
+      }}
+      // Tidy up on the way out: blank lines and stray spacing disappear once
+      // the author has finished, which would be maddening while they type.
+      onBlur={() => setText(parse(text).join("\n"))}
+    />
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <Field label={label}>
@@ -1866,13 +1924,7 @@ function WordSearchFields({
         <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
       </Field>
       <Field label="Words to hide (one per line)">
-        <Textarea
-          value={element.words.join("\n")}
-          onChange={(e) =>
-            patch({ words: e.target.value.split("\n").map((w) => w.trim()).filter(Boolean) })
-          }
-          rows={5}
-        />
+        <LinesTextarea value={element.words} onChange={(words) => patch({ words })} rows={5} />
       </Field>
       <Field label="Grid size">
         <Input
@@ -2991,13 +3043,7 @@ function WordBankFields({
         <Input value={element.title} onChange={(e) => patch({ title: e.target.value })} />
       </Field>
       <Field label="Words (one per line)">
-        <Textarea
-          value={element.words.join("\n")}
-          onChange={(e) =>
-            patch({ words: e.target.value.split("\n").map((w) => w.trim()).filter(Boolean) })
-          }
-          rows={5}
-        />
+        <LinesTextarea value={element.words} onChange={(words) => patch({ words })} rows={5} />
       </Field>
       <Field label="Text size">
         <Input
