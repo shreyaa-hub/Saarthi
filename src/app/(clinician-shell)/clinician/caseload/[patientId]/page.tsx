@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials, formatDate } from "@/lib/utils";
 import { AssignTemplateDialog } from "@/components/clinician/assign-template-dialog";
 import { AttemptNotes } from "@/components/clinician/attempt-notes";
+import { GoalsCard } from "@/components/clinician/goals-card";
 import { MessageThread } from "@/components/clinician/message-thread";
 import { PatientPerformancePanel } from "@/components/clinician/analytics/patient-performance-panel";
 import { getTemplates } from "@/lib/data/clinician";
 import { startConversation } from "@/lib/actions/messages";
 import { getMessages } from "@/lib/data/messages";
+import { getPatientGoals } from "@/lib/data/goals";
 import { ArrowLeft, AlertTriangle, Printer, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -52,11 +54,13 @@ export default async function PatientDetailPage({
   // needs — shared with the printable report so both pages compose the
   // exact same analytics from the exact same fetch. Only reachable once the
   // patient has claimed their invite (no patient_id, no attempts).
-  const { patientAttempts, attemptRows, analytics, weeklyTrend } = await getPatientPerformanceData(
+  const { patientAttempts, attemptRows, analyticsAttempts, analytics, weeklyTrend } = await getPatientPerformanceData(
     supabase,
     user.id,
     link.patient_id,
   );
+
+  const goals = link.patient_id ? await getPatientGoals(supabase, link.patient_id) : [];
 
   // Get-or-create the conversation and load its first page of history. Only
   // possible once the patient has claimed their invite (start_conversation
@@ -150,6 +154,26 @@ export default async function PatientDetailPage({
               initialInsight={latestInsight}
               attemptCount={patientAttempts.length}
             />
+
+            {/* Directly under the accuracy figures, because a goal is what
+                makes them mean something. Only once the patient has claimed
+                their invite: before that there is no patient_id to hang a
+                goal on, and nothing they could do to progress one. */}
+            {link.patient_id && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Goals</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <GoalsCard
+                    patientId={link.patient_id}
+                    clinicianPatientId={link.id}
+                    goals={goals}
+                    attempts={analyticsAttempts}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

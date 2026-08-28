@@ -368,6 +368,35 @@ export type Database = {
           },
         ];
       };
+      patient_goals: {
+        Row: {
+          id: string;
+          patient_id: string;
+          clinician_id: string;
+          title: string;
+          domain: string | null;
+          target_accuracy: number;
+          window_attempts: number;
+          status: "active" | "achieved" | "archived";
+          created_at: string;
+          achieved_at: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["patient_goals"]["Row"]> & {
+          patient_id: string;
+          clinician_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["patient_goals"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "patient_goals_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       blueprint_rules: {
         Row: {
           id: string;

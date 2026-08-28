@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Check, X, CircleDot, Minus } from "lucide-react";
 import { getAttemptReview } from "@/lib/actions/attempts";
-import type { ReviewItem, ReviewStatus } from "@/lib/review";
+import type { ReviewDrawing, ReviewItem, ReviewStatus } from "@/lib/review";
 import { cn } from "@/lib/utils";
 
 // The per-question breakdown of one attempt, opened on demand.
@@ -132,7 +132,13 @@ function ReviewRow({ item, answeredLabel }: { item: ReviewItem; answeredLabel: s
       <dl className="mt-2 grid gap-1 text-xs sm:grid-cols-[7rem_1fr]">
         <dt className="text-muted-foreground">{answeredLabel}</dt>
         <dd className={cn(item.given.length === 0 && "text-muted-foreground")}>
-          {item.given.length === 0 ? "Nothing" : <Lines lines={item.given} />}
+          {item.drawing ? (
+            <DrawingReplay drawing={item.drawing} caption={item.given[0]} />
+          ) : item.given.length === 0 ? (
+            "Nothing"
+          ) : (
+            <Lines lines={item.given} />
+          )}
         </dd>
 
         {showExpected && (
@@ -145,6 +151,61 @@ function ReviewRow({ item, answeredLabel }: { item: ReviewItem; answeredLabel: s
         )}
       </dl>
     </li>
+  );
+}
+
+// The patient's own strokes, drawn again.
+//
+// The pad is a square in normalised space, so the viewBox is 0 0 100 100 and
+// every stored point is simply multiplied by 100 — no layout measurement, no
+// ResizeObserver, and it stays sharp at whatever size the row happens to be.
+// vectorEffect keeps the pen the same visual weight however the SVG is
+// scaled, which is what makes a light pencil line still look light here.
+function DrawingReplay({ drawing, caption }: { drawing: ReviewDrawing; caption?: string }) {
+  const path = (stroke: { x: number; y: number }[]) =>
+    stroke.map((p) => `${(p.x * 100).toFixed(2)},${(p.y * 100).toFixed(2)}`).join(" ");
+
+  return (
+    <figure className="flex flex-col gap-1">
+      <svg
+        viewBox="0 0 100 100"
+        className="w-32 max-w-full rounded-md border border-border bg-white"
+        role="img"
+        aria-label={
+          drawing.glyph
+            ? `The patient's attempt at tracing ${drawing.glyph}`
+            : "The patient's drawing"
+        }
+      >
+        {/* The letter they were tracing over, faint, so the clinician judges
+            the stroke against the target rather than in isolation. */}
+        {drawing.glyph && (
+          <text
+            x="50"
+            y="50"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize="72"
+            fill="#e5e7eb"
+          >
+            {drawing.glyph}
+          </text>
+        )}
+        {drawing.strokes.map((stroke, i) => (
+          <polyline
+            key={i}
+            points={path(stroke)}
+            fill="none"
+            stroke={drawing.strokeColor}
+            strokeWidth={drawing.strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+      {caption && <figcaption className="text-muted-foreground">{caption}</figcaption>}
+    </figure>
   );
 }
 

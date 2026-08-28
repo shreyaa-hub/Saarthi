@@ -31,6 +31,21 @@ export type ReviewStatus =
   // or a question whose author never ticked a correct option.
   | "unscored";
 
+// A drawing the patient actually made, ready to be drawn again.
+//
+// Stroke points are normalised 0..1 in the pad's own space (see DrawStroke),
+// which is exactly why they can be replayed at any size — the reason they
+// were stored that way in the first place. Without this the review could only
+// report a stroke count, which for a handwriting or tracing task is the one
+// thing a clinician cannot judge from.
+export type ReviewDrawing = {
+  strokes: { x: number; y: number }[][];
+  strokeColor: string;
+  strokeWidth: number;
+  /** The letter or shape behind the pad on a tracing task. */
+  glyph?: string;
+};
+
 export type ReviewItem = {
   elementId: string;
   // 1-based, in reading order across every page — the question number a
@@ -47,6 +62,8 @@ export type ReviewItem = {
   correct: number;
   total: number;
   status: ReviewStatus;
+  /** Present only for a drawing or tracing task the patient actually drew on. */
+  drawing?: ReviewDrawing;
 };
 
 const TYPE_LABELS = new Map(ELEMENT_LIBRARY.map((e) => [e.type, e.label]));
@@ -327,6 +344,42 @@ function describe(element: CanvasElement, response: unknown): { given: string[];
   }
 }
 
+// The strokes as drawable geometry, or undefined when there is nothing to
+// draw. Every point is validated: this is jsonb, and one NaN reaching an SVG
+// path would silently blank the whole drawing rather than fail loudly.
+// Out-of-range points are clamped rather than dropped — a stroke that ran off
+// the edge of the pad is still part of what the patient drew.
+function drawingOf(element: CanvasElement, response: unknown): ReviewDrawing | undefined {
+  if (element.type !== "drawPad" && element.type !== "traceGame") return undefined;
+
+  const raw = Array.isArray(response) ? response : [];
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
+  const strokes = raw
+    .map((stroke) =>
+      (Array.isArray(stroke) ? stroke : [])
+        .filter(
+          (p): p is { x: number; y: number } =>
+            !!p &&
+            typeof p === "object" &&
+            Number.isFinite((p as { x: unknown }).x) &&
+            Number.isFinite((p as { y: unknown }).y),
+        )
+        .map((p) => ({ x: clamp(p.x), y: clamp(p.y) })),
+    )
+    // A single point is a tap, not a stroke, and draws nothing — the same bar
+    // scoreElement applies when deciding whether the patient drew at all.
+    .filter((stroke) => stroke.length >= 2);
+
+  if (strokes.length === 0) return undefined;
+
+  return {
+    strokes,
+    strokeColor: element.strokeColor,
+    strokeWidth: element.strokeWidth,
+    glyph: element.type === "traceGame" ? element.glyph : undefined,
+  };
+}
+
 // The prompt as the patient saw it. Most types call it `prompt`; the two that
 // don't are named here rather than left blank, since an unlabelled row in the
 // review is useless.
@@ -359,6 +412,7 @@ export function reviewCanvas(canvas: TemplateCanvas, responses: Responses): Revi
       correct,
       total,
       status: statusFor(correct, total, wasAnswered(response)),
+      drawing: drawingOf(element, response),
     };
   });
 }

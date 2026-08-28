@@ -4,6 +4,8 @@ import { getCaseload, getCaseloadAttempts, getActivePatientsForAssignment } from
 import { buildCaseloadPulse } from "@/lib/analytics/models";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvitePatientDialog } from "@/components/clinician/invite-patient-dialog";
+import { AssignTemplateDialog } from "@/components/clinician/assign-template-dialog";
+import { getTemplates } from "@/lib/data/clinician";
 import { CaseloadList } from "@/components/clinician/caseload-list";
 import { STATUS_META, STATUS_ORDER } from "@/components/clinician/pulse/status-meta";
 import type { PatientStatus } from "@/lib/analytics/types";
@@ -22,7 +24,19 @@ export default async function CaseloadPage({
   const { status } = await searchParams;
   const activeStatus = isPatientStatus(status) ? status : null;
 
-  const caseload = await getCaseload(supabase, user.id);
+  const [caseload, assignable, templates] = await Promise.all([
+    getCaseload(supabase, user.id),
+    getActivePatientsForAssignment(supabase, user.id),
+    getTemplates(supabase, user.id),
+  ]);
+
+  // Assigning the same drill to a dozen patients one page at a time is the
+  // clinician's most repetitive job, so the bulk version lives here, where
+  // the whole roster is already on screen.
+  const bulkPatients = assignable
+    .filter((p): p is typeof p & { patient_id: string } => p.patient_id !== null)
+    .map((p) => ({ patientId: p.patient_id, name: p.profiles?.full_name ?? p.display_name }));
+  const publishedTemplates = templates.filter((t) => t.status === "published");
 
   // Clinical status (Improving/Stable/Needs attention/Inactive) is a derived
   // analytics classification, not a stored column — it only exists once
@@ -32,11 +46,11 @@ export default async function CaseloadPage({
   // as it always was.
   let visibleCaseload = caseload;
   if (activeStatus) {
-    const [attempts, activePatients] = await Promise.all([
-      getCaseloadAttempts(supabase, user.id),
-      getActivePatientsForAssignment(supabase, user.id),
-    ]);
-    const patientIds = activePatients.map((p) => p.patient_id).filter((id): id is string => id !== null);
+    // Reuses `assignable` above rather than re-fetching the same active
+    // patients — the bulk-assign picker needs exactly that list, so it is
+    // already loaded by the time this branch runs.
+    const attempts = await getCaseloadAttempts(supabase, user.id);
+    const patientIds = bulkPatients.map((p) => p.patientId);
     const pulse = buildCaseloadPulse(attempts, patientIds);
     const matchingPatientIds = new Set(
       pulse.patientStatuses.filter((p) => p.status === activeStatus).map((p) => p.patientId),
@@ -55,7 +69,17 @@ export default async function CaseloadPage({
               : `${caseload.length} patient${caseload.length === 1 ? "" : "s"} on your roster.`}
           </p>
         </div>
-        <InvitePatientDialog />
+        <div className="flex items-center gap-2">
+          {bulkPatients.length > 1 && publishedTemplates.length > 0 && (
+            <AssignTemplateDialog
+              patientId=""
+              clinicianPatientId=""
+              templates={publishedTemplates}
+              caseload={bulkPatients}
+            />
+          )}
+          <InvitePatientDialog />
+        </div>
       </div>
 
       {activeStatus && (

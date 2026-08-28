@@ -94,7 +94,7 @@ export async function getChildAssignments(supabase: Client, childId: string) {
 export async function getChildAttempts(supabase: Client, childId: string) {
   const { data, error } = await supabase
     .from("activity_attempts")
-    .select("*, assignments(title, clinician_id)")
+    .select("*, assignments(title, clinician_id, templates(domain))")
     .eq("patient_id", childId)
     .order("completed_at", { ascending: false });
 

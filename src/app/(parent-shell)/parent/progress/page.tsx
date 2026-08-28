@@ -1,6 +1,9 @@
 import { MessageSquare } from "lucide-react";
 import { getParentContext } from "@/lib/parent/context";
 import { getChildAttempts, isHomePractice } from "@/lib/data/parent";
+import { getPatientGoals } from "@/lib/data/goals";
+import { toGoalAttempts } from "@/lib/goals";
+import { GoalsReadOnly } from "@/components/goals/goals-readonly";
 import { buildPatientAnalytics } from "@/lib/analytics/models";
 import type { AnalyticsAttempt } from "@/lib/analytics/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +24,10 @@ export default async function ParentProgressPage() {
     );
   }
 
-  const attempts = await getChildAttempts(supabase, child.childId);
+  const [attempts, goals] = await Promise.all([
+    getChildAttempts(supabase, child.childId),
+    getPatientGoals(supabase, child.childId),
+  ]);
   const firstName = child.name.split(" ")[0];
 
   // Every completed activity, home practice included. The clinician's own
@@ -64,6 +70,13 @@ export default async function ParentProgressPage() {
           </Card>
         ))}
       </div>
+
+      <GoalsReadOnly
+        goals={goals}
+        attempts={toGoalAttempts(attempts)}
+        title={`${firstName}'s goals`}
+        emptyText={`${firstName}'s clinician hasn't set a goal yet.`}
+      />
 
       <Card>
         <CardHeader>

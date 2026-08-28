@@ -33,7 +33,7 @@ export async function getAssignmentForPlay(supabase: Client, patientId: string, 
 export async function getMyAttempts(supabase: Client, patientId: string) {
   const { data, error } = await supabase
     .from("activity_attempts")
-    .select("*, assignments(title)")
+    .select("*, assignments(title, templates(domain))")
     .eq("patient_id", patientId)
     .order("completed_at", { ascending: false });
 

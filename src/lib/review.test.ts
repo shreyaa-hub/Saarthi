@@ -146,6 +146,57 @@ describe("reviewCanvas", () => {
     expect(row.status).toBe("correct");
   });
 
+  it("hands back the strokes themselves for a drawing, not just a count", () => {
+    const canvas = canvasOf("starter__drawPad");
+    const el = only(canvas, "drawPad");
+    const strokes = [
+      [{ x: 0.1, y: 0.1 }, { x: 0.9, y: 0.9 }],
+      [{ x: 0.9, y: 0.1 }, { x: 0.1, y: 0.9 }],
+    ];
+    const row = reviewCanvas(canvas, { [el.id]: strokes }).find((r) => r.type === "drawPad")!;
+    expect(row.drawing?.strokes).toEqual(strokes);
+    expect(row.drawing?.strokeColor).toBeTruthy();
+  });
+
+  it("carries the traced glyph so the attempt can be judged against the target", () => {
+    const canvas = canvasOf("starter__traceGame");
+    const el = only(canvas, "traceGame");
+    if (el.type !== "traceGame") throw new Error("unreachable");
+    const row = reviewCanvas(canvas, {
+      [el.id]: [[{ x: 0, y: 0 }, { x: 1, y: 1 }]],
+    }).find((r) => r.type === "traceGame")!;
+    expect(row.drawing?.glyph).toBe(el.glyph);
+  });
+
+  it("offers no drawing when the pad was never touched", () => {
+    const canvas = canvasOf("starter__drawPad");
+    const el = only(canvas, "drawPad");
+    expect(reviewCanvas(canvas, {})[0].drawing).toBeUndefined();
+    // A single point is a tap, not a stroke — nothing to draw.
+    const tapped = reviewCanvas(canvas, { [el.id]: [[{ x: 0.5, y: 0.5 }]] });
+    expect(tapped.find((r) => r.type === "drawPad")!.drawing).toBeUndefined();
+  });
+
+  it("never emits a point an SVG cannot draw", () => {
+    // jsonb, so NaN, nulls, strings and out-of-range values all have to be
+    // survivable. One NaN in a polyline blanks the whole drawing silently.
+    const canvas = canvasOf("starter__drawPad");
+    const el = only(canvas, "drawPad");
+    const junk = [
+      [{ x: 0.2, y: 0.2 }, { x: "no", y: 0.4 }, { x: 0.6, y: null }, { x: 5, y: -3 }, { x: 0.8, y: 0.8 }],
+      [null, { x: 0.1, y: 0.1 }],
+    ];
+    const row = reviewCanvas(canvas, { [el.id]: junk }).find((r) => r.type === "drawPad")!;
+    for (const stroke of row.drawing?.strokes ?? []) {
+      for (const p of stroke) {
+        expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true);
+        expect(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1).toBe(true);
+      }
+    }
+    // The out-of-range point is clamped and kept, not silently dropped.
+    expect(row.drawing?.strokes[0]).toContainEqual({ x: 1, y: 0 });
+  });
+
   it("survives a malformed response instead of blanking the review", () => {
     // Responses are jsonb written by an older client or edited by hand. A
     // throw here would cost the clinician the whole attempt, not one row.

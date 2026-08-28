@@ -350,6 +350,10 @@ export async function getPatientPerformanceData(
   return {
     patientAttempts,
     attemptRows,
+    // Returned as well as consumed: goal progress is measured against the
+    // same normalized attempts the analytics are built from, so a goal and
+    // the accuracy figure above it can never be computed from different rows.
+    analyticsAttempts,
     analytics: buildPatientAnalytics(analyticsAttempts),
     weeklyTrend: buildTrend(analyticsAttempts, "week"),
   };

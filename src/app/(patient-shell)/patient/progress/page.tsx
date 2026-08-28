@@ -1,13 +1,19 @@
 import { MessageSquare } from "lucide-react";
 import { requireProfile } from "@/lib/auth/session";
 import { getMyAttempts } from "@/lib/data/patient";
+import { getPatientGoals } from "@/lib/data/goals";
+import { toGoalAttempts } from "@/lib/goals";
+import { GoalsReadOnly } from "@/components/goals/goals-readonly";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressChart } from "@/components/charts/progress-chart";
 import { formatDate } from "@/lib/utils";
 
 export default async function PatientProgressPage() {
   const { supabase, user } = await requireProfile("patient");
-  const attempts = await getMyAttempts(supabase, user.id);
+  const [attempts, goals] = await Promise.all([
+    getMyAttempts(supabase, user.id),
+    getPatientGoals(supabase, user.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -15,6 +21,13 @@ export default async function PatientProgressPage() {
         <h2 className="text-2xl font-semibold">Your progress</h2>
         <p className="text-sm text-muted-foreground">Accuracy across every completed activity.</p>
       </div>
+
+      <GoalsReadOnly
+        goals={goals}
+        attempts={toGoalAttempts(attempts)}
+        title="What you're working on"
+        emptyText="Your clinician hasn't set a goal yet."
+      />
 
       <Card>
         <CardHeader>

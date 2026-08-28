@@ -7,7 +7,15 @@ import { homeForRole } from "@/lib/auth/session";
 import { safeRedirect } from "@/lib/auth/redirects";
 import type { ProfileRole } from "@/lib/types/database";
 
-export type ActionState = { error: string | null; message?: string | null };
+export type ActionState = {
+  error: string | null;
+  message?: string | null;
+  // A sentence about what the action actually did, where `message` is a
+  // machine-ish outcome the caller switches on. Used by bulk assignment,
+  // where "Assigned" alone leaves the clinician guessing how many rows they
+  // just created.
+  detail?: string | null;
+};
 
 // Where to land after authenticating. `next=claim` means the user came from
 // the public /try Studio with a worksheet waiting in their browser, so they
