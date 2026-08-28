@@ -556,6 +556,94 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
     }),
   },
 
+  {
+    id: `${STARTER_ID_PREFIX}photoHunt`,
+    title: "Starter · Photo hunt",
+    description:
+      "A grid of pictures — tap every one that matches. Several right answers, unlike a picture-choice question.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#059669",
+    canvas: canvas("Find them all", {
+      id: "ph",
+      type: "photoHunt",
+      x: 60,
+      y: 110,
+      w: 780,
+      h: 400,
+      prompt: "Tap every animal.",
+      columns: 4,
+      imageSize: 56,
+      fontSize: 16,
+      items: [
+        { id: "h1", label: "Dog", emoji: "🐶", isTarget: true },
+        { id: "h2", label: "Apple", emoji: "🍎", isTarget: false },
+        { id: "h3", label: "Cat", emoji: "🐱", isTarget: true },
+        { id: "h4", label: "Car", emoji: "🚗", isTarget: false },
+        { id: "h5", label: "Cow", emoji: "🐄", isTarget: true },
+        { id: "h6", label: "Ball", emoji: "⚽", isTarget: false },
+        { id: "h7", label: "Duck", emoji: "🦆", isTarget: true },
+        { id: "h8", label: "Hat", emoji: "🎩", isTarget: false },
+      ],
+    }),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}sideBySide`,
+    title: "Starter · Side by side",
+    description:
+      "Two things, one question, two big targets. Opposites and comparisons for early concept work.",
+    domain: "Cognitive",
+    medium: "interactive",
+    thumbnailColor: "#0284c7",
+    canvas: canvas("This one or that one?", {
+      id: "sbs",
+      type: "sideBySide",
+      x: 60,
+      y: 110,
+      w: 600,
+      h: 420,
+      prompt: "Point to the right one.",
+      imageSize: 44,
+      fontSize: 18,
+      rounds: [
+        {
+          id: "r1", question: "Which one is up?",
+          a: { label: "Up", emoji: "⬆️" }, b: { label: "Down", emoji: "⬇️" }, answer: "a",
+        },
+        {
+          id: "r2", question: "Which one is big?",
+          a: { label: "Mouse", emoji: "🐭" }, b: { label: "Elephant", emoji: "🐘" }, answer: "b",
+        },
+        {
+          id: "r3", question: "Which one is hot?",
+          a: { label: "Sun", emoji: "☀️" }, b: { label: "Snow", emoji: "❄️" }, answer: "a",
+        },
+      ],
+    }),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}secretWord`,
+    title: "Starter · Secret word",
+    description:
+      "A hidden word revealed a letter at a time. Running out of guesses shows the word rather than ending the game.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#c026d3",
+    canvas: canvas("What is the secret word?", {
+      id: "sw",
+      type: "secretWord",
+      x: 60,
+      y: 110,
+      w: 640,
+      h: 400,
+      prompt: "Guess the letters to find the word.",
+      word: "rainbow",
+      hint: "You see it after the rain",
+      maxWrong: 6,
+      fontSize: 18,
+    }),
+  },
+
   // --- Ready-to-use activities -----------------------------------------------
   // Not demonstrations of an element type — whole session tasks, each built
   // from several elements the way a clinician actually assembles one.

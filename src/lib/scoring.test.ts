@@ -18,6 +18,9 @@ import type {
   WordSearchElement,
   UnscrambleElement,
   WordChunksElement,
+  PhotoHuntElement,
+  SideBySideElement,
+  SecretWordElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -753,5 +756,61 @@ describe("scoreElement: the puzzle and word games", () => {
   it("leaves an empty word game out of the denominator", () => {
     expect(scoreElement({ ...scramble, words: [] }, {})).toEqual({ correct: 0, total: 0 });
     expect(scoreElement({ ...chunks, items: [] }, {})).toEqual({ correct: 0, total: 0 });
+  });
+});
+
+describe("scoreElement: photo hunt, side by side and secret word", () => {
+  const hunt: PhotoHuntElement = {
+    ...base, type: "photoHunt", prompt: "Tap the animals", columns: 4,
+    items: [
+      { id: "a", label: "Dog", isTarget: true },
+      { id: "b", label: "Cat", isTarget: true },
+      { id: "c", label: "Car", isTarget: false },
+      { id: "d", label: "Hat", isTarget: false },
+    ],
+  };
+
+  it("counts each target tapped and subtracts the wrong ones", () => {
+    expect(scoreElement(hunt, ["a"])).toEqual({ correct: 1, total: 2 });
+    expect(scoreElement(hunt, ["a", "b"])).toEqual({ correct: 2, total: 2 });
+    expect(scoreElement(hunt, ["a", "c"])).toEqual({ correct: 0, total: 2 });
+    // Tapping every picture must not score full marks for recognising nothing.
+    expect(scoreElement(hunt, ["a", "b", "c", "d"])).toEqual({ correct: 0, total: 2 });
+  });
+
+  const compare: SideBySideElement = {
+    ...base, type: "sideBySide", prompt: "Which?",
+    rounds: [
+      { id: "r1", question: "Up?", a: { label: "Up" }, b: { label: "Down" }, answer: "a" },
+      { id: "r2", question: "Big?", a: { label: "Mouse" }, b: { label: "Elephant" }, answer: "b" },
+    ],
+  };
+
+  it("gives a mark per comparison answered correctly", () => {
+    expect(scoreElement(compare, { r1: "a" })).toEqual({ correct: 1, total: 2 });
+    expect(scoreElement(compare, { r1: "a", r2: "b" })).toEqual({ correct: 2, total: 2 });
+    expect(scoreElement(compare, { r1: "b", r2: "a" })).toEqual({ correct: 0, total: 2 });
+  });
+
+  const secret: SecretWordElement = {
+    ...base, type: "secretWord", prompt: "Guess", word: "sun", hint: "", maxWrong: 3,
+  };
+
+  it("is solved only when every letter is found within the allowance", () => {
+    expect(scoreElement(secret, ["S", "U", "N"])).toEqual({ correct: 1, total: 1 });
+    // Half a revealed word is not half a solved word.
+    expect(scoreElement(secret, ["S", "U"])).toEqual({ correct: 0, total: 1 });
+    // Right letters, but only after too many wrong ones.
+    expect(scoreElement(secret, ["X", "Y", "Z", "Q", "S", "U", "N"])).toEqual({ correct: 0, total: 1 });
+    // Wrong guesses inside the allowance still count as solved.
+    expect(scoreElement(secret, ["X", "S", "U", "N"])).toEqual({ correct: 1, total: 1 });
+  });
+
+  it("ignores the case of a guess and of the authored word", () => {
+    expect(scoreElement({ ...secret, word: "Sun" }, ["s", "u", "n"])).toEqual({ correct: 1, total: 1 });
+  });
+
+  it("does not score a word with no letters in it", () => {
+    expect(scoreElement({ ...secret, word: "123" }, [])).toEqual({ correct: 0, total: 0 });
   });
 });

@@ -1,10 +1,10 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight, Grid2x2, Shuffle, Blocks } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight, Grid2x2, Shuffle, Blocks, Images, Columns2, KeyRound } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";
 import { tokenizeWordHunt, targetTokenIndices } from "@/lib/canvas/word-hunt";
-import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
+import { textStyle, cardStyle, imageStyle, imagePx, mcGridStyle } from "@/lib/canvas/appearance";
 import { buildWordSearch } from "@/lib/canvas/word-search";
 import { HotspotFrame } from "./hotspot-frame";
 import { OptionPicture } from "./option-picture";
@@ -693,6 +693,116 @@ export function ElementPreview({
                 </span>
                 {!hideAnswers && <span className="truncate text-muted-foreground">= {it.word}</span>}
               </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "photoHunt":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Images className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div
+            className="grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden"
+            style={{
+              ...textStyle(element),
+              gridTemplateColumns: `repeat(${Math.max(1, Math.min(element.columns || 4, element.items.length || 1))}, minmax(0, 1fr))`,
+            }}
+          >
+            {element.items.map((it) => (
+              <div
+                key={it.id}
+                className={cn(
+                  "flex min-w-0 flex-col items-center gap-0.5 rounded-md border p-1.5 text-center",
+                  it.isTarget && !hideAnswers
+                    ? "border-success/50 bg-success/10 text-success"
+                    : "border-border",
+                )}
+              >
+                {it.imageSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={it.imageSrc} alt="" className="w-full rounded object-cover" style={{ height: imagePx(element) }} />
+                ) : (
+                  <span className="leading-none" style={{ fontSize: imagePx(element) }}>{it.emoji || "🔲"}</span>
+                )}
+                <span className="w-full truncate">{it.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "sideBySide":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Columns2 className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden" style={textStyle(element)}>
+            {element.rounds.map((r) => (
+              <div key={r.id} className="flex flex-col gap-1">
+                <p className="truncate">{r.question}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["a", "b"] as const).map((side) => (
+                    <div
+                      key={side}
+                      className={cn(
+                        "flex min-w-0 flex-col items-center gap-0.5 rounded-md border p-1.5 text-center",
+                        r.answer === side && !hideAnswers
+                          ? "border-success/50 bg-success/10 text-success"
+                          : "border-border",
+                      )}
+                    >
+                      {r[side].imageSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r[side].imageSrc} alt="" className="w-full rounded object-cover" style={{ height: imagePx(element) }} />
+                      ) : (
+                        <span className="leading-none" style={{ fontSize: imagePx(element) }}>{r[side].emoji || "🔲"}</span>
+                      )}
+                      <span className="w-full truncate">{r[side].label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "secretWord":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <KeyRound className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          {element.hint && (
+            <p className="truncate text-muted-foreground" style={textStyle(element)}>
+              Clue: {element.hint}
+            </p>
+          )}
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {[...element.word.toUpperCase()].map((ch, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "flex size-9 items-center justify-center rounded border-b-4 border-border text-lg font-bold",
+                  // The word IS the answer, so a printed sheet shows blanks.
+                  hideAnswers && "text-transparent",
+                )}
+              >
+                {ch}
+              </span>
             ))}
           </div>
         </div>

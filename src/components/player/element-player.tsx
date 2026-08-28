@@ -9,7 +9,7 @@ import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, D
 import { seededShuffle } from "@/lib/canvas/shuffle";
 import { buildWordSearch, runBetween, matchWord } from "@/lib/canvas/word-search";
 import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/word-hunt";
-import { textStyle, cardStyle, imageStyle, mcGridStyle } from "@/lib/canvas/appearance";
+import { textStyle, cardStyle, imageStyle, imagePx, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
 import { OptionPicture } from "@/components/canvas/option-picture";
 import { cn } from "@/lib/utils";
@@ -274,6 +274,21 @@ export function ElementPlayer({
     case "wordChunks": {
       const built = (response ?? {}) as Record<string, string[]>;
       return <WordChunksPlayer element={element} built={built} onChange={onChange} locked={locked} />;
+    }
+
+    case "photoHunt": {
+      const tapped = Array.isArray(response) ? (response as string[]) : [];
+      return <PhotoHuntPlayer element={element} tapped={tapped} onChange={onChange} locked={locked} />;
+    }
+
+    case "sideBySide": {
+      const picks = (response ?? {}) as Record<string, string>;
+      return <SideBySidePlayer element={element} picks={picks} onChange={onChange} locked={locked} />;
+    }
+
+    case "secretWord": {
+      const guessed = Array.isArray(response) ? (response as string[]) : [];
+      return <SecretWordPlayer element={element} guessed={guessed} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -1965,4 +1980,259 @@ function attemptToIndices(attempt: string | string[], tiles: string[]): number[]
     out.push(i);
   }
   return out;
+}
+
+// One picture, drawn from an emoji or an upload. Shared by the hunt and the
+// comparison so both accept either without each restating the fallback.
+function PictureFace({
+  emoji,
+  imageSrc,
+  size,
+}: {
+  emoji?: string;
+  imageSrc?: string;
+  size: number;
+}) {
+  if (imageSrc) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={imageSrc} alt="" className="rounded object-cover" style={{ width: "100%", height: size }} />
+    );
+  }
+  return (
+    <span className="leading-none" style={{ fontSize: size }} aria-hidden>
+      {emoji || "🔲"}
+    </span>
+  );
+}
+
+// Several right answers among distractors — the difference from a
+// picture-choice question, which has exactly one. Tapping is a toggle so a
+// change of mind costs nothing, and a wrong tap is subtracted at scoring
+// time rather than blocked here: seeing what a child taps by mistake is the
+// clinically interesting part.
+function PhotoHuntPlayer({
+  element,
+  tapped,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "photoHunt" }>;
+  tapped: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const set = new Set(tapped);
+  const cols = Math.max(1, Math.min(element.columns || 4, element.items.length || 1));
+
+  const toggle = (id: string) => {
+    if (locked) return;
+    onChange(set.has(id) ? tapped.filter((t) => t !== id) : [...tapped, id]);
+  };
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <p className="text-xs text-muted-foreground">Tapped {set.size}</p>
+
+      <div
+        className="grid flex-1 content-start gap-2"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {element.items.map((item) => {
+          const isTapped = set.has(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={locked}
+              onClick={() => toggle(item.id)}
+              aria-pressed={isTapped}
+              style={textStyle(element)}
+              className={cn(
+                "flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 text-center transition-colors",
+                isTapped ? "border-primary bg-secondary" : "border-border hover:bg-muted",
+                // Review shows every target, found or missed, so the child
+                // sees what they were looking for rather than only that they
+                // were wrong.
+                locked && item.isTarget && "border-success bg-success/15",
+                locked && isTapped && !item.isTarget && "border-destructive bg-destructive/15",
+              )}
+            >
+              <PictureFace emoji={item.emoji} imageSrc={item.imageSrc} size={imagePx(element)} />
+              <span className="w-full truncate">{item.label}</span>
+              {locked && item.isTarget && <Check className="size-4 text-success" />}
+              {locked && isTapped && !item.isTarget && <X className="size-4 text-destructive" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Two things, one question, two enormous targets. The whole point of the
+// format is that a child who cannot yet scan a list of four options can
+// still answer a comparison, so the two panels split the element between
+// them rather than sitting in a row of small cards.
+function SideBySidePlayer({
+  element,
+  picks,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "sideBySide" }>;
+  picks: Record<string, string>;
+  onChange: (value: Record<string, string>) => void;
+  locked: boolean;
+}) {
+  return (
+    <div
+      className="flex size-full flex-col gap-3 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      {element.rounds.map((round) => {
+        const picked = picks[round.id];
+        return (
+          <div key={round.id} className="flex flex-col gap-1.5">
+            <p style={textStyle(element)}>{round.question}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(["a", "b"] as const).map((side) => {
+                const face = round[side];
+                const isPicked = picked === side;
+                const isAnswer = round.answer === side;
+                return (
+                  <button
+                    key={side}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => onChange({ ...picks, [round.id]: side })}
+                    style={textStyle(element)}
+                    className={cn(
+                      "flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 text-center transition-colors",
+                      isPicked ? "border-primary bg-secondary" : "border-border hover:bg-muted",
+                      locked && isAnswer && "border-success bg-success/15",
+                      locked && isPicked && !isAnswer && "border-destructive bg-destructive/15",
+                    )}
+                  >
+                    <PictureFace emoji={face.emoji} imageSrc={face.imageSrc} size={imagePx(element)} />
+                    <span className="w-full truncate font-semibold">{face.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const SECRET_ALPHABET = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+
+// Letters appear in place as they are guessed. No hanging figure and no
+// sudden loss: running out of guesses reveals the word rather than ending
+// the game, because the point is to meet the word, not to be beaten by it.
+function SecretWordPlayer({
+  element,
+  guessed,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "secretWord" }>;
+  guessed: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const guessedSet = new Set(guessed.map((g) => g.toUpperCase()));
+  const letters = [...element.word.toUpperCase()];
+  const inWord = new Set(letters.filter((c) => /[A-Z]/.test(c)));
+
+  const wrong = [...guessedSet].filter((g) => !inWord.has(g));
+  const outOfGuesses = wrong.length >= element.maxWrong;
+  const solved = [...inWord].every((c) => guessedSet.has(c));
+  // Revealed once solved, once the guesses run out, or on review — never
+  // leaving a child staring at blanks they cannot fill.
+  const reveal = solved || outOfGuesses || locked;
+
+  return (
+    <div
+      className="flex size-full flex-col gap-3 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <div className="flex items-baseline gap-2">
+        <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
+          {element.prompt}
+        </p>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {wrong.length}/{element.maxWrong} wrong
+        </span>
+      </div>
+
+      {element.hint && (
+        <p className="text-xs text-muted-foreground">Clue: {element.hint}</p>
+      )}
+
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {letters.map((ch, i) =>
+          /[A-Z]/.test(ch) ? (
+            <span
+              key={i}
+              className={cn(
+                "flex size-11 items-center justify-center rounded-lg border-b-4 text-2xl font-bold",
+                guessedSet.has(ch) || reveal
+                  ? solved || guessedSet.has(ch)
+                    ? "border-success text-foreground"
+                    : "border-destructive text-destructive"
+                  : "border-border text-transparent",
+              )}
+            >
+              {guessedSet.has(ch) || reveal ? ch : "?"}
+            </span>
+          ) : (
+            <span key={i} className="w-3" />
+          ),
+        )}
+      </div>
+
+      {solved && <p className="text-center text-sm font-semibold text-success">You got it!</p>}
+      {!solved && outOfGuesses && (
+        <p className="text-center text-sm text-muted-foreground">
+          Out of guesses — the word was {element.word.toUpperCase()}.
+        </p>
+      )}
+
+      <div className="flex flex-wrap justify-center gap-1">
+        {SECRET_ALPHABET.map((letter) => {
+          const used = guessedSet.has(letter);
+          const isIn = inWord.has(letter);
+          return (
+            <button
+              key={letter}
+              type="button"
+              disabled={locked || used || solved || outOfGuesses}
+              onClick={() => onChange([...guessed, letter])}
+              className={cn(
+                "size-9 rounded-md border text-sm font-semibold transition-colors",
+                !used && "border-border hover:bg-muted cursor-pointer",
+                used && isIn && "border-success bg-success/15 text-success",
+                used && !isIn && "border-destructive bg-destructive/10 text-destructive line-through",
+              )}
+            >
+              {letter}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

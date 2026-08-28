@@ -22,6 +22,9 @@ import type {
   WordSearchElement,
   UnscrambleElement,
   WordChunksElement,
+  PhotoHuntElement,
+  SideBySideElement,
+  SecretWordElement,
   ChecklistElement,
   TableElement,
   ArrowElement,
@@ -502,6 +505,27 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "wordChunks" && (
         <>
           <WordChunksFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "photoHunt" && (
+        <>
+          <PhotoHuntFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
+
+      {selected.type === "sideBySide" && (
+        <>
+          <SideBySideFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
+
+      {selected.type === "secretWord" && (
+        <>
+          <SecretWordFields element={selected} patch={patch} />
           <AppearanceFields element={selected} patch={patch} showImageSize={false} />
         </>
       )}
@@ -1956,6 +1980,215 @@ function WordChunksFields({
           <Plus className="size-3.5" /> Add word
         </Button>
       </div>
+    </>
+  );
+}
+
+function PhotoHuntFields({
+  element,
+  patch,
+}: {
+  element: PhotoHuntElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<PhotoHuntElement["items"][number]>) => {
+    patch({ items: element.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
+  };
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Pictures across">
+        <Select value={String(element.columns)} onValueChange={(v) => patch({ columns: Number(v) })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[2, 3, 4, 5, 6].map((n) => (
+              <SelectItem key={n} value={String(n)}>{n} across</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Pictures</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Tick the ones the patient should find. An emoji needs no upload; a photo replaces it.
+          Wrong taps are subtracted, so tapping everything scores nothing.
+        </p>
+        {element.items.map((it, i) => (
+          <div key={it.id} className="flex items-center gap-2">
+            <Checkbox
+              checked={it.isTarget}
+              onCheckedChange={(v) => update(i, { isTarget: Boolean(v) })}
+              aria-label={`${it.label} is one to find`}
+            />
+            <PairImagePicker src={it.imageSrc} onChange={(v) => update(i, { imageSrc: v })} label="picture" />
+            <Input
+              value={it.emoji ?? ""}
+              onChange={(e) => update(i, { emoji: e.target.value || undefined })}
+              className="w-12 text-center"
+              aria-label="Emoji"
+            />
+            <Input value={it.label} onChange={(e) => update(i, { label: e.target.value })} className="flex-1" />
+            <button
+              type="button"
+              onClick={() => patch({ items: element.items.filter((_, idx) => idx !== i) })}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({ items: [...element.items, { id: nanoid(8), label: "New", emoji: "🔲", isTarget: false }] })
+          }
+        >
+          <Plus className="size-3.5" /> Add picture
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function SideBySideFields({
+  element,
+  patch,
+}: {
+  element: SideBySideElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<SideBySideElement["rounds"][number]>) => {
+    patch({ rounds: element.rounds.map((r, idx) => (idx === i ? { ...r, ...p } : r)) });
+  };
+  const side = (i: number, which: "a" | "b", p: Partial<SideBySideElement["rounds"][number]["a"]>) =>
+    update(i, { [which]: { ...element.rounds[i][which], ...p } } as Partial<SideBySideElement["rounds"][number]>);
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Questions</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Two choices and one question each. Big targets and only two of them, which is what
+          reaches a child who cannot yet scan a list.
+        </p>
+        {element.rounds.map((r, i) => (
+          <div key={r.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <Input
+                value={r.question}
+                onChange={(e) => update(i, { question: e.target.value })}
+                placeholder="Question"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ rounds: element.rounds.filter((_, idx) => idx !== i) })}
+                className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+            {(["a", "b"] as const).map((which) => (
+              <div key={which} className="flex items-center gap-2">
+                <PairImagePicker
+                  src={r[which].imageSrc}
+                  onChange={(v) => side(i, which, { imageSrc: v })}
+                  label={which === "a" ? "left" : "right"}
+                />
+                <Input
+                  value={r[which].emoji ?? ""}
+                  onChange={(e) => side(i, which, { emoji: e.target.value || undefined })}
+                  className="w-12 text-center"
+                  aria-label={`${which === "a" ? "Left" : "Right"} emoji`}
+                />
+                <Input
+                  value={r[which].label}
+                  onChange={(e) => side(i, which, { label: e.target.value })}
+                  className="flex-1"
+                  aria-label={`${which === "a" ? "Left" : "Right"} label`}
+                />
+              </div>
+            ))}
+            <Field label="Correct answer">
+              <Select value={r.answer} onValueChange={(v) => update(i, { answer: v as "a" | "b" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="a">Left — {r.a.label}</SelectItem>
+                  <SelectItem value="b">Right — {r.b.label}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            patch({
+              rounds: [
+                ...element.rounds,
+                {
+                  id: nanoid(8),
+                  question: "Which one?",
+                  a: { label: "This", emoji: "🅰️" },
+                  b: { label: "That", emoji: "🅱️" },
+                  answer: "a" as const,
+                },
+              ],
+            })
+          }
+        >
+          <Plus className="size-3.5" /> Add question
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function SecretWordFields({
+  element,
+  patch,
+}: {
+  element: SecretWordElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="The secret word">
+        <Input value={element.word} onChange={(e) => patch({ word: e.target.value })} />
+      </Field>
+      <Field label="Clue">
+        <Input
+          value={element.hint}
+          onChange={(e) => patch({ hint: e.target.value })}
+          placeholder="It shines in the sky"
+        />
+      </Field>
+      <Field label="Wrong guesses allowed">
+        <Input
+          type="number"
+          min={1}
+          max={20}
+          value={element.maxWrong}
+          onChange={(e) => patch({ maxWrong: Math.max(1, Math.min(20, Number(e.target.value) || 6)) })}
+        />
+      </Field>
+      <p className="text-[11px] text-muted-foreground">
+        Running out reveals the word rather than ending the game — the point is to meet the word,
+        not to be beaten by it.
+      </p>
     </>
   );
 }

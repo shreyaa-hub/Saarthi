@@ -241,6 +241,48 @@ export function scoreElement(element: CanvasElement, response: unknown): Element
       };
     }
 
+    case "photoHunt": {
+      // Several right answers among distractors, so a wrong tap is a real
+      // error and is subtracted — otherwise tapping every picture would
+      // score full marks for recognising nothing.
+      const tapped = new Set(Array.isArray(response) ? (response as string[]) : []);
+      const targets = new Set(element.items.filter((i) => i.isTarget).map((i) => i.id));
+      if (targets.size === 0) return NOT_SCORED;
+
+      let hits = 0;
+      let misfires = 0;
+      for (const id of tapped) {
+        if (targets.has(id)) hits += 1;
+        else misfires += 1;
+      }
+      return netScore(hits, misfires, targets.size);
+    }
+
+    case "sideBySide": {
+      const picks = (response ?? {}) as Record<string, string>;
+      if (element.rounds.length === 0) return NOT_SCORED;
+      return {
+        correct: element.rounds.filter((r) => picks[r.id] === r.answer).length,
+        total: element.rounds.length,
+      };
+    }
+
+    case "secretWord": {
+      // Solved when every letter of the word has been guessed within the
+      // allowance. Deliberately all-or-nothing: half a revealed word is not
+      // half a solved word, and the letters still hidden are the ones the
+      // child could not get.
+      const guessed = new Set(
+        (Array.isArray(response) ? (response as string[]) : []).map((g) => g.toUpperCase()),
+      );
+      const letters = [...element.word.toUpperCase()].filter((c) => /[A-Z]/.test(c));
+      if (letters.length === 0) return NOT_SCORED;
+
+      const wrong = [...guessed].filter((g) => !letters.includes(g)).length;
+      const solved = letters.every((c) => guessed.has(c));
+      return { correct: solved && wrong <= element.maxWrong ? 1 : 0, total: 1 };
+    }
+
     default:
       return NOT_SCORED;
   }

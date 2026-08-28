@@ -435,6 +435,57 @@ export type WordChunksElement = ElementBase & InteractiveAppearance & {
   items: ChunkWord[];
 };
 
+
+// One picture in the hunt. Emoji rather than an uploaded photo is a first-
+// class option throughout: it needs no upload, no storage and no network,
+// which is what lets a clinician build a task on a phone between sessions.
+export type HuntItem = {
+  id: string;
+  label: string;
+  emoji?: string;
+  imageSrc?: string;
+  isTarget: boolean;
+};
+
+// A grid of pictures, tap every one that matches. Unlike a picture-choice
+// question, which has exactly one answer, this has several — and the errors
+// are as informative as the hits, so wrong taps are subtracted.
+export type PhotoHuntElement = ElementBase & InteractiveAppearance & {
+  type: "photoHunt";
+  prompt: string;
+  columns: number;
+  items: HuntItem[];
+};
+
+export type ComparisonRound = {
+  id: string;
+  question: string;
+  a: { label: string; emoji?: string; imageSrc?: string };
+  b: { label: string; emoji?: string; imageSrc?: string };
+  answer: "a" | "b";
+};
+
+// Two things side by side, one question, two enormous targets: "which one is
+// up?" Opposites and comparisons are early-concept work, and the format is
+// the reason it reaches a child who cannot yet scan a list of four options.
+export type SideBySideElement = ElementBase & InteractiveAppearance & {
+  type: "sideBySide";
+  prompt: string;
+  rounds: ComparisonRound[];
+};
+
+// A hidden word revealed a letter at a time. The child taps letters and sees
+// them appear in place — the classic guessing game, minus the hanging figure.
+export type SecretWordElement = ElementBase & InteractiveAppearance & {
+  type: "secretWord";
+  prompt: string;
+  word: string;
+  hint: string;
+  // How many wrong letters are allowed before the round is lost. Generous by
+  // default: this is a vocabulary task, not a test of nerve.
+  maxWrong: number;
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -616,6 +667,9 @@ export type CanvasElement =
   | WordSearchElement
   | UnscrambleElement
   | WordChunksElement
+  | PhotoHuntElement
+  | SideBySideElement
+  | SecretWordElement
   | ListElement
   | WritingLinesElement
   | ChecklistElement
@@ -651,6 +705,9 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "wordSearch",
   "unscramble",
   "wordChunks",
+  "photoHunt",
+  "sideBySide",
+  "secretWord",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

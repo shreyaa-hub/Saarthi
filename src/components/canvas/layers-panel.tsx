@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline, CheckSquare, Table2, Pencil, AlignLeft, ThumbsUp, Layers2, Hash, Grid2x2, Shuffle, Blocks, MoveRight, Minus, Smile, MessageCircle, Info, FileSignature, Grid3x3, Ruler, Star, BookOpen } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Type, Image as ImageIcon, Square, Volume2, MousePointerClick, ListChecks, PenLine, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, List, Baseline, CheckSquare, Table2, Pencil, AlignLeft, ThumbsUp, Layers2, Hash, Grid2x2, Shuffle, Blocks, Images, Columns2, KeyRound, MoveRight, Minus, Smile, MessageCircle, Info, FileSignature, Grid3x3, Ruler, Star, BookOpen } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
 import type { CanvasElement, CanvasElementType } from "@/lib/types/canvas";
@@ -29,6 +29,9 @@ const ICONS: Record<CanvasElementType, typeof Type> = {
   wordSearch: Grid2x2,
   unscramble: Shuffle,
   wordChunks: Blocks,
+  photoHunt: Images,
+  sideBySide: Columns2,
+  secretWord: KeyRound,
   list: List,
   writingLines: Baseline,
   checklist: CheckSquare,

@@ -24,6 +24,9 @@ import type {
   WordSearchElement,
   UnscrambleElement,
   WordChunksElement,
+  PhotoHuntElement,
+  SideBySideElement,
+  SecretWordElement,
   ListElement,
   WritingLinesElement,
   ChecklistElement,
@@ -342,6 +345,64 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         ],
       } satisfies WordChunksElement;
 
+    case "photoHunt":
+      return {
+        ...base,
+        type: "photoHunt",
+        w: 520,
+        h: 360,
+        prompt: "Tap every animal.",
+        columns: 4,
+        imageSize: 60,
+        items: [
+          { id: id(), label: "Dog", emoji: "🐶", isTarget: true },
+          { id: id(), label: "Apple", emoji: "🍎", isTarget: false },
+          { id: id(), label: "Cat", emoji: "🐱", isTarget: true },
+          { id: id(), label: "Car", emoji: "🚗", isTarget: false },
+          { id: id(), label: "Cow", emoji: "🐄", isTarget: true },
+          { id: id(), label: "Ball", emoji: "⚽", isTarget: false },
+          { id: id(), label: "Duck", emoji: "🦆", isTarget: true },
+          { id: id(), label: "Hat", emoji: "🎩", isTarget: false },
+        ],
+      } satisfies PhotoHuntElement;
+
+    case "sideBySide":
+      return {
+        ...base,
+        type: "sideBySide",
+        w: 480,
+        h: 340,
+        prompt: "Which one?",
+        rounds: [
+          {
+            id: id(),
+            question: "Which one is up?",
+            a: { label: "Up", emoji: "⬆️" },
+            b: { label: "Down", emoji: "⬇️" },
+            answer: "a",
+          },
+          {
+            id: id(),
+            question: "Which one is big?",
+            a: { label: "Mouse", emoji: "🐭" },
+            b: { label: "Elephant", emoji: "🐘" },
+            answer: "b",
+          },
+        ],
+      } satisfies SideBySideElement;
+
+    case "secretWord":
+      return {
+        ...base,
+        type: "secretWord",
+        w: 460,
+        h: 340,
+        prompt: "Guess the secret word.",
+        word: "sun",
+        hint: "It shines in the sky",
+        maxWrong: 6,
+      } satisfies SecretWordElement;
+
     case "list":
       return {
         ...base,
@@ -563,6 +624,9 @@ export const ELEMENT_LIBRARY: {
   { type: "wordSearch", label: "Word search", group: "interactive", surfaces: ["activity"] },
   { type: "unscramble", label: "Unscramble", group: "interactive", surfaces: ["activity"] },
   { type: "wordChunks", label: "Word chunks", group: "interactive", surfaces: ["activity"] },
+  { type: "photoHunt", label: "Photo hunt", group: "interactive", surfaces: ["activity"] },
+  { type: "sideBySide", label: "Side by side", group: "interactive", surfaces: ["activity"] },
+  { type: "secretWord", label: "Secret word", group: "interactive", surfaces: ["activity"] },
   { type: "arrow", label: "Arrow", group: "content", surfaces: ["activity", "worksheet"] },
   { type: "divider", label: "Divider", group: "worksheet", surfaces: ["activity", "worksheet"] },
   { type: "sticker", label: "Sticker", group: "content", surfaces: ["activity", "worksheet"] },
