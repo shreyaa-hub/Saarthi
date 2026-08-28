@@ -90,6 +90,7 @@ export function LibraryAssetGrid({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by description…"
+          aria-label="Search the asset library"
           className="pl-9"
         />
       </div>

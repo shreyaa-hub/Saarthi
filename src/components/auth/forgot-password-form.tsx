@@ -33,7 +33,7 @@ export function ForgotPasswordForm({ linkFailed }: { linkFailed?: boolean }) {
             The link is good for one hour and can only be used once.
           </p>
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            <Link href="/sign-in" className="font-medium text-primary hover:underline">
+            <Link href="/sign-in" className="-my-2 inline-flex min-h-11 items-center font-medium text-primary hover:underline">
               Back to sign in
             </Link>
           </p>
@@ -71,7 +71,7 @@ export function ForgotPasswordForm({ linkFailed }: { linkFailed?: boolean }) {
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Remembered it?{" "}
-          <Link href="/sign-in" className="font-medium text-primary hover:underline">
+          <Link href="/sign-in" className="-my-2 inline-flex min-h-11 items-center font-medium text-primary hover:underline">
             Sign in
           </Link>
         </p>

@@ -32,7 +32,7 @@ export function Footer() {
     <footer className="border-t border-border bg-card">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 md:grid-cols-4">
         <div>
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex min-h-11 items-center gap-2 font-semibold">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Compass className="size-4" />
             </span>
@@ -46,12 +46,17 @@ export function Footer() {
         {columns.map((col) => (
           <div key={col.title}>
             <h4 className="text-sm font-semibold text-foreground">{col.title}</h4>
-            <ul className="mt-3 flex flex-col gap-2">
+            {/* gap-0 with padding on the links rather than gap-2 with bare
+                text: the padding is what makes the tappable area big enough.
+                Measured before this, every footer link had an 18px hit area
+                — below the 24px WCAG 2.5.8 minimum — because a bare text
+                link is only as tall as its own line box. */}
+            <ul className="mt-1 flex flex-col">
               {col.links.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     {l.label}
                   </Link>

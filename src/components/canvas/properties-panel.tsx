@@ -48,12 +48,19 @@ import { Plus, Trash2, Copy, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown, X
 import { ImageUploadButton } from "./image-upload-button";
 import { PairImagePicker } from "./pair-image-picker";
 
+// A real <label> element wrapping its control, rather than a div with a
+// caption above it. Nesting is what associates the two, so every field in
+// this panel gets an accessible name from the text a sighted author already
+// reads — without each of the several dozen callers having to invent an id
+// and repeat it in an htmlFor.
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <label className="flex flex-col gap-1.5">
+      <Label asChild className="text-xs text-muted-foreground">
+        <span>{label}</span>
+      </Label>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -67,7 +74,12 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
           onChange={(e) => onChange(e.target.value)}
           className="size-9 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-1"
         />
-        <Input value={value} onChange={(e) => onChange(e.target.value)} className="font-mono text-xs" />
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} hex value`}
+          className="font-mono text-xs"
+        />
       </div>
     </Field>
   );
@@ -1115,6 +1127,7 @@ function OptionalColorField({
           value={value ?? ""}
           placeholder="Theme default"
           onChange={(e) => onChange(e.target.value || undefined)}
+          aria-label={`${label} hex value`}
           className="font-mono text-xs"
         />
         {value && (

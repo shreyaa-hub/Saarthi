@@ -40,7 +40,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
+        <Link href="/" className="flex min-h-11 items-center gap-2 font-semibold">
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Compass className="size-4" />
           </span>
@@ -49,13 +49,13 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="group relative py-1 transition-colors hover:text-foreground">
+            <Link key={l.href} href={l.href} className="group relative inline-flex min-h-11 items-center py-1 transition-colors hover:text-foreground">
               {l.label}
               <span className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-accent transition-transform duration-300 ease-out group-hover:scale-x-100" />
             </Link>
           ))}
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-foreground outline-none cursor-pointer">
+            <DropdownMenuTrigger className="flex min-h-11 items-center gap-1 transition-colors hover:text-foreground outline-none cursor-pointer">
               Resources <ChevronDown className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -91,7 +91,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
         </div>
 
         <button
-          className="flex size-9 items-center justify-center rounded-md text-foreground md:hidden"
+          className="flex size-11 items-center justify-center rounded-md text-foreground md:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -110,7 +110,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex min-h-11 items-center rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() => setOpen(false)}
             >
               {l.label}

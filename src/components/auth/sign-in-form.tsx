@@ -33,7 +33,7 @@ export function SignInForm({ next, redirectTo }: { next?: string; redirectTo?: s
               <Label htmlFor="password">Password</Label>
               <Link
                 href="/forgot-password"
-                className="text-xs font-medium text-primary hover:underline"
+                className="-my-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline"
               >
                 Forgot password?
               </Link>
@@ -54,7 +54,7 @@ export function SignInForm({ next, redirectTo }: { next?: string; redirectTo?: s
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/sign-up" className="font-medium text-primary hover:underline">
+          <Link href="/sign-up" className="-my-2 inline-flex min-h-11 items-center font-medium text-primary hover:underline">
             Sign up
           </Link>
         </p>

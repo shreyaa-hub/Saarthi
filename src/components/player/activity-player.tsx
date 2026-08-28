@@ -16,6 +16,18 @@ import { Progress } from "@/components/ui/progress";
 import { useFullscreen } from "@/lib/canvas/use-fullscreen";
 import { cn } from "@/lib/utils";
 
+// Below this shrink-to-fit factor the canvas layout is abandoned for a
+// stacked one. Chosen from measurement rather than a device breakpoint: what
+// matters is how small the authored content ends up, and a 900px-wide canvas
+// on a 390px phone lands at 0.4 — where a drag-to-match's answer chips came
+// out 16 CSS pixels tall. Two thirds still reads as "small but usable"; below
+// that it stops being usable at all.
+//
+// Deriving it from the scale rather than the viewport also means a wide
+// activity stacks on a tablet while a narrow one does not, which is the
+// behaviour that actually matches what the patient can touch.
+const STACK_BELOW_SCALE = 0.66;
+
 // `practice` runs the same player over a library item the patient chose
 // themselves. It scores and shows the result, but records nothing: an attempt
 // row belongs to an assignment, and self-selected practice folded into the
@@ -54,6 +66,9 @@ export function ActivityPlayer({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  // Starts false so the server and the first client render agree; the
+  // ResizeObserver below flips it once the real width is known.
+  const [stacked, setStacked] = useState(false);
 
   // The whole player goes fullscreen, not just the canvas, so the header
   // (progress, Submit) and the slide navigation stay reachable — a patient
@@ -83,12 +98,27 @@ export function ActivityPlayer({
       const availableHeight = el.clientHeight - 32;
       const next = Math.min(1, availableWidth / canvas.width, availableHeight / canvas.height);
       setScale(next > 0 ? next : 1);
+      // Below this the shrink-to-fit layout stops being usable rather than
+      // merely small — see STACK_BELOW_SCALE.
+      setStacked(next < STACK_BELOW_SCALE);
     };
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
   }, [canvas.width, canvas.height]);
+
+  // Reading order for the stacked layout: down the page, then across. The
+  // authored canvas is spatial, and a phone is not, so something has to
+  // decide the order — top-to-bottom is what a person reading the sheet
+  // would do, with a tolerance so two elements roughly side by side are
+  // taken left to right rather than by a few pixels of vertical drift.
+  const stackedElements = useMemo(() => {
+    const ROW_TOLERANCE = 40;
+    return [...page.elements].sort((a, b) =>
+      Math.abs(a.y - b.y) > ROW_TOLERANCE ? a.y - b.y : a.x - b.x,
+    );
+  }, [page.elements]);
 
   // Progress counts every question in the whole activity, not just the
   // current slide — "3/4 answered" has to mean the thing being submitted,
@@ -179,7 +209,11 @@ export function ActivityPlayer({
     <div ref={shellRef} className="flex h-screen flex-col bg-background">
       <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href={backHref} className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+          <Link
+            href={backHref}
+            aria-label={`Back to ${backLabel}`}
+            className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+          >
             <ArrowLeft className="size-4" />
           </Link>
           <h1 className="truncate font-semibold">{title}</h1>
@@ -217,11 +251,11 @@ export function ActivityPlayer({
             </Button>
           )}
           {locked ? (
-            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={() => router.push(backHref)}>
               <RotateCcw className="size-4" /> Done
             </Button>
           ) : isLastPage ? (
-            <Button size="sm" onClick={handleSubmit} disabled={submitting}>
+            <Button size="sm" className="min-h-11 px-5" onClick={handleSubmit} disabled={submitting}>
               Submit
             </Button>
           ) : (
@@ -229,14 +263,60 @@ export function ActivityPlayer({
             // until the last slide and Submit there, so a patient part-way
             // through a multi-slide activity can't submit work they haven't
             // been shown yet.
-            <Button size="sm" onClick={() => setPageIndex((i) => i + 1)}>
+            <Button size="sm" className="min-h-11 px-5" onClick={() => setPageIndex((i) => i + 1)}>
               Next <ArrowRight className="size-4" />
             </Button>
           )}
         </div>
       </header>
 
-      <div ref={containerRef} className="canvas-surface flex flex-1 items-center justify-center overflow-auto p-4">
+      <div
+        ref={containerRef}
+        className={cn(
+          "canvas-surface flex flex-1 overflow-auto p-4",
+          stacked ? "flex-col items-stretch gap-4" : "items-center justify-center",
+        )}
+      >
+        {stacked ? (
+          // One element per row at the full width of the screen, in reading
+          // order, with no transform at all.
+          //
+          // Shrinking the whole canvas to fit a phone is what broke this:
+          // measured on a 390px screen, a drag-to-match's answer chips came
+          // out 112x16 CSS pixels. WCAG 2.5.8 asks for 24 and Apple's
+          // guidance is 44 — and the people using this are children, some of
+          // them with the fine-motor difficulty the app exists to treat.
+          //
+          // Dropping the transform is what fixes it, not a bigger scale
+          // factor. Every interactive player lays its own contents out with
+          // flexbox already, so given a full-width box they reflow and their
+          // targets grow to the size their padding and font-size imply.
+          //
+          // Capped and centred, because a full-bleed column on a tablet gives
+          // line lengths nobody can read.
+          <div key={page.id} className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+            {stackedElements.map((el) => (
+              <div
+                key={el.id}
+                // No frame of its own: every interactive player already draws
+                // a bordered card, and wrapping a plain heading in a second
+                // one made the title look like a stray empty box.
+                className="shrink-0"
+                // Width comes from the column; the authored height is kept as
+                // a floor so nothing collapses, but content may grow past it.
+                style={{ minHeight: el.h }}
+              >
+                <ElementPlayer
+                  element={el}
+                  response={responses[el.id]}
+                  onChange={(value) => setResponses((r) => ({ ...r, [el.id]: value }))}
+                  locked={locked}
+                  onSubmit={handleSubmit}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div
           className="relative shrink-0 shadow-lg ring-1 ring-border"
           style={{ width: canvas.width * scale, height: canvas.height * scale }}
@@ -269,6 +349,7 @@ export function ActivityPlayer({
             ))}
           </div>
         </div>
+        )}
       </div>
 
       {/* Only for genuinely multi-slide activities — a single-slide one
@@ -279,6 +360,7 @@ export function ActivityPlayer({
           <Button
             variant="outline"
             size="sm"
+            className="min-h-11"
             onClick={() => setPageIndex((i) => i - 1)}
             disabled={pageIndex === 0}
           >
@@ -293,11 +375,18 @@ export function ActivityPlayer({
                 onClick={() => setPageIndex(i)}
                 aria-label={`Go to slide ${i + 1}`}
                 aria-current={i === pageIndex ? "step" : undefined}
-                className={cn(
-                  "size-2.5 rounded-full transition-colors",
-                  i === pageIndex ? "bg-primary" : "bg-muted-foreground/30 hover:bg-muted-foreground/60",
-                )}
-              />
+                // The dot stays 10px but the button around it is 44: the hit
+                // area grows without the indicator turning into a row of
+                // buttons.
+                className="flex size-11 items-center justify-center"
+              >
+                <span
+                  className={cn(
+                    "block size-2.5 rounded-full transition-colors",
+                    i === pageIndex ? "bg-primary" : "bg-muted-foreground/30 hover:bg-muted-foreground/60",
+                  )}
+                />
+              </button>
             ))}
           </div>
 
@@ -308,6 +397,7 @@ export function ActivityPlayer({
             <Button
               variant="outline"
               size="sm"
+              className="min-h-11"
               onClick={() => setPageIndex((i) => i + 1)}
               disabled={isLastPage}
             >

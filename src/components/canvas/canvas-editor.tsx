@@ -263,7 +263,8 @@ export function CanvasEditor({
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={backHref}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            aria-label="Leave the studio"
+            className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="size-4" />
           </Link>
@@ -271,6 +272,7 @@ export function CanvasEditor({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => commitMeta({ title })}
+            aria-label="Activity title"
             className="h-9 w-48 border-transparent bg-transparent px-2 font-semibold shadow-none hover:border-input focus-visible:border-input md:w-64"
           />
           <Select
@@ -299,8 +301,9 @@ export function CanvasEditor({
               type="button"
               onClick={() => store.getState().undo()}
               disabled={!canUndo}
-              className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+              className="flex size-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
               title="Undo (Ctrl+Z)"
+              aria-label="Undo"
             >
               <Undo2 className="size-3.5" />
             </button>
@@ -308,8 +311,9 @@ export function CanvasEditor({
               type="button"
               onClick={() => store.getState().redo()}
               disabled={!canRedo}
-              className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+              className="flex size-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
               title="Redo (Ctrl+Shift+Z)"
+              aria-label="Redo"
             >
               <Redo2 className="size-3.5" />
             </button>
@@ -337,8 +341,9 @@ export function CanvasEditor({
           <button
             type="button"
             onClick={() => setShortcutsOpen(true)}
-            className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted cursor-pointer"
+            className="flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted cursor-pointer"
             title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
           >
             <Keyboard className="size-4" />
           </button>

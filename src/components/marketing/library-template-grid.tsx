@@ -97,6 +97,7 @@ export function LibraryTemplateGrid({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by title, area, or type…"
+          aria-label="Search the library"
           className="pl-9"
         />
       </div>

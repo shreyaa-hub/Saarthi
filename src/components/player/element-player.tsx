@@ -139,8 +139,8 @@ export function ElementPlayer({
                   className={cn(
                     "rounded-md border transition-colors",
                     grid
-                      ? "flex min-w-0 flex-col items-center gap-1.5 p-2 text-center"
-                      : "flex items-center gap-2 px-3 py-2 text-left",
+                      ? "flex min-h-11 min-w-0 flex-col items-center gap-1.5 p-2 text-center"
+                      : "flex min-h-11 items-center gap-2 px-3 py-2 text-left",
                     isSelected ? "border-primary bg-secondary" : "border-border hover:bg-muted",
                     showResult && o.correct && "border-success bg-success/10",
                     showResult && isSelected && !o.correct && "border-destructive bg-destructive/10",
@@ -177,7 +177,7 @@ export function ElementPlayer({
                     onChange={(e) => onChange(e.target.value)}
                     disabled={locked}
                     className={cn(
-                      "w-24 border-b-2 bg-transparent px-1 text-center outline-none",
+                      "h-11 w-24 border-b-2 bg-transparent px-1 text-center outline-none",
                       locked ? (correct ? "border-success text-success" : "border-destructive text-destructive") : "border-primary",
                     )}
                   />
@@ -419,7 +419,7 @@ function DragMatchPlayer({
                 }}
                 onClick={() => pickLeft(p.id)}
                 className={cn(
-                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  "flex min-h-11 min-w-0 items-center gap-1.5 rounded-md border px-2 py-2 text-left transition-colors",
                   !locked && "cursor-grab active:cursor-grabbing",
                   dragLeft === p.id && "opacity-50",
                   activeLeft === p.id && "border-primary bg-secondary",
@@ -461,7 +461,7 @@ function DragMatchPlayer({
                 }}
                 onClick={() => pickRight(r.id)}
                 className={cn(
-                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  "flex min-h-11 min-w-0 items-center gap-1.5 rounded-md border px-2 py-2 text-left transition-colors",
                   dragOverRight === r.id && "border-primary bg-secondary ring-2 ring-primary/40",
                   canDrop && dragOverRight !== r.id && "border-dashed border-primary/50",
                   takenBy ? "border-primary/60 bg-secondary" : "border-border hover:bg-muted",
@@ -536,7 +536,7 @@ function SequencePlayer({
               onClick={() => toggle(item.id)}
               style={textStyle(element)}
               className={cn(
-                "flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors",
+                "flex min-h-11 min-w-0 items-center gap-2 rounded-md border px-2 py-2 text-left transition-colors",
                 position >= 0 ? "border-primary bg-secondary" : "border-border hover:bg-muted",
               )}
             >
@@ -650,7 +650,7 @@ function SortCategorizePlayer({
               onClick={() => pickItem(it.id)}
               style={textStyle(element)}
               className={cn(
-                "flex items-center gap-1.5 rounded-md border px-2 py-1 transition-colors",
+                "flex min-h-11 items-center gap-1.5 rounded-md border px-2 py-2 transition-colors",
                 !locked && "cursor-grab active:cursor-grabbing",
                 dragItem === it.id && "opacity-50",
                 activeItem === it.id ? "border-primary bg-secondary" : "border-border hover:bg-muted",
@@ -731,7 +731,7 @@ function SortCategorizePlayer({
                     }}
                     style={textStyle(element)}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-md border px-2 py-1 text-left transition-colors",
+                      "flex min-h-11 items-center gap-1.5 rounded-md border px-2 py-2 text-left transition-colors",
                       !locked && "cursor-grab active:cursor-grabbing",
                       dragItem === it.id && "opacity-50",
                       correct && "border-success bg-success/10 text-success",
@@ -846,7 +846,7 @@ function MemoryMatchPlayer({
         {element.prompt}
       </p>
       <div className="grid flex-1 grid-cols-3 gap-2">
-        {cards.map((c) => {
+        {cards.map((c, i) => {
           const isMatchedCard = matched.includes(c.id);
           // Review mode reveals everything, matched or not, so the
           // clinician (or the patient looking back) can see the whole
@@ -859,6 +859,17 @@ function MemoryMatchPlayer({
               disabled={locked || isMatchedCard}
               onClick={() => pick(c.id)}
               style={textStyle(element)}
+              // Without this the whole board is a grid of buttons with no
+              // names at all, and the game is unplayable with a screen
+              // reader. The name has to change with the card's state, since
+              // "what is on this card" is the entire information the game
+              // turns on — and it must not leak what is under a face-down
+              // card, which is why the face is only named once revealed.
+              aria-label={
+                revealed
+                  ? `Card ${i + 1}: ${c.label || "picture"}${isMatchedCard ? ", matched" : ""}`
+                  : `Card ${i + 1}, face down`
+              }
               className={cn(
                 // Landscape tiles, not square: the photos on them are
                 // landscape, and a square tile letterboxed every one of them
@@ -945,7 +956,16 @@ function WordHuntPlayer({
               disabled={locked}
               onClick={() => toggle(i)}
               className={cn(
-                "rounded px-0.5 transition-colors",
+                // The one place in the player that deliberately does not
+                // reach a 44px target. These words are a running sentence,
+                // and WCAG 2.5.8 exempts a target whose position is
+                // determined by the flow of text for exactly this reason:
+                // padding each word out to 44px would break the passage into
+                // a column of buttons and destroy the task, which is reading
+                // the sentence. Measured at 33px tall, comfortably past the
+                // 24px minimum; the horizontal padding widens the short
+                // words ("so", "he") without disturbing the line.
+                "rounded px-1 py-1 transition-colors",
                 !locked && isTapped && "bg-secondary text-primary",
                 !locked && !isTapped && "hover:bg-muted",
                 locked && isTarget && "bg-success/20 text-success",
@@ -1091,7 +1111,7 @@ function PracticeDrillPlayer({
             <div
               key={w.id}
               className={cn(
-                "flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
+                "flex min-h-11 items-center gap-2 rounded-md border px-2 py-2 transition-colors",
                 done ? "border-success bg-success/10" : "border-border",
               )}
               style={textStyle(element)}
@@ -1130,7 +1150,7 @@ function PracticeDrillPlayer({
                 disabled={locked || count === 0}
                 onClick={() => bump(w.id, -1, w.target)}
                 aria-label={`Undo one repetition of ${w.label}`}
-                className="flex size-6 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+                className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
               >
                 <Minus className="size-3" />
               </button>
@@ -1139,7 +1159,7 @@ function PracticeDrillPlayer({
                 disabled={locked || done}
                 onClick={() => bump(w.id, 1, w.target)}
                 aria-label={`Count one repetition of ${w.label}`}
-                className="flex size-6 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 cursor-pointer"
+                className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 cursor-pointer"
               >
                 {done ? <Check className="size-3" /> : <Plus className="size-3" />}
               </button>
@@ -1241,7 +1261,7 @@ function DrawPadPlayer({
           onClick={() => onChange(strokes.slice(0, -1))}
           aria-label="Undo last stroke"
           title="Undo"
-          className="flex size-7 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
         >
           <Undo2 className="size-3.5" />
         </button>
@@ -1251,7 +1271,7 @@ function DrawPadPlayer({
           onClick={() => onChange([])}
           aria-label="Clear the drawing"
           title="Clear"
-          className="flex size-7 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
         >
           <Eraser className="size-3.5" />
         </button>
@@ -1508,7 +1528,7 @@ function FlashcardsPlayer({
           type="button"
           disabled={locked}
           onClick={() => rate(false)}
-          className="rounded-lg border border-border py-2 text-sm font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
+          className="min-h-11 rounded-lg border border-border py-2 text-sm font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
         >
           Practise again
         </button>
@@ -1517,7 +1537,7 @@ function FlashcardsPlayer({
           disabled={locked}
           onClick={() => rate(true)}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium cursor-pointer disabled:opacity-40",
+            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium cursor-pointer disabled:opacity-40",
             knownSet.has(card.id)
               ? "border-success bg-success/15 text-success"
               : "border-border hover:bg-muted",
@@ -1534,7 +1554,7 @@ function FlashcardsPlayer({
             setFlipped(false);
             setIndex((i) => i + 1);
           }}
-          className="flex shrink-0 items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          className="flex min-h-11 shrink-0 items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
         >
           Skip to the next card <ArrowRight className="size-3" />
         </button>
