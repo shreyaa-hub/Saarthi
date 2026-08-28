@@ -486,6 +486,72 @@ export type SecretWordElement = ElementBase & InteractiveAppearance & {
   maxWrong: number;
 };
 
+
+export type StoryPage = {
+  id: string;
+  text: string;
+  emoji?: string;
+  imageSrc?: string;
+};
+
+// A picture book, one page at a time. Nothing is marked — there is no
+// question — but reading it is still the task, so the record is how far
+// through the child got. Which is exactly what a clinician wants to know
+// about a shared-reading activity sent home.
+export type StoryTimeElement = ElementBase & InteractiveAppearance & {
+  type: "storyTime";
+  title: string;
+  pages: StoryPage[];
+};
+
+// A picture cut into a grid and shuffled. Tap two pieces to swap them.
+//
+// Swapping rather than dragging, for the same reason the word search uses two
+// taps: dropping a tile precisely is a motor task, and this is meant to be a
+// visual-reasoning one.
+export type PuzzleElement = ElementBase & InteractiveAppearance & {
+  type: "puzzle";
+  prompt: string;
+  imageSrc?: string;
+  // Used when there is no photo, so a puzzle can be built with no upload.
+  emoji: string;
+  rows: number;
+  cols: number;
+};
+
+// Trace the shape shown behind the pad. Distinct from the plain drawing pad
+// in that there is something specific to follow and a bar to clear, which is
+// what makes it a task rather than free drawing.
+export type TraceGameElement = ElementBase & InteractiveAppearance & {
+  type: "traceGame";
+  prompt: string;
+  // A letter, a number, or any short string — rendered large and faint.
+  glyph: string;
+  strokeColor: string;
+  strokeWidth: number;
+  // The share of the pad's cells the strokes must pass through, 0..1. See
+  // scoreElement for what this can and cannot tell you.
+  coverage: number;
+};
+
+export type BattleCard = {
+  id: string;
+  label: string;
+  points: number;
+};
+
+// Two teams taking turns to reveal a card worth points. Not an assessment —
+// a motivator, the thing a clinician puts at the end of a hard session so
+// there is a reason to get through it. Scored on how much of the deck was
+// played, because "did we finish the game" is the only honest question here.
+export type BattleTimeElement = ElementBase & InteractiveAppearance & {
+  type: "battleTime";
+  prompt: string;
+  teamA: string;
+  teamB: string;
+  cards: BattleCard[];
+};
+
 // --- Worksheet elements -----------------------------------------------------
 // Print-first building blocks. They carry no answer key and are never scored,
 // which is what separates them from the interactive types above: a worksheet
@@ -670,6 +736,10 @@ export type CanvasElement =
   | PhotoHuntElement
   | SideBySideElement
   | SecretWordElement
+  | StoryTimeElement
+  | PuzzleElement
+  | TraceGameElement
+  | BattleTimeElement
   | ListElement
   | WritingLinesElement
   | ChecklistElement
@@ -708,6 +778,10 @@ export const INTERACTIVE_TYPES: CanvasElementType[] = [
   "photoHunt",
   "sideBySide",
   "secretWord",
+  "storyTime",
+  "puzzle",
+  "traceGame",
+  "battleTime",
 ];
 
 export function isInteractive(el: CanvasElement): boolean {

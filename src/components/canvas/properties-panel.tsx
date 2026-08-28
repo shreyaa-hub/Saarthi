@@ -25,6 +25,10 @@ import type {
   PhotoHuntElement,
   SideBySideElement,
   SecretWordElement,
+  StoryTimeElement,
+  PuzzleElement,
+  TraceGameElement,
+  BattleTimeElement,
   ChecklistElement,
   TableElement,
   ArrowElement,
@@ -526,6 +530,34 @@ export function PropertiesPanel({ store }: { store: CanvasStoreApi }) {
       {selected.type === "secretWord" && (
         <>
           <SecretWordFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "storyTime" && (
+        <>
+          <StoryTimeFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} />
+        </>
+      )}
+
+      {selected.type === "puzzle" && (
+        <>
+          <PuzzleFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "traceGame" && (
+        <>
+          <TraceGameFields element={selected} patch={patch} />
+          <AppearanceFields element={selected} patch={patch} showImageSize={false} />
+        </>
+      )}
+
+      {selected.type === "battleTime" && (
+        <>
+          <BattleTimeFields element={selected} patch={patch} />
           <AppearanceFields element={selected} patch={patch} showImageSize={false} />
         </>
       )}
@@ -2189,6 +2221,246 @@ function SecretWordFields({
         Running out reveals the word rather than ending the game — the point is to meet the word,
         not to be beaten by it.
       </p>
+    </>
+  );
+}
+
+function StoryTimeFields({
+  element,
+  patch,
+}: {
+  element: StoryTimeElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<StoryTimeElement["pages"][number]>) => {
+    patch({ pages: element.pages.map((pg, idx) => (idx === i ? { ...pg, ...p } : pg)) });
+  };
+
+  return (
+    <>
+      <Field label="Story title">
+        <Input value={element.title} onChange={(e) => patch({ title: e.target.value })} />
+      </Field>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Pages</Label>
+        <p className="text-[11px] text-muted-foreground">
+          Nothing here is marked. What gets recorded is how far through the child read.
+        </p>
+        {element.pages.map((pg, i) => (
+          <div key={pg.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <div className="flex items-center gap-2">
+              <PairImagePicker src={pg.imageSrc} onChange={(v) => update(i, { imageSrc: v })} label="page" />
+              <Input
+                value={pg.emoji ?? ""}
+                onChange={(e) => update(i, { emoji: e.target.value || undefined })}
+                className="w-12 text-center"
+                aria-label="Emoji"
+              />
+              <button
+                type="button"
+                onClick={() => patch({ pages: element.pages.filter((_, idx) => idx !== i) })}
+                className="ml-auto shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+            <Textarea
+              value={pg.text}
+              onChange={(e) => update(i, { text: e.target.value })}
+              rows={2}
+              aria-label={`Page ${i + 1} text`}
+            />
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ pages: [...element.pages, { id: nanoid(8), text: "And then…", emoji: "📖" }] })}
+        >
+          <Plus className="size-3.5" /> Add page
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function PuzzleFields({
+  element,
+  patch,
+}: {
+  element: PuzzleElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="Picture">
+        <div className="flex flex-col gap-1.5">
+          <ImageUploadButton onUploaded={(src) => patch({ imageSrc: src })} />
+          {element.imageSrc && (
+            <button
+              type="button"
+              onClick={() => patch({ imageSrc: undefined })}
+              className="self-start text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              Use the emoji instead
+            </button>
+          )}
+        </div>
+      </Field>
+      <Field label="Or an emoji">
+        <Input value={element.emoji} onChange={(e) => patch({ emoji: e.target.value })} placeholder="🦋" />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Rows">
+          <Input
+            type="number"
+            min={2}
+            max={5}
+            value={element.rows}
+            onChange={(e) => patch({ rows: Math.max(2, Math.min(5, Number(e.target.value) || 3)) })}
+          />
+        </Field>
+        <Field label="Columns">
+          <Input
+            type="number"
+            min={2}
+            max={5}
+            value={element.cols}
+            onChange={(e) => patch({ cols: Math.max(2, Math.min(5, Number(e.target.value) || 3)) })}
+          />
+        </Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        The patient taps two pieces to swap them — no dragging, which keeps this a
+        visual-reasoning task rather than a motor one. Marked one point per piece in its place.
+      </p>
+    </>
+  );
+}
+
+function TraceGameFields({
+  element,
+  patch,
+}: {
+  element: TraceGameElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <Field label="What to trace">
+        <Input value={element.glyph} onChange={(e) => patch({ glyph: e.target.value })} placeholder="S" />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Pen colour">
+          <input
+            type="color"
+            value={element.strokeColor}
+            onChange={(e) => patch({ strokeColor: e.target.value })}
+            className="h-9 w-full cursor-pointer rounded-md border border-input bg-transparent p-1"
+          />
+        </Field>
+        <Field label="Pen size">
+          <Input
+            type="number"
+            min={2}
+            max={30}
+            value={element.strokeWidth}
+            onChange={(e) => patch({ strokeWidth: Math.max(2, Math.min(30, Number(e.target.value) || 10)) })}
+          />
+        </Field>
+      </div>
+      <Field label="How much must be covered (%)">
+        <Input
+          type="number"
+          min={5}
+          max={90}
+          value={Math.round(element.coverage * 100)}
+          onChange={(e) =>
+            patch({ coverage: Math.max(0.05, Math.min(0.9, (Number(e.target.value) || 25) / 100)) })
+          }
+        />
+      </Field>
+      <p className="text-[11px] text-muted-foreground">
+        Be honest about what this measures: it checks how much of the pad the strokes covered, so
+        it catches a scribble in one corner but cannot tell a well-formed S from a poor one.
+        Judging the letter is your job — the drawing is saved for exactly that.
+      </p>
+    </>
+  );
+}
+
+function BattleTimeFields({
+  element,
+  patch,
+}: {
+  element: BattleTimeElement;
+  patch: (p: Partial<CanvasElement>) => void;
+}) {
+  const update = (i: number, p: Partial<BattleTimeElement["cards"][number]>) => {
+    patch({ cards: element.cards.map((c, idx) => (idx === i ? { ...c, ...p } : c)) });
+  };
+
+  return (
+    <>
+      <Field label="Instruction">
+        <Textarea value={element.prompt} onChange={(e) => patch({ prompt: e.target.value })} rows={2} />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Team one">
+          <Input value={element.teamA} onChange={(e) => patch({ teamA: e.target.value })} />
+        </Field>
+        <Field label="Team two">
+          <Input value={element.teamB} onChange={(e) => patch({ teamB: e.target.value })} />
+        </Field>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Cards</Label>
+        <p className="text-[11px] text-muted-foreground">
+          A reward game, not a test — turns alternate and the app only records whether you played
+          through the deck.
+        </p>
+        {element.cards.map((c, i) => (
+          <div key={c.id} className="flex items-center gap-2">
+            <Input
+              value={c.label}
+              onChange={(e) => update(i, { label: e.target.value })}
+              className="flex-1"
+              aria-label="Card face"
+            />
+            <Input
+              type="number"
+              min={0}
+              max={99}
+              value={c.points}
+              onChange={(e) => update(i, { points: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-16"
+              aria-label="Points"
+            />
+            <button
+              type="button"
+              onClick={() => patch({ cards: element.cards.filter((_, idx) => idx !== i) })}
+              className="shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => patch({ cards: [...element.cards, { id: nanoid(8), label: "⭐", points: 1 }] })}
+        >
+          <Plus className="size-3.5" /> Add card
+        </Button>
+      </div>
     </>
   );
 }

@@ -21,6 +21,10 @@ import type {
   PhotoHuntElement,
   SideBySideElement,
   SecretWordElement,
+  StoryTimeElement,
+  PuzzleElement,
+  TraceGameElement,
+  BattleTimeElement,
   TextElement,
   TemplateCanvas,
 } from "@/lib/types/canvas";
@@ -812,5 +816,80 @@ describe("scoreElement: photo hunt, side by side and secret word", () => {
 
   it("does not score a word with no letters in it", () => {
     expect(scoreElement({ ...secret, word: "123" }, [])).toEqual({ correct: 0, total: 0 });
+  });
+});
+
+describe("scoreElement: story, puzzle, trace and battle", () => {
+  const story: StoryTimeElement = {
+    ...base, type: "storyTime", title: "A story",
+    pages: [
+      { id: "p1", text: "One" },
+      { id: "p2", text: "Two" },
+      { id: "p3", text: "Three" },
+    ],
+  };
+
+  it("records how far through the story the child got", () => {
+    expect(scoreElement(story, ["p1", "p2"])).toEqual({ correct: 2, total: 3 });
+    expect(scoreElement(story, [])).toEqual({ correct: 0, total: 3 });
+    // A page id that is not in this story cannot inflate the count.
+    expect(scoreElement(story, ["p1", "ghost"])).toEqual({ correct: 1, total: 3 });
+  });
+
+  const puzzle: PuzzleElement = {
+    ...base, type: "puzzle", prompt: "Rebuild it", emoji: "🦋", rows: 2, cols: 2,
+  };
+
+  it("gives the puzzle a mark per piece in its own place", () => {
+    expect(scoreElement(puzzle, [0, 1, 2, 3])).toEqual({ correct: 4, total: 4 });
+    // Two pieces swapped: the other two are still home.
+    expect(scoreElement(puzzle, [0, 1, 3, 2])).toEqual({ correct: 2, total: 4 });
+    expect(scoreElement(puzzle, [3, 2, 1, 0])).toEqual({ correct: 0, total: 4 });
+    expect(scoreElement(puzzle, [])).toEqual({ correct: 0, total: 4 });
+  });
+
+  const trace: TraceGameElement = {
+    ...base, type: "traceGame", prompt: "Trace", glyph: "S",
+    strokeColor: "#000", strokeWidth: 10, coverage: 0.2,
+  };
+
+  it("passes a trace that covered the pad and fails a corner scribble", () => {
+    // A serpentine, roughly the path a traced letter takes.
+    const serpentine = [] as { x: number; y: number }[];
+    for (let r = 0; r < 6; r++) {
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        serpentine.push({ x: r % 2 === 0 ? t : 1 - t, y: (r + t) / 6 });
+      }
+    }
+    expect(scoreElement(trace, [serpentine])).toEqual({ correct: 1, total: 1 });
+
+    // A tight scribble in one corner touches one or two cells and must not
+    // pass — that is the whole reason the bar exists.
+    const scribble = Array.from({ length: 30 }, (_, i) => ({ x: 0.02 + i * 0.001, y: 0.02 }));
+    expect(scoreElement(trace, [scribble])).toEqual({ correct: 0, total: 1 });
+    expect(scoreElement(trace, [])).toEqual({ correct: 0, total: 1 });
+  });
+
+  it("ignores malformed points rather than throwing on them", () => {
+    expect(scoreElement(trace, [[{ x: 0.5 } as never, null as never]])).toEqual({
+      correct: 0,
+      total: 1,
+    });
+  });
+
+  const battle: BattleTimeElement = {
+    ...base, type: "battleTime", prompt: "Play", teamA: "Me", teamB: "You",
+    cards: [
+      { id: "c1", label: "⭐", points: 1 },
+      { id: "c2", label: "💎", points: 3 },
+    ],
+  };
+
+  it("records the battle game as how much of the deck was played", () => {
+    // A motivator, not a test — the only honest question is whether it was
+    // played through, so points deliberately do not enter the score.
+    expect(scoreElement(battle, ["c1"])).toEqual({ correct: 1, total: 2 });
+    expect(scoreElement(battle, ["c1", "c2"])).toEqual({ correct: 2, total: 2 });
   });
 });

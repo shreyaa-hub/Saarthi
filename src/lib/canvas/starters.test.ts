@@ -126,6 +126,46 @@ function perfectResponse(el: CanvasElement): unknown {
       return el.count;
     case "flashcards":
       return el.cards.map((c) => c.id);
+    case "photoHunt":
+      return el.items.filter((i) => i.isTarget).map((i) => i.id);
+    case "sideBySide":
+      return Object.fromEntries(el.rounds.map((r) => [r.id, r.answer]));
+    case "secretWord":
+      return [...el.word.toUpperCase()].filter((c) => /[A-Z]/.test(c));
+    case "unscramble":
+      return Object.fromEntries(el.words.map((w) => [w.id, w.word]));
+    case "wordChunks":
+      return Object.fromEntries(el.items.map((i) => [i.id, i.chunks]));
+    case "storyTime":
+      return el.pages.map((p) => p.id);
+    case "puzzle":
+      // Every piece in its own place.
+      return Array.from(
+        { length: Math.max(2, Math.min(5, el.rows)) * Math.max(2, Math.min(5, el.cols)) },
+        (_, i) => i,
+      );
+    case "battleTime":
+      return el.cards.map((c) => c.id);
+    case "traceGame": {
+      // A serpentine down the pad, which is roughly the path a traced letter
+      // takes. A single diagonal was the first attempt and it failed: it
+      // crosses only the six cells of the diagonal, which is not a plausible
+      // trace of an S and correctly did not clear the bar.
+      const points: { x: number; y: number }[] = [];
+      const rows = 6;
+      for (let r = 0; r < rows; r++) {
+        for (let i = 0; i <= 20; i++) {
+          const t = i / 20;
+          points.push({ x: r % 2 === 0 ? t : 1 - t, y: (r + t) / rows });
+        }
+      }
+      return [points];
+    }
+    case "wordSearch":
+      // The grid decides which words actually made it onto the board, so
+      // this is exercised by the word-search tests rather than reconstructed
+      // from the element here.
+      return undefined;
     case "wordHunt":
       // Word hunt's key lives in the tokenizer rather than on the element, so
       // it is exercised by its own tests rather than reconstructed here.

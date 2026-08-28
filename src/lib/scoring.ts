@@ -283,6 +283,64 @@ export function scoreElement(element: CanvasElement, response: unknown): Element
       return { correct: solved && wrong <= element.maxWrong ? 1 : 0, total: 1 };
     }
 
+    case "storyTime": {
+      // Nothing to mark — there is no question — so what is recorded is how
+      // far through the child got. The response is the set of page ids seen.
+      const seen = new Set(Array.isArray(response) ? (response as string[]) : []);
+      if (element.pages.length === 0) return NOT_SCORED;
+      return {
+        correct: element.pages.filter((p) => seen.has(p.id)).length,
+        total: element.pages.length,
+      };
+    }
+
+    case "puzzle": {
+      // One mark per piece sitting in its own place. The response is the
+      // current arrangement: position i holds piece `order[i]`, so a piece is
+      // home when those two agree.
+      const order = Array.isArray(response) ? (response as number[]) : [];
+      const pieces = Math.max(1, Math.round(element.rows)) * Math.max(1, Math.round(element.cols));
+      if (pieces < 2) return NOT_SCORED;
+      return {
+        correct: order.filter((piece, i) => piece === i).length,
+        total: pieces,
+      };
+    }
+
+    case "traceGame": {
+      // What this can honestly say is "the pad was covered", not "the shape
+      // was matched": it counts how many cells of a fixed grid the strokes
+      // passed through, which catches a child who scribbled in one corner
+      // but cannot tell a well-formed S from a badly-formed one. Judging the
+      // letter itself is the clinician's job, and the drawing is saved for
+      // exactly that.
+      const strokes = Array.isArray(response) ? (response as { x: number; y: number }[][]) : [];
+      const GRID = 6;
+      const visited = new Set<string>();
+      for (const stroke of strokes) {
+        if (!Array.isArray(stroke)) continue;
+        for (const point of stroke) {
+          if (typeof point?.x !== "number" || typeof point?.y !== "number") continue;
+          const cx = Math.min(GRID - 1, Math.max(0, Math.floor(point.x * GRID)));
+          const cy = Math.min(GRID - 1, Math.max(0, Math.floor(point.y * GRID)));
+          visited.add(`${cx}:${cy}`);
+        }
+      }
+      const needed = Math.max(1, Math.round(GRID * GRID * Math.min(1, Math.max(0, element.coverage))));
+      return { correct: visited.size >= needed ? 1 : 0, total: 1 };
+    }
+
+    case "battleTime": {
+      // A motivator rather than an assessment, so the only honest question is
+      // whether the game was played through.
+      const revealed = new Set(Array.isArray(response) ? (response as string[]) : []);
+      if (element.cards.length === 0) return NOT_SCORED;
+      return {
+        correct: element.cards.filter((c) => revealed.has(c.id)).length,
+        total: element.cards.length,
+      };
+    }
+
     default:
       return NOT_SCORED;
   }

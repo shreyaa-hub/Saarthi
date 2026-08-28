@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Volume2, Check, X, Brain, Plus, Minus, Undo2, Eraser, ThumbsUp, ThumbsDown, RotateCw, ArrowRight } from "lucide-react";
+import { Volume2, Check, X, Brain, Plus, Minus, Undo2, Eraser, ThumbsUp, ThumbsDown, RotateCw, ArrowRight, Swords } from "lucide-react";
 import type { CanvasElement, DrawStroke } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { isElementCorrect } from "@/lib/scoring";
@@ -12,6 +12,7 @@ import { tokenizeWordHunt, isWordToken, targetTokenIndices } from "@/lib/canvas/
 import { textStyle, cardStyle, imageStyle, imagePx, mcGridStyle } from "@/lib/canvas/appearance";
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
 import { OptionPicture } from "@/components/canvas/option-picture";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // `preview` is not the same thing as `locked`, and conflating them leaked
@@ -289,6 +290,26 @@ export function ElementPlayer({
     case "secretWord": {
       const guessed = Array.isArray(response) ? (response as string[]) : [];
       return <SecretWordPlayer element={element} guessed={guessed} onChange={onChange} locked={locked} />;
+    }
+
+    case "storyTime": {
+      const seen = Array.isArray(response) ? (response as string[]) : [];
+      return <StoryTimePlayer element={element} seen={seen} onChange={onChange} locked={locked} />;
+    }
+
+    case "puzzle": {
+      const order = Array.isArray(response) ? (response as number[]) : [];
+      return <PuzzlePlayer element={element} order={order} onChange={onChange} locked={locked} />;
+    }
+
+    case "traceGame": {
+      const strokes = Array.isArray(response) ? (response as DrawStroke[]) : [];
+      return <TraceGamePlayer element={element} strokes={strokes} onChange={onChange} locked={locked} />;
+    }
+
+    case "battleTime": {
+      const revealed = Array.isArray(response) ? (response as string[]) : [];
+      return <BattleTimePlayer element={element} revealed={revealed} onChange={onChange} locked={locked} />;
     }
 
     // Worksheet elements are printed and filled in on paper — nothing to
@@ -1699,17 +1720,18 @@ function WordSearchPlayer({
 
   // Every square belonging to a word already found, so it can stay
   // highlighted — the reward for finding one is seeing it stay lit.
-  const solvedCells = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of grid.placements) {
-      if (!foundSet.has(p.word)) continue;
-      for (let i = 0; i < p.word.length; i++) {
-        set.add(`${p.row + p.dRow * i}:${p.col + p.dCol * i}`);
-      }
+  //
+  // Not memoised: the only sensible key is the found list, which arrives as a
+  // fresh array from the parent on every render, so a memo would recompute
+  // every time anyway while claiming not to. The work is a handful of words
+  // times a handful of letters.
+  const solvedCells = new Set<string>();
+  for (const p of grid.placements) {
+    if (!foundSet.has(p.word)) continue;
+    for (let i = 0; i < p.word.length; i++) {
+      solvedCells.add(`${p.row + p.dRow * i}:${p.col + p.dCol * i}`);
     }
-    return set;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, found.join("|")]);
+  }
 
   const tap = (row: number, col: number) => {
     if (locked) return;
@@ -2229,6 +2251,443 @@ function SecretWordPlayer({
               )}
             >
               {letter}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// A picture book, one page at a time. Nothing is marked, so what gets
+// recorded is which pages were actually reached — the only honest measure of
+// a shared-reading activity, and the one a clinician wants when they sent it
+// home rather than watched it.
+function StoryTimePlayer({
+  element,
+  seen,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "storyTime" }>;
+  seen: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const page = element.pages[Math.min(index, element.pages.length - 1)];
+  const seenSet = new Set(seen);
+
+  // The first page counts as read as soon as it is on screen. Recorded on
+  // navigation rather than in an effect, because "the child turned to this
+  // page" is an event, not a consequence of rendering.
+  const go = (next: number) => {
+    const target = element.pages[next];
+    if (!target) return;
+    setIndex(next);
+    if (!seenSet.has(target.id)) onChange([...seen, target.id]);
+  };
+
+  if (!page) {
+    return (
+      <div className="flex size-full items-center justify-center rounded-lg border border-border bg-card p-3">
+        <p className="text-center text-xs text-muted-foreground">No pages yet.</p>
+      </div>
+    );
+  }
+
+  const first = element.pages[0];
+  const startedThisPage = seenSet.has(page.id);
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <div className="flex shrink-0 items-baseline gap-2">
+        <p className="min-w-0 flex-1 truncate font-semibold" style={textStyle(element)}>
+          {element.title}
+        </p>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {index + 1}/{element.pages.length}
+        </span>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg bg-muted/30 p-3 text-center">
+        {page.imageSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={page.imageSrc} alt="" className="max-h-full min-h-0 flex-1 object-contain" />
+        ) : (
+          <span className="text-6xl leading-none" aria-hidden>
+            {page.emoji || "📖"}
+          </span>
+        )}
+        <p className="max-w-full break-words text-lg" style={textStyle(element)}>
+          {page.text}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11"
+          disabled={index === 0}
+          onClick={() => go(index - 1)}
+        >
+          Back
+        </Button>
+        {/* Reaching the first page has to be recorded too, or a child who
+            read page one and stopped would show as having read nothing. */}
+        {!startedThisPage && index === 0 && first && !locked && (
+          <Button size="sm" className="min-h-11" onClick={() => go(0)}>
+            Start reading
+          </Button>
+        )}
+        <Button
+          size="sm"
+          className="min-h-11"
+          disabled={index >= element.pages.length - 1}
+          onClick={() => go(index + 1)}
+        >
+          Next page <ArrowRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// A picture cut into a grid and shuffled. Tap two pieces to swap them —
+// swapping rather than dragging, because dropping a tile precisely is a
+// motor task and this is meant to be a visual-reasoning one.
+function PuzzlePlayer({
+  element,
+  order,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "puzzle" }>;
+  order: number[];
+  onChange: (value: number[]) => void;
+  locked: boolean;
+}) {
+  const rows = Math.max(2, Math.min(5, Math.round(element.rows) || 3));
+  const cols = Math.max(2, Math.min(5, Math.round(element.cols) || 3));
+  const count = rows * cols;
+
+  // The starting arrangement is seeded and deranged, so no piece begins in
+  // its own place and the board is identical on the server and the client.
+  const start = useMemo(
+    () => seededShuffle(Array.from({ length: count }, (_, i) => i), `${element.id}:puzzle`),
+    [count, element.id],
+  );
+  const current = order.length === count ? order : start;
+  const [picked, setPicked] = useState<number | null>(null);
+
+  const tap = (position: number) => {
+    if (locked) return;
+    if (picked === null) {
+      setPicked(position);
+      return;
+    }
+    if (picked === position) {
+      setPicked(null);
+      return;
+    }
+    const next = [...current];
+    [next[picked], next[position]] = [next[position], next[picked]];
+    setPicked(null);
+    onChange(next);
+  };
+
+  const solvedCount = current.filter((piece, i) => piece === i).length;
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {solvedCount} of {count} pieces in place
+        {picked !== null ? " · now tap the piece to swap it with" : " · tap two pieces to swap them"}
+      </p>
+
+      <div
+        className="grid aspect-square w-full gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {current.map((piece, position) => {
+          // Each cell shows the slice of the picture belonging to `piece`,
+          // done with background-position so one image serves every tile
+          // rather than slicing it into separate files.
+          const pr = Math.floor(piece / cols);
+          const pc = piece % cols;
+          const home = piece === position;
+          return (
+            <button
+              key={position}
+              type="button"
+              disabled={locked}
+              onClick={() => tap(position)}
+              aria-label={`Position ${position + 1}${home ? ", in place" : ""}`}
+              className={cn(
+                "relative overflow-hidden rounded-sm border-2 transition-colors",
+                picked === position && "border-primary",
+                picked !== position && home && "border-success/60",
+                picked !== position && !home && "border-transparent",
+              )}
+              style={
+                element.imageSrc
+                  ? {
+                      // Declared even on the photo path so both branches share
+                      // one containing block and the emoji fallback below can
+                      // size itself against the tile rather than the viewport.
+                      containerType: "size",
+                      backgroundImage: `url(${element.imageSrc})`,
+                      backgroundSize: `${cols * 100}% ${rows * 100}%`,
+                      backgroundPosition: `${cols > 1 ? (pc / (cols - 1)) * 100 : 0}% ${
+                        rows > 1 ? (pr / (rows - 1)) * 100 : 0
+                      }%`,
+                    }
+                  : { containerType: "size" }
+              }
+            >
+              {/* With no photo the emoji is scaled up and shifted so each
+                  tile shows its own part of it — the same trick, without
+                  needing an upload. */}
+              {!element.imageSrc && (
+                <span
+                  className="pointer-events-none absolute leading-none"
+                  style={{
+                    fontSize: `${cols * 100}cqw`,
+                    left: `${-pc * 100}%`,
+                    top: `${-pr * 100}%`,
+                    width: `${cols * 100}%`,
+                    height: `${rows * 100}%`,
+                  }}
+                  aria-hidden
+                >
+                  {element.emoji || "🧩"}
+                </span>
+              )}
+              <span className="absolute inset-0 bg-muted/10" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Trace the shape behind the pad. The same pointer handling as the drawing
+// pad, with a target to follow and a bar to clear — which is what makes it a
+// task rather than free drawing.
+function TraceGamePlayer({
+  element,
+  strokes,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "traceGame" }>;
+  strokes: DrawStroke[];
+  onChange: (value: DrawStroke[]) => void;
+  locked: boolean;
+}) {
+  const padRef = useRef<HTMLDivElement>(null);
+  const [live, setLive] = useState<DrawStroke | null>(null);
+
+  const pointAt = (e: React.PointerEvent): { x: number; y: number } | null => {
+    const box = padRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0 || box.height === 0) return null;
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - box.top) / box.height)),
+    };
+  };
+
+  const shown = live ? [...strokes, live] : strokes;
+  const done = isElementCorrect(element, strokes);
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <div className="flex shrink-0 items-center gap-2">
+        <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
+          {element.prompt}
+        </p>
+        {done && <Check className="size-5 shrink-0 text-success" />}
+        <button
+          type="button"
+          disabled={locked || strokes.length === 0}
+          onClick={() => onChange([])}
+          aria-label="Start the tracing again"
+          title="Start again"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+        >
+          <Eraser className="size-4" />
+        </button>
+      </div>
+
+      <div
+        ref={padRef}
+        onPointerDown={(e) => {
+          if (locked) return;
+          const p = pointAt(e);
+          if (!p) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setLive([p]);
+        }}
+        onPointerMove={(e) => {
+          if (locked || !live) return;
+          const p = pointAt(e);
+          if (p) setLive([...live, p]);
+        }}
+        onPointerUp={() => {
+          if (!live) return;
+          if (live.length >= 2) onChange([...strokes, live]);
+          setLive(null);
+        }}
+        onPointerCancel={() => setLive(null)}
+        // container-type is what makes the cqmin below mean "of this pad".
+        // Without it the unit resolves against the nearest container — the
+        // viewport — and the guide letter rendered 570px tall inside a 300px
+        // box, which is to say invisible.
+        style={{ containerType: "size" }}
+        className={cn(
+          "relative min-h-0 flex-1 touch-none select-none overflow-hidden rounded-md border-2 border-dashed border-border bg-white",
+          !locked && "cursor-crosshair",
+        )}
+      >
+        {/* The glyph is the guide, drawn faint and behind, sized off the pad
+            so it fills whatever box the author gave the element. */}
+        <span
+          className="pointer-events-none absolute inset-0 flex items-center justify-center font-bold leading-none text-muted-foreground/25"
+          style={{ fontSize: "60cqmin" }}
+          aria-hidden
+        >
+          {element.glyph}
+        </span>
+
+        <svg
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 size-full"
+        >
+          {shown.map((s, i) => (
+            <path
+              key={i}
+              d={strokePath(s)}
+              fill="none"
+              stroke={element.strokeColor}
+              strokeWidth={element.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      </div>
+
+      <p className="shrink-0 text-center text-xs text-muted-foreground">
+        {done ? "Nicely traced." : `Trace over the ${element.glyph}.`}
+      </p>
+    </div>
+  );
+}
+
+// Two teams taking turns to reveal a card worth points. A motivator rather
+// than an assessment — the thing at the end of a hard session that gives a
+// reason to get through it — so what is recorded is simply whether the game
+// was played through.
+function BattleTimePlayer({
+  element,
+  revealed,
+  onChange,
+  locked,
+}: {
+  element: Extract<CanvasElement, { type: "battleTime" }>;
+  revealed: string[];
+  onChange: (value: string[]) => void;
+  locked: boolean;
+}) {
+  const revealedSet = new Set(revealed);
+
+  // Whose turn it is follows from how many cards have gone, so it survives a
+  // refresh without being stored separately — and cannot disagree with the
+  // board the way a second piece of state could.
+  const turnIsA = revealed.length % 2 === 0;
+  const scoreFor = (side: "a" | "b") =>
+    revealed
+      .filter((_, i) => (i % 2 === 0) === (side === "a"))
+      .reduce((sum, id) => sum + (element.cards.find((c) => c.id === id)?.points ?? 0), 0);
+
+  const allDone = revealedSet.size >= element.cards.length;
+
+  return (
+    <div
+      className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
+      style={cardStyle(element)}
+    >
+      <p className="font-semibold" style={textStyle(element)}>
+        {element.prompt}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        {(["a", "b"] as const).map((side) => {
+          const isTurn = !allDone && turnIsA === (side === "a");
+          return (
+            <div
+              key={side}
+              className={cn(
+                "flex items-center justify-between gap-2 rounded-lg border-2 px-3 py-2",
+                isTurn ? "border-primary bg-secondary" : "border-border",
+              )}
+              style={textStyle(element)}
+            >
+              <span className="min-w-0 truncate font-semibold">
+                {side === "a" ? element.teamA : element.teamB}
+              </span>
+              <span className="shrink-0 text-lg font-bold tabular-nums">{scoreFor(side)}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        {allDone
+          ? "All the cards are turned over."
+          : `${turnIsA ? element.teamA : element.teamB}'s turn — tap a card.`}
+      </p>
+
+      <div className="grid flex-1 grid-cols-3 content-start gap-2">
+        {element.cards.map((card) => {
+          const isUp = revealedSet.has(card.id);
+          return (
+            <button
+              key={card.id}
+              type="button"
+              disabled={locked || isUp}
+              onClick={() => onChange([...revealed, card.id])}
+              aria-label={isUp ? `${card.label}, worth ${card.points}` : "Face-down card"}
+              className={cn(
+                "flex aspect-[4/3] min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg border-2 transition-colors",
+                isUp ? "border-primary bg-secondary" : "border-border bg-muted hover:bg-muted/70",
+              )}
+              style={textStyle(element)}
+            >
+              {isUp ? (
+                <>
+                  <span className="text-2xl leading-none">{card.label}</span>
+                  <span className="text-xs font-semibold tabular-nums">+{card.points}</span>
+                </>
+              ) : (
+                <Swords className="size-5 text-muted-foreground" />
+              )}
             </button>
           );
         })}

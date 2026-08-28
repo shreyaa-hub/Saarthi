@@ -27,6 +27,10 @@ import type {
   PhotoHuntElement,
   SideBySideElement,
   SecretWordElement,
+  StoryTimeElement,
+  PuzzleElement,
+  TraceGameElement,
+  BattleTimeElement,
   ListElement,
   WritingLinesElement,
   ChecklistElement,
@@ -403,6 +407,65 @@ export function createElement(type: CanvasElementType, x: number, y: number): Ca
         maxWrong: 6,
       } satisfies SecretWordElement;
 
+    case "storyTime":
+      return {
+        ...base,
+        type: "storyTime",
+        w: 480,
+        h: 400,
+        title: "The dog and the ball",
+        pages: [
+          { id: id(), text: "The dog found a ball.", emoji: "🐶" },
+          { id: id(), text: "He ran to the park.", emoji: "🌳" },
+          { id: id(), text: "The ball went in the pond!", emoji: "💦" },
+          { id: id(), text: "A girl helped him get it back.", emoji: "🙂" },
+        ],
+      } satisfies StoryTimeElement;
+
+    case "puzzle":
+      return {
+        ...base,
+        type: "puzzle",
+        w: 400,
+        h: 440,
+        prompt: "Put the picture back together.",
+        emoji: "🦋",
+        rows: 3,
+        cols: 3,
+      } satisfies PuzzleElement;
+
+    case "traceGame":
+      return {
+        ...base,
+        type: "traceGame",
+        w: 400,
+        h: 420,
+        prompt: "Trace the letter with your finger.",
+        glyph: "S",
+        strokeColor: "#7c3aed",
+        strokeWidth: 10,
+        coverage: 0.25,
+      } satisfies TraceGameElement;
+
+    case "battleTime":
+      return {
+        ...base,
+        type: "battleTime",
+        w: 480,
+        h: 400,
+        prompt: "Take turns. Tap a card to see what you win.",
+        teamA: "Me",
+        teamB: "You",
+        cards: [
+          { id: id(), label: "⭐", points: 1 },
+          { id: id(), label: "⭐⭐", points: 2 },
+          { id: id(), label: "💎", points: 3 },
+          { id: id(), label: "⭐", points: 1 },
+          { id: id(), label: "🎉", points: 5 },
+          { id: id(), label: "⭐⭐", points: 2 },
+        ],
+      } satisfies BattleTimeElement;
+
     case "list":
       return {
         ...base,
@@ -627,6 +690,10 @@ export const ELEMENT_LIBRARY: {
   { type: "photoHunt", label: "Photo hunt", group: "interactive", surfaces: ["activity"] },
   { type: "sideBySide", label: "Side by side", group: "interactive", surfaces: ["activity"] },
   { type: "secretWord", label: "Secret word", group: "interactive", surfaces: ["activity"] },
+  { type: "storyTime", label: "Story time", group: "interactive", surfaces: ["activity"] },
+  { type: "puzzle", label: "Puzzle", group: "interactive", surfaces: ["activity"] },
+  { type: "traceGame", label: "Trace it", group: "interactive", surfaces: ["activity"] },
+  { type: "battleTime", label: "Battle time", group: "interactive", surfaces: ["activity"] },
   { type: "arrow", label: "Arrow", group: "content", surfaces: ["activity", "worksheet"] },
   { type: "divider", label: "Divider", group: "worksheet", surfaces: ["activity", "worksheet"] },
   { type: "sticker", label: "Sticker", group: "content", surfaces: ["activity", "worksheet"] },

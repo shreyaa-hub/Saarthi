@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight, Grid2x2, Shuffle, Blocks, Images, Columns2, KeyRound } from "lucide-react";
+import { ImageIcon, Volume2, MoveHorizontal, ListOrdered, LayoutGrid, Brain, SearchCheck, ScanSearch, Repeat2, Pencil, PenLine, ThumbsUp, ThumbsDown, Layers2, ArrowRight, Grid2x2, Shuffle, Blocks, Images, Columns2, KeyRound, BookOpenText, Puzzle as PuzzleIcon, Spline, Swords } from "lucide-react";
 import type { CanvasElement } from "@/lib/types/canvas";
 import { memoryPairFaces } from "@/lib/types/canvas";
 import { ListBlock, WritingLinesBlock, ChecklistBlock, TableBlock, ArrowBlock, DividerBlock, StickerBlock, SpeechBubbleBlock, CalloutBlock, SheetHeaderBlock, LetterBoxesBlock, NumberLineBlock, RewardStarsBlock, WordBankBlock } from "@/components/canvas/worksheet-elements";
@@ -802,6 +802,127 @@ export function ElementPreview({
                 )}
               >
                 {ch}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "storyTime":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <BookOpenText className="size-3.5 shrink-0" /> {element.title}
+          </div>
+          {/* Every page at once — the one thing the player cannot show, since
+              it turns one at a time, and exactly what an author checking the
+              story needs. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden" style={textStyle(element)}>
+            {element.pages.map((p, i) => (
+              <div key={p.id} className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2 py-1">
+                <span className="shrink-0 text-xs font-semibold text-primary">{i + 1}</span>
+                {p.imageSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.imageSrc} alt="" className="shrink-0 rounded object-cover" style={imageStyle(element)} />
+                ) : (
+                  <span className="shrink-0 leading-none" style={{ fontSize: imagePx(element) }}>{p.emoji || "📖"}</span>
+                )}
+                <span className="truncate">{p.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "puzzle":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <PuzzleIcon className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          {/* Shown solved, because the author is checking the picture rather
+              than playing — and a shuffled preview would tell them nothing. */}
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-muted/30">
+            {element.imageSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={element.imageSrc} alt="" className="size-full object-contain" />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center text-6xl leading-none">
+                {element.emoji || "🧩"}
+              </span>
+            )}
+            <div
+              className="absolute inset-0 grid"
+              style={{
+                gridTemplateColumns: `repeat(${Math.max(2, Math.min(5, element.cols))}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${Math.max(2, Math.min(5, element.rows))}, minmax(0, 1fr))`,
+              }}
+              aria-hidden
+            >
+              {Array.from(
+                { length: Math.max(2, Math.min(5, element.rows)) * Math.max(2, Math.min(5, element.cols)) },
+                (_, i) => (
+                  <span key={i} className="border border-white/70" />
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+    case "traceGame":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Spline className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div
+            className="relative min-h-0 flex-1 overflow-hidden rounded-md border-2 border-dashed border-border bg-white"
+            style={{ containerType: "size" }}
+          >
+            <span
+              className="absolute inset-0 flex items-center justify-center font-bold leading-none text-muted-foreground/25"
+              style={{ fontSize: "60cqmin" }}
+            >
+              {element.glyph}
+            </span>
+          </div>
+        </div>
+      );
+
+    case "battleTime":
+      return (
+        <div
+          className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-card p-3"
+          style={cardStyle(element)}
+        >
+          <div className="flex items-center gap-1.5 font-semibold" style={textStyle(element)}>
+            <Swords className="size-3.5 shrink-0" /> {element.prompt}
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-2" style={textStyle(element)}>
+            <span className="truncate rounded-md border border-border px-2 py-1 font-semibold">{element.teamA}</span>
+            <span className="truncate rounded-md border border-border px-2 py-1 font-semibold">{element.teamB}</span>
+          </div>
+          <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-1.5 overflow-hidden">
+            {element.cards.map((c) => (
+              <span
+                key={c.id}
+                className="flex aspect-[4/3] flex-col items-center justify-center rounded-md border border-border"
+              >
+                {/* Face-up on the canvas: the author is checking the deck,
+                    and there is no answer to leak — the points are the prize,
+                    not a key. */}
+                <span className="text-lg leading-none">{c.label}</span>
+                <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">+{c.points}</span>
               </span>
             ))}
           </div>
