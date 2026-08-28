@@ -6,6 +6,7 @@ import { MessageSquarePlus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { setAttemptNote } from "@/lib/actions/attempts";
+import { AttemptReview } from "@/components/clinician/attempt-review";
 import { formatDate } from "@/lib/utils";
 
 type Attempt = {
@@ -81,6 +82,8 @@ function AttemptRow({
           {attempt.correct_count}/{attempt.total_count} ({attempt.score ?? 0}%)
         </p>
       </div>
+
+      <AttemptReview attemptId={attempt.id} />
 
       {editing ? (
         <div className="flex flex-col gap-2">
