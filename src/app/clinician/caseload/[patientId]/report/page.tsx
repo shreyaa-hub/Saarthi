@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/session";
 import { getPatientDetail, getPatientPerformanceData } from "@/lib/data/clinician";
+import { getPatientGoals } from "@/lib/data/goals";
 import { ReportPrintBar } from "@/components/clinician/report/report-print-bar";
 import { ReportHeader } from "@/components/clinician/report/report-header";
 import { ReportOverallPerformance } from "@/components/clinician/report/report-overall-performance";
 import { ReportTrendChart } from "@/components/clinician/report/report-trend-chart";
 import { ReportDomainPerformance } from "@/components/clinician/report/report-domain-performance";
+import { ReportGoals } from "@/components/clinician/report/report-goals";
 import { ReportActivitySummary } from "@/components/clinician/report/report-activity-summary";
 import { ReportClinicianNotes } from "@/components/clinician/report/report-clinician-notes";
 import { ReportAiInsights } from "@/components/clinician/report/report-ai-insights";
@@ -42,11 +44,10 @@ export default async function PatientReportPage({
 
   // Same composer the live patient page uses — same fetch, same analytics,
   // no report-specific calculations.
-  const { attemptRows, analytics, weeklyTrend } = await getPatientPerformanceData(
-    supabase,
-    user.id,
-    link.patient_id,
-  );
+  const [{ attemptRows, analyticsAttempts, analytics, weeklyTrend }, goals] = await Promise.all([
+    getPatientPerformanceData(supabase, user.id, link.patient_id),
+    getPatientGoals(supabase, link.patient_id),
+  ]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -60,6 +61,9 @@ export default async function PatientReportPage({
           lastActivityAt={analytics.summary.lastActivityAt}
         />
         <ReportOverallPerformance summary={analytics.summary} status={analytics.status} />
+        {/* Directly after the headline figures and before the breakdowns:
+            what the numbers were for, read before they are picked apart. */}
+        <ReportGoals goals={goals} attempts={analyticsAttempts} />
         <ReportTrendChart points={weeklyTrend} />
         <ReportDomainPerformance domains={analytics.domains} />
         <ReportActivitySummary attempts={attemptRows} titleByAssignment={titleByAssignment} />

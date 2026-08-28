@@ -6,6 +6,7 @@ import type { TemplateCanvas } from "@/lib/types/canvas";
 import { allPages } from "@/lib/types/canvas";
 import { pageStyleBackground } from "@/lib/canvas/page-style";
 import { ElementPlayer } from "@/components/player/element-player";
+import { SpeakDisabled } from "@/components/player/speak-button";
 
 // A read-only rendering of a canvas, scaled to fit whatever box it is given.
 //
@@ -62,20 +63,25 @@ export function CanvasPreview({
                 ...pageStyleBackground(page.pageStyle, canvas.background),
               }}
             >
+              {/* No read-aloud in a thumbnail: the overlay below swallows
+                  every click, so a speaker here would be a control that
+                  visibly does nothing. */}
               {page.elements.map((el) => (
                 <div
                   key={el.id}
                   className="absolute"
                   style={{ left: el.x, top: el.y, width: el.w, height: el.h }}
                 >
-                  <ElementPlayer
-                    element={el}
-                    response={undefined}
-                    onChange={() => {}}
-                    onSubmit={() => {}}
-                    locked
-                    preview
-                  />
+                  <SpeakDisabled>
+                    <ElementPlayer
+                      element={el}
+                      response={undefined}
+                      onChange={() => {}}
+                      onSubmit={() => {}}
+                      locked
+                      preview
+                    />
+                  </SpeakDisabled>
                 </div>
               ))}
             </div>

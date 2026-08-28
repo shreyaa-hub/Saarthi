@@ -13,6 +13,7 @@ import { textStyle, cardStyle, imageStyle, imagePx, mcGridStyle } from "@/lib/ca
 import { HotspotFrame } from "@/components/canvas/hotspot-frame";
 import { OptionPicture } from "@/components/canvas/option-picture";
 import { Button } from "@/components/ui/button";
+import { SpeakButton } from "@/components/player/speak-button";
 import { cn } from "@/lib/utils";
 
 // `preview` is not the same thing as `locked`, and conflating them leaked
@@ -123,6 +124,7 @@ export function ElementPlayer({
         >
           <p className="font-semibold" style={textStyle(element)}>
             {element.prompt}
+            <SpeakButton text={element.prompt} />
           </p>
           <div
             className={cn("flex-1", grid ? "grid content-start gap-2" : "flex flex-col gap-1.5")}
@@ -192,6 +194,12 @@ export function ElementPlayer({
                 )}
               </span>
             ))}
+            {/* Speaks the sentence with the gap read out as "blank" — the
+                same text the field's own accessible name carries. It gives
+                nothing away: the missing word is what the patient supplies. */}
+            <SpeakButton
+              text={element.template.replace(/_{2,}/g, " blank ").replace(/\s+/g, " ").trim()}
+            />
             {locked && (correct ? <Check className="size-4 text-success" /> : <X className="size-4 text-destructive" />)}
           </p>
         </div>
@@ -443,6 +451,7 @@ function DragMatchPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       {/* One grid holding both columns, cells interleaved left/right, rather
           than two independent stacked columns. A column that sized itself
@@ -582,7 +591,8 @@ function SequencePlayer({
       className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
       style={cardStyle(element)}
     >
-      <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
+      <p className="font-semibold" style={textStyle(element)}>{element.prompt}
+            <SpeakButton text={element.prompt} /></p>
       <div className="flex flex-col gap-1.5">
         {items.map((item) => {
           const position = order.indexOf(item.id);
@@ -695,6 +705,7 @@ function SortCategorizePlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       {unplaced.length > 0 && (
@@ -902,6 +913,7 @@ function MemoryMatchPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <div className="grid flex-1 grid-cols-3 gap-2">
         {cards.map((c, i) => {
@@ -998,7 +1010,8 @@ function WordHuntPlayer({
       className="flex size-full flex-col gap-2 overflow-auto rounded-lg border border-border bg-card p-3"
       style={cardStyle(element)}
     >
-      <p className="font-semibold" style={textStyle(element)}>{element.prompt}</p>
+      <p className="font-semibold" style={textStyle(element)}>{element.prompt}
+            <SpeakButton text={element.prompt} /></p>
       <p className="flex-1 leading-relaxed" style={textStyle(element)}>
         {tokens.map((token, i) => {
           // Punctuation and whitespace render as plain text, not buttons —
@@ -1080,6 +1093,7 @@ function ImageHotspotsPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <p className="text-xs text-muted-foreground">
         Found {foundSet.size} of {element.hotspots.length}
@@ -1160,6 +1174,7 @@ function PracticeDrillPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <div className="flex flex-col gap-1.5">
         {element.words.map((w) => {
@@ -1312,6 +1327,7 @@ function DrawPadPlayer({
       <div className="flex items-center gap-2">
         <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
           {element.prompt}
+            <SpeakButton text={element.prompt} />
         </p>
         <button
           type="button"
@@ -1408,6 +1424,7 @@ function LongAnswerPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <textarea
         value={text}
@@ -1453,6 +1470,7 @@ function YesNoPlayer({
     >
       <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       {element.imageSrc && (
@@ -1555,6 +1573,7 @@ function FlashcardsPlayer({
       <div className="flex shrink-0 items-center gap-2">
         <p className="min-w-0 flex-1 truncate font-semibold" style={textStyle(element)}>
           {element.prompt}
+            <SpeakButton text={element.prompt} />
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {index + 1}/{element.cards.length} · {knownSet.size} known
@@ -1648,6 +1667,7 @@ function CountTapPlayer({
     >
       <p className="shrink-0 text-center font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-2 overflow-hidden">
@@ -1765,6 +1785,7 @@ function WordSearchPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <p className="text-xs text-muted-foreground">
         Found {foundSet.size} of {placedWords.length}
@@ -1913,6 +1934,7 @@ function UnscramblePlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       {element.words.map((w) => {
@@ -1963,6 +1985,7 @@ function WordChunksPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       {element.items.map((item) => {
@@ -2065,6 +2088,7 @@ function PhotoHuntPlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <p className="text-xs text-muted-foreground">Tapped {set.size}</p>
 
@@ -2126,6 +2150,7 @@ function SideBySidePlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       {element.rounds.map((round) => {
@@ -2200,6 +2225,7 @@ function SecretWordPlayer({
       <div className="flex items-baseline gap-2">
         <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
           {element.prompt}
+            <SpeakButton text={element.prompt} />
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {wrong.length}/{element.maxWrong} wrong
@@ -2415,6 +2441,7 @@ function PuzzlePlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
       <p className="text-xs text-muted-foreground">
         {solvedCount} of {count} pieces in place
@@ -2525,6 +2552,7 @@ function TraceGamePlayer({
       <div className="flex shrink-0 items-center gap-2">
         <p className="min-w-0 flex-1 font-semibold" style={textStyle(element)}>
           {element.prompt}
+            <SpeakButton text={element.prompt} />
         </p>
         {done && <Check className="size-5 shrink-0 text-success" />}
         <button
@@ -2641,6 +2669,7 @@ function BattleTimePlayer({
     >
       <p className="font-semibold" style={textStyle(element)}>
         {element.prompt}
+            <SpeakButton text={element.prompt} />
       </p>
 
       <div className="grid grid-cols-2 gap-2">
