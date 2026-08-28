@@ -74,34 +74,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-// A textarea for a list where one line is one item.
+// Editing a list of strings as one piece of delimited text.
 //
-// The obvious version — value={items.join("\n")}, onChange={split and filter
-// out the empties} — cannot have a new line typed into it, and that is
-// exactly the bug this replaces. Pressing Enter produces a trailing empty
-// line, the filter drops it, the array comes back unchanged, and the textarea
-// re-renders without the newline the author just typed. The list was frozen
-// at whatever it already held.
+// The obvious version — value={items.join(sep)}, onChange={split and filter
+// out the empties} — cannot have a new separator typed into it, and that is
+// the bug this exists to prevent. Typing the separator produces an empty
+// trailing item, the filter drops it, the array comes back unchanged, and the
+// field re-renders without the character the author just typed. The list is
+// frozen at whatever it already held: no new line can be added to a word
+// list, no new chunk to a syllable breakdown.
 //
 // So the raw text lives here, and only the parsed list is pushed upward.
 // `lastPushed` records what the parent should be holding as a result: when
 // the incoming value matches it, this is our own change echoing back and the
 // text is left alone; when it does not, something else changed the list — an
 // undo, or a different element selected — and the text is reset from it.
-function LinesTextarea({
-  value,
-  onChange,
-  rows = 5,
-  placeholder,
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  rows?: number;
-  placeholder?: string;
-}) {
-  const parse = (raw: string) => raw.split("\n").map((line) => line.trim()).filter(Boolean);
+function useDelimitedText(value: string[], separator: string) {
+  const parse = (raw: string) =>
+    raw.split(separator).map((part) => part.trim()).filter(Boolean);
 
-  const incoming = value.join("\n");
+  const incoming = value.join(separator);
   const [text, setText] = useState(incoming);
   const [lastPushed, setLastPushed] = useState(incoming);
 
@@ -113,21 +105,69 @@ function LinesTextarea({
     setText(incoming);
   }
 
+  return {
+    text,
+    type(raw: string, push: (next: string[]) => void) {
+      const parsed = parse(raw);
+      setText(raw);
+      setLastPushed(parsed.join(separator));
+      push(parsed);
+    },
+    // Tidy up on the way out: empty entries and stray spacing disappear once
+    // the author has finished, which would be maddening while they type.
+    tidy() {
+      setText(parse(text).join(separator));
+    },
+  };
+}
+
+// A textarea for a list where one line is one item.
+function LinesTextarea({
+  value,
+  onChange,
+  rows = 5,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const buffer = useDelimitedText(value, "\n");
   return (
     <Textarea
-      value={text}
+      value={buffer.text}
       rows={rows}
       placeholder={placeholder}
-      onChange={(e) => {
-        const raw = e.target.value;
-        const parsed = parse(raw);
-        setText(raw);
-        setLastPushed(parsed.join("\n"));
-        onChange(parsed);
-      }}
-      // Tidy up on the way out: blank lines and stray spacing disappear once
-      // the author has finished, which would be maddening while they type.
-      onBlur={() => setText(parse(text).join("\n"))}
+      onChange={(e) => buffer.type(e.target.value, onChange)}
+      onBlur={buffer.tidy}
+    />
+  );
+}
+
+// A single-line field for a list written with a separator between items, as
+// syllable chunks are ("but-ter-fly").
+function DelimitedInput({
+  value,
+  onChange,
+  separator,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  separator: string;
+  placeholder?: string;
+  ariaLabel: string;
+}) {
+  const buffer = useDelimitedText(value, separator);
+  return (
+    <Input
+      value={buffer.text}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      onChange={(e) => buffer.type(e.target.value, onChange)}
+      onBlur={buffer.tidy}
     />
   );
 }
@@ -2041,15 +2081,12 @@ function WordChunksFields({
                 <Trash2 className="size-4" />
               </button>
             </div>
-            <Input
-              value={it.chunks.join("-")}
-              onChange={(e) =>
-                update(i, {
-                  chunks: e.target.value.split("-").map((c) => c.trim()).filter(Boolean),
-                })
-              }
+            <DelimitedInput
+              value={it.chunks}
+              onChange={(chunks) => update(i, { chunks })}
+              separator="-"
               placeholder="but-ter-fly"
-              aria-label="Chunks"
+              ariaLabel="Chunks"
             />
           </div>
         ))}

@@ -13,7 +13,7 @@ export default async function ClinicianMessageThreadPage({
     <ConversationDetailPane
       supabase={supabase}
       currentUserId={user.id}
-      clinicianPatientId={clinicianPatientId}
+      threadKey={clinicianPatientId}
     />
   );
 }

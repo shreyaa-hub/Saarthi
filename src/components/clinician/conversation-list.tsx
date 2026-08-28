@@ -25,7 +25,8 @@ import { TimeLabel } from "@/components/time-label";
 function previewText(row: InboxRow, currentUserId: string) {
   if (!row.lastMessagePreview) return "No messages yet";
   if (row.lastMessageSenderId === null) return row.lastMessagePreview;
-  const prefix = row.lastMessageSenderId === currentUserId ? "You" : "Patient";
+  const prefix =
+    row.lastMessageSenderId === currentUserId ? "You" : row.kind === "guardian" ? "Guardian" : "Patient";
   return `${prefix}: ${row.lastMessagePreview}`;
 }
 
@@ -129,6 +130,7 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
     return liveRows.filter((r) => {
       return (
         r.patientName.toLowerCase().includes(q) ||
+        r.counterpartName.toLowerCase().includes(q) ||
         (r.patientEmail?.toLowerCase().includes(q) ?? false) ||
         (r.lastMessagePreview?.toLowerCase().includes(q) ?? false)
       );
@@ -157,10 +159,10 @@ export function ConversationList({ rows, currentUserId }: { rows: InboxRow[]; cu
           </p>
         ) : (
           filtered.map((row) => {
-            const href = `/clinician/messages/${row.clinicianPatientId}`;
+            const href = `/clinician/messages/${row.threadKey}`;
             return (
               <ConversationListRow
-                key={row.clinicianPatientId}
+                key={row.threadKey}
                 row={row}
                 href={href}
                 active={pathname === href}
@@ -197,11 +199,20 @@ function ConversationListRow({
       )}
     >
       <Avatar className="size-9 shrink-0">
-        <AvatarFallback>{initials(row.patientName)}</AvatarFallback>
+        <AvatarFallback>{initials(row.counterpartName)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-medium">{row.patientName}</p>
+          <p className="truncate text-sm font-medium">
+            {row.counterpartName}
+            {/* A guardian thread sits next to the child's own and would
+                otherwise be two rows with no way to tell them apart. */}
+            {row.kind === "guardian" && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                · {row.patientName}&apos;s guardian
+              </span>
+            )}
+          </p>
           {row.lastMessageAt && <ConversationLastMessageTime lastMessageAt={row.lastMessageAt} />}
         </div>
         <div className="flex items-center justify-between gap-2">

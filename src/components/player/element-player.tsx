@@ -175,6 +175,12 @@ export function ElementPlayer({
                 {part}
                 {i < parts.length - 1 && (
                   <input
+                    // The sentence around the field is the whole question, but
+                    // it is loose text rather than a label, so a screen reader
+                    // announced this as an unnamed edit box. Speaking the
+                    // template with the gap read aloud as "blank" gives the
+                    // same context the sighted patient gets from the sentence.
+                    aria-label={`Fill in the blank: ${element.template.replace(/_{2,}/g, " blank ").replace(/\s+/g, " ").trim()}`}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={locked}

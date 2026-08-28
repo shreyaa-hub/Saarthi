@@ -47,7 +47,13 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
           Verbal Coach
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
+        {/* The full bar — four links, the Resources menu and three buttons —
+            needs about 836px to lay out. Switching it on at `md` (768px) meant
+            that between 768px and 836px, which includes an iPad in portrait at
+            820px, the row overflowed its container and the whole marketing site
+            scrolled sideways by up to 68px. `lg` is the first breakpoint with
+            room to spare; below it the drawer below handles the same links. */}
+        <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground lg:flex">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className="group relative inline-flex min-h-11 items-center py-1 transition-colors hover:text-foreground">
               {l.label}
@@ -68,7 +74,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
           </DropdownMenu>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           {dashboardHref ? (
             <Button asChild>
               <Link href={dashboardHref}>
@@ -91,7 +97,7 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
         </div>
 
         <button
-          className="flex size-11 items-center justify-center rounded-md text-foreground md:hidden"
+          className="flex size-11 items-center justify-center rounded-md text-foreground lg:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -99,10 +105,19 @@ export function Navbar({ role }: { role: ProfileRole | null }) {
         </button>
       </div>
 
+      {/* max-h-96 (384px) used to be the open height, but the drawer's own
+          content is 464px tall — eight links plus the button row — so with
+          overflow-hidden the last 80px was cut off and not scrollable. On a
+          phone that meant "Try the Studio", "Sign in" and "Get started" were
+          simply not reachable from the nav. The open height is now bounded by
+          the viewport instead of a guessed constant, and scrolls if a short
+          landscape screen still can't fit it. */}
       <div
         className={cn(
-          "overflow-hidden border-t border-border md:hidden transition-[max-height]",
-          open ? "max-h-96" : "max-h-0 border-t-0",
+          "border-t border-border lg:hidden transition-[max-height]",
+          open
+            ? "max-h-[calc(100dvh-4rem)] overflow-y-auto"
+            : "max-h-0 overflow-hidden border-t-0",
         )}
       >
         <nav className="flex flex-col gap-1 p-4 text-sm font-medium">

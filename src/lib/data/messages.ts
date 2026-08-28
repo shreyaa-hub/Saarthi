@@ -73,6 +73,10 @@ export async function getUnreadCounts(supabase: Client, userId: string): Promise
 export type ConversationSummary = {
   id: string;
   clinicianPatientId: string | null;
+  // Set instead of clinicianPatientId on a guardian thread — the parent's own
+  // conversation with their child's clinician, which is deliberately separate
+  // from the child's (see start_parent_conversation).
+  parentChildId: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
@@ -95,7 +99,7 @@ export async function getMyConversations(supabase: Client, userId: string): Prom
   const [conversationsRes, othersRes, unreadCounts] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, clinician_patient_id, last_message_at, last_message_preview")
+      .select("id, clinician_patient_id, parent_child_id, last_message_at, last_message_preview")
       .in("id", conversationIds)
       .order("last_message_at", { ascending: false }),
     supabase
@@ -120,6 +124,7 @@ export async function getMyConversations(supabase: Client, userId: string): Prom
   return (conversationsRes.data ?? []).map((conversation) => ({
     id: conversation.id,
     clinicianPatientId: conversation.clinician_patient_id,
+    parentChildId: conversation.parent_child_id,
     lastMessageAt: conversation.last_message_at,
     lastMessagePreview: conversation.last_message_preview,
     unreadCount: unreadCounts[conversation.id] ?? 0,
@@ -127,11 +132,35 @@ export async function getMyConversations(supabase: Client, userId: string): Prom
   }));
 }
 
+// The URL segment that opens this row's thread, under
+// /clinician/messages/[threadKey]. A patient thread is keyed by its caseload
+// row, as it always has been. A guardian thread has no caseload row of its
+// own, so it is keyed by the parent_children link behind this prefix.
+// Prefixed rather than a second route segment so one route still opens
+// either, and underscores rather than a colon because Next percent-encodes a
+// colon in a dynamic segment and the value comes back unusable.
+export const GUARDIAN_THREAD_PREFIX = "guardian__";
+
+export function guardianThreadKey(parentChildId: string): string {
+  return `${GUARDIAN_THREAD_PREFIX}${parentChildId}`;
+}
+
+export function parseGuardianThreadKey(threadKey: string): string | null {
+  return threadKey.startsWith(GUARDIAN_THREAD_PREFIX)
+    ? threadKey.slice(GUARDIAN_THREAD_PREFIX.length)
+    : null;
+}
+
 export type InboxRow = {
+  /** "patient" is the child's own thread; "guardian" is their parent's. */
+  kind: "patient" | "guardian";
+  threadKey: string;
   clinicianPatientId: string;
   patientId: string;
   patientName: string;
   patientEmail: string | null;
+  /** Whose thread this is, when that isn't the patient — the guardian's name. */
+  counterpartName: string;
   conversationId: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
@@ -145,6 +174,13 @@ export type InboxRow = {
 // yet is expected to transparently create one via start_conversation().
 // Existing conversations carry their real activity; patients with no
 // conversation yet get null activity fields and sort after all of them.
+//
+// Guardian threads are listed alongside them. They used to be dropped
+// entirely: this list was built purely from caseload rows and matched
+// conversations by clinician_patient_id, which is null on every guardian
+// thread. A parent could write to their child's clinician from
+// /parent/messages and the message reached no inbox, no route and no
+// notification — it simply went nowhere.
 export async function getClinicianInbox(supabase: Client, clinicianId: string): Promise<InboxRow[]> {
   const [{ data: activePatients, error: patientsError }, conversations] = await Promise.all([
     supabase
@@ -164,6 +200,26 @@ export async function getClinicianInbox(supabase: Client, clinicianId: string): 
       .filter((c): c is typeof c & { clinicianPatientId: string } => c.clinicianPatientId !== null)
       .map((c) => [c.clinicianPatientId, c]),
   );
+
+  // Which caseload row and which child each guardian thread belongs to, so a
+  // guardian row can be labelled with both names ("Priya · Aanya's guardian")
+  // and sit next to the child's own thread.
+  const guardianConversations = conversations.filter(
+    (c): c is typeof c & { parentChildId: string } => c.parentChildId !== null,
+  );
+  const guardianLinks = new Map<string, { clinicianPatientId: string; childId: string }>();
+  if (guardianConversations.length > 0) {
+    const { data: links, error: linksError } = await supabase
+      .from("parent_children")
+      .select("id, child_id, clinician_patient_id")
+      .in("id", guardianConversations.map((c) => c.parentChildId));
+
+    logIfError("getClinicianInbox:guardianLinks", linksError);
+    for (const l of links ?? []) {
+      if (!l.clinician_patient_id) continue;
+      guardianLinks.set(l.id, { clinicianPatientId: l.clinician_patient_id, childId: l.child_id });
+    }
+  }
 
   // Who sent the most recent message per conversation, for the "You:" /
   // "Patient:" preview prefix. Not folded into getMyConversations() itself
@@ -185,13 +241,17 @@ export async function getClinicianInbox(supabase: Client, clinicianId: string): 
     }
   }
 
-  const rows: InboxRow[] = (activePatients ?? []).map((p) => {
+  const patientRows: InboxRow[] = (activePatients ?? []).map((p) => {
     const conversation = conversationByClinicianPatientId.get(p.id);
+    const patientName = p.profiles?.full_name ?? p.display_name;
     return {
+      kind: "patient",
+      threadKey: p.id,
       clinicianPatientId: p.id,
       patientId: p.patient_id as string,
-      patientName: p.profiles?.full_name ?? p.display_name,
+      patientName,
       patientEmail: p.profiles?.email ?? null,
+      counterpartName: patientName,
       conversationId: conversation?.id ?? null,
       lastMessageAt: conversation?.lastMessageAt ?? null,
       lastMessagePreview: conversation?.lastMessagePreview ?? null,
@@ -200,7 +260,36 @@ export async function getClinicianInbox(supabase: Client, clinicianId: string): 
     };
   });
 
-  return rows.sort(compareInboxRows);
+  const patientRowByClinicianPatientId = new Map(patientRows.map((r) => [r.clinicianPatientId, r]));
+
+  const guardianRows: InboxRow[] = [];
+  for (const conversation of guardianConversations) {
+    const link = guardianLinks.get(conversation.parentChildId);
+    // A guardian link whose caseload row is gone (the child was discharged)
+    // has no patient to file the thread under, so it is left out rather than
+    // shown against a patient this clinician may no longer see.
+    if (!link) continue;
+    const patientRow = patientRowByClinicianPatientId.get(link.clinicianPatientId);
+    if (!patientRow) continue;
+
+    const guardian = conversation.otherParticipants.find((p) => p.role === "parent");
+    guardianRows.push({
+      kind: "guardian",
+      threadKey: guardianThreadKey(conversation.parentChildId),
+      clinicianPatientId: link.clinicianPatientId,
+      patientId: patientRow.patientId,
+      patientName: patientRow.patientName,
+      patientEmail: null,
+      counterpartName: guardian?.fullName ?? "Guardian",
+      conversationId: conversation.id,
+      lastMessageAt: conversation.lastMessageAt,
+      lastMessagePreview: conversation.lastMessagePreview,
+      lastMessageSenderId: lastSenderByConversation.get(conversation.id) ?? null,
+      unreadCount: conversation.unreadCount,
+    });
+  }
+
+  return [...patientRows, ...guardianRows].sort(compareInboxRows);
 }
 
 // Existing conversations first ordered by most recent activity, then

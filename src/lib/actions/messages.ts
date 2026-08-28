@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getMessages, type MessageCursor, type MessagePage } from "@/lib/data/messages";
+import { getMessages, guardianThreadKey, type MessageCursor, type MessagePage } from "@/lib/data/messages";
 import type { Database, ProfileRole } from "@/lib/types/database";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
@@ -14,10 +14,14 @@ type ConversationRow = Database["public"]["Tables"]["conversations"]["Row"];
 // at notify time) and markConversationRead() (the reader's own link,
 // recomputed to find the matching notification to clear) — kept in one
 // place so the two can't silently drift apart into different formats.
-function messageNotificationLink(viewerRole: ProfileRole, clinicianPatientId: string): string {
-  return viewerRole === "clinician"
-    ? `/clinician/messages/${clinicianPatientId}`
-    : `/patient/messages?with=${clinicianPatientId}`;
+// `threadKey` is what /clinician/messages/[…] takes: the caseload row id for
+// a patient thread, or the prefixed parent_children id for a guardian one.
+// The parent's own inbox is a single page with no thread to select, so their
+// link carries no key at all.
+function messageNotificationLink(viewerRole: ProfileRole, threadKey: string): string {
+  if (viewerRole === "clinician") return `/clinician/messages/${threadKey}`;
+  if (viewerRole === "parent") return "/parent/messages";
+  return `/patient/messages?with=${threadKey}`;
 }
 
 // IMPORTANT: this is a server-side cache invalidation, not a live push.
@@ -54,11 +58,9 @@ export async function loadOlderMessages(
 // conversation coalesces into the same notification instead of stacking a
 // new one; see that RPC's definition in the migration for the full dedup
 // reasoning.
-// Requires the conversation's clinician_patient_id to build each
-// recipient's link (clinician and patient recipients get different route
-// shapes); a conversation with none (none exist yet — every conversation
-// today is created via start_conversation(), which always sets it) has
-// nothing valid to link to, so that recipient is skipped rather than
+// Needs the conversation's own key to build each recipient's link, since
+// every role gets a different route shape. A conversation with neither key
+// has nothing valid to link to, so nobody is notified rather than being
 // notified with a broken link.
 async function notifyRecipients(
   supabase: SupabaseClient<Database>,
@@ -67,7 +69,11 @@ async function notifyRecipients(
   preview: string,
 ) {
   const [{ data: conversation }, { data: recipients, error: recipientsError }, { data: sender }] = await Promise.all([
-    supabase.from("conversations").select("clinician_patient_id").eq("id", conversationId).maybeSingle(),
+    supabase
+      .from("conversations")
+      .select("clinician_patient_id, parent_child_id")
+      .eq("id", conversationId)
+      .maybeSingle(),
     supabase
       .from("conversation_participants")
       .select("user_id, profiles(role)")
@@ -87,15 +93,22 @@ async function notifyRecipients(
     return;
   }
 
-  const clinicianPatientId = conversation?.clinician_patient_id;
-  if (!clinicianPatientId) return;
+  // A guardian thread carries parent_child_id instead of clinician_patient_id.
+  // This used to bail on a null clinician_patient_id, which is every guardian
+  // thread — so a parent's message to their child's clinician notified nobody.
+  const threadKey = conversation?.clinician_patient_id
+    ? conversation.clinician_patient_id
+    : conversation?.parent_child_id
+      ? guardianThreadKey(conversation.parent_child_id)
+      : null;
+  if (!threadKey) return;
 
   const title = `New message from ${sender?.full_name ?? "someone"}`;
 
   await Promise.all(
     (recipients ?? []).map(async (r) => {
       if (!r.profiles) return;
-      const link = messageNotificationLink(r.profiles.role, clinicianPatientId);
+      const link = messageNotificationLink(r.profiles.role, threadKey);
       const { error } = await supabase.rpc("notify_new_message", {
         p_recipient_id: r.user_id,
         p_reference_id: conversationId,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getConversation, getMessages } from "@/lib/data/messages";
-import { startConversation } from "@/lib/actions/messages";
+import { getConversation, getMessages, parseGuardianThreadKey } from "@/lib/data/messages";
+import { startConversation, startParentConversation } from "@/lib/actions/messages";
 import { MessageThread } from "@/components/clinician/message-thread";
 import { LastActiveLabel } from "@/components/last-active-label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,13 +21,19 @@ import type { Database } from "@/lib/types/database";
 export async function ConversationDetailPane({
   supabase,
   currentUserId,
-  clinicianPatientId,
+  threadKey,
 }: {
   supabase: SupabaseClient<Database>;
   currentUserId: string;
-  clinicianPatientId: string;
+  // Either a clinician_patients id (the child's own thread) or a prefixed
+  // parent_children id (their guardian's). Both RPCs are idempotent
+  // get-or-creates that do their own authorization.
+  threadKey: string;
 }) {
-  const { conversation, error } = await startConversation(clinicianPatientId);
+  const parentChildId = parseGuardianThreadKey(threadKey);
+  const { conversation, error } = parentChildId
+    ? await startParentConversation(parentChildId)
+    : await startConversation(threadKey);
 
   if (!conversation) {
     return (
@@ -45,8 +51,13 @@ export async function ConversationDetailPane({
     getMessages(supabase, conversation.id),
   ]);
 
-  const patientParticipant = conversationDetail?.participants.find((p) => p.role === "patient");
-  const patientName = patientParticipant?.fullName ?? "Patient";
+  // On a guardian thread the person on the other end is the parent, not the
+  // patient — naming the header after the patient there would label the
+  // thread with someone who isn't in it.
+  const counterpart = parentChildId
+    ? conversationDetail?.participants.find((p) => p.role === "parent")
+    : conversationDetail?.participants.find((p) => p.role === "patient");
+  const counterpartName = counterpart?.fullName ?? (parentChildId ? "Guardian" : "Patient");
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -55,13 +66,14 @@ export async function ConversationDetailPane({
           <ArrowLeft className="size-5" />
         </Link>
         <Avatar className="size-9">
-          <AvatarFallback>{initials(patientName)}</AvatarFallback>
+          <AvatarFallback>{initials(counterpartName)}</AvatarFallback>
         </Avatar>
         <div>
-          <p className="font-semibold">{patientName}</p>
+          <p className="font-semibold">{counterpartName}</p>
           <p className="text-xs text-muted-foreground">
-            {patientParticipant?.lastReadAt ? (
-              <LastActiveLabel lastReadAt={patientParticipant.lastReadAt} />
+            {parentChildId && <span className="mr-1">Guardian ·</span>}
+            {counterpart?.lastReadAt ? (
+              <LastActiveLabel lastReadAt={counterpart.lastReadAt} />
             ) : (
               "Hasn't opened this conversation yet"
             )}
@@ -82,7 +94,7 @@ export async function ConversationDetailPane({
           key={conversation.id}
           conversationId={conversation.id}
           currentUserId={currentUserId}
-          otherParticipantName={patientName}
+          otherParticipantName={counterpartName}
           initialMessages={page.messages}
           initialCursor={page.nextCursor}
         />
