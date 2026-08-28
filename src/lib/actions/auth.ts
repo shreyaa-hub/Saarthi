@@ -198,10 +198,17 @@ export async function signUpPatient(
 
   if (error) return { error: describeAuthError(error, "signUpPatient") };
 
+  // No session means the project requires email confirmation, so there is no
+  // authenticated caller yet and claim_invite would be refused. The code is
+  // therefore NOT applied here — and saying so matters: silently dropping it
+  // leaves someone who typed a valid code correctly unlinked from their
+  // clinician with no hint that anything went wrong.
   if (!data.session) {
     return {
       error: null,
-      message: "Account created. Check your email to confirm, then sign in.",
+      message: inviteCode
+        ? "Account created. Check your email to confirm, then sign in — you'll be asked for your invite code again on your dashboard."
+        : "Account created. Check your email to confirm, then sign in.",
     };
   }
 
@@ -257,10 +264,14 @@ export async function signUpParent(
     return { error: describeAuthError(error, "signUpParent") };
   }
 
+  // As in signUpPatient: with confirmation on there is no session yet, so the
+  // guardian code cannot be claimed and must not be dropped without a word.
   if (!data.session) {
     return {
       error: null,
-      message: "Account created. Check your email to confirm, then sign in.",
+      message: guardianCode
+        ? "Account created. Check your email to confirm, then sign in — you'll be asked for your guardian code again on your dashboard."
+        : "Account created. Check your email to confirm, then sign in.",
     };
   }
 

@@ -98,7 +98,9 @@ export async function createAssignment(
     ),
   );
 
-  revalidatePath(`/clinician/caseload/${clinicianPatientId}`);
+  // Empty when assigning in bulk from the caseload page, where there is no
+  // single caseload row to revalidate.
+  if (clinicianPatientId) revalidatePath(`/clinician/caseload/${clinicianPatientId}`);
   revalidatePath("/clinician/caseload");
   revalidatePath("/clinician/assignments");
   return {

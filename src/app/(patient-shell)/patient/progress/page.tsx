@@ -6,7 +6,7 @@ import { toGoalAttempts } from "@/lib/goals";
 import { GoalsReadOnly } from "@/components/goals/goals-readonly";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressChart } from "@/components/charts/progress-chart";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatAttemptResult } from "@/lib/utils";
 
 export default async function PatientProgressPage() {
   const { supabase, user } = await requireProfile("patient");
@@ -59,7 +59,7 @@ export default async function PatientProgressPage() {
                       <p className="text-xs text-muted-foreground">{formatDate(a.completed_at)}</p>
                     </div>
                     <p className="text-sm font-semibold">
-                      {a.correct_count}/{a.total_count} ({a.score ?? 0}%)
+                      {formatAttemptResult(a.correct_count, a.total_count, a.score)}
                     </p>
                   </div>
                   {a.clinician_note && (

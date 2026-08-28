@@ -43,3 +43,20 @@ export function formatRelativeTime(date: string | Date) {
   if (days < 7) return `${days}d ago`;
   return formatDate(d);
 }
+
+// How an attempt's result reads wherever it is listed.
+//
+// An activity with nothing to mark — all drawings, a story to read through —
+// has no accuracy, and the old "0/0 (100%)" said the opposite: a perfect
+// score for a patient who was assessed on nothing. A zero total is the
+// reliable signal for that, and it covers rows written before the score
+// column started storing null for it.
+export function formatAttemptResult(
+  correct: number,
+  total: number,
+  score: number | null,
+): string {
+  if (total === 0) return "Not scored";
+  const pct = score ?? Math.round((correct / total) * 100);
+  return `${correct}/${total} (${pct}%)`;
+}

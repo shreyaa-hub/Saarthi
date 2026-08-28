@@ -354,15 +354,29 @@ export function CanvasEditor({
               gated on medium either — a clinician printing an activity to
               work through on paper is a real thing, and the print view
               already strips the answer key. */}
-          {/* Opens in a new tab like Print does, so the editor keeps its
-              unsaved state — but it plays the SAVED canvas, which is why the
-              editor autosaves first. Worksheet-only templates have nothing to
-              play: they are filled in on paper. */}
+          {/* The try page loads the SAVED canvas from the database, and
+              autosave is on a 900ms debounce — so clicking straight after an
+              edit would have played the previous version and shown the
+              clinician a change they had just made as missing. The pending
+              save is flushed first.
+
+              The blank tab is opened synchronously, before the await, because
+              a popup blocker rejects window.open once the click gesture has
+              been consumed; it is then pointed at the URL. Worksheet-only
+              templates have nothing to play — they are filled in on paper. */}
           {!guest && template.medium !== "print" && (
-            <Button asChild size="sm" variant="outline">
-              <a href={`/clinician/try/${template.id}`} target="_blank" rel="noopener noreferrer">
-                <Play className="size-3.5" /> Try it
-              </a>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                const tab = window.open("about:blank", "_blank", "noopener");
+                if (store.getState().dirty) await attemptSave(false);
+                const href = `/clinician/try/${template.id}`;
+                if (tab) tab.location.href = href;
+                else window.location.href = href;
+              }}
+            >
+              <Play className="size-3.5" /> Try it
             </Button>
           )}
           {!guest && (

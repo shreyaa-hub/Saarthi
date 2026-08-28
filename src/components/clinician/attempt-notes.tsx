@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { setAttemptNote } from "@/lib/actions/attempts";
 import { AttemptReview } from "@/components/attempt-review";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatAttemptResult } from "@/lib/utils";
 
 type Attempt = {
   id: string;
@@ -79,7 +79,7 @@ function AttemptRow({
           <p className="text-xs text-muted-foreground">{formatDate(attempt.completed_at)}</p>
         </div>
         <p className="shrink-0 text-sm font-semibold">
-          {attempt.correct_count}/{attempt.total_count} ({attempt.score ?? 0}%)
+          {formatAttemptResult(attempt.correct_count, attempt.total_count, attempt.score)}
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatAttemptResult } from "@/lib/utils";
 import { ReportSection } from "./report-section";
 
 const MAX_ROWS = 20;
@@ -47,7 +47,7 @@ export function ReportActivitySummary({
                   <td className="py-1.5 pr-3 text-gray-600">{formatDate(a.completed_at)}</td>
                   <td className="py-1.5 pr-3 text-black">{titleByAssignment[a.assignment_id] ?? "Activity"}</td>
                   <td className="py-1.5 text-right tabular-nums text-black">
-                    {a.correct_count}/{a.total_count} ({a.score ?? 0}%)
+                    {formatAttemptResult(a.correct_count, a.total_count, a.score)}
                   </td>
                 </tr>
               ))}

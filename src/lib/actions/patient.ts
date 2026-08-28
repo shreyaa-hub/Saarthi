@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/actions/auth";
 import type { Json } from "@/lib/types/database";
 import { notify } from "@/lib/actions/notifications";
 import { scoreCanvas } from "@/lib/scoring";
+import { formatAttemptResult } from "@/lib/utils";
 
 export async function claimInviteCode(
   _prevState: ActionState,
@@ -66,11 +67,40 @@ export async function submitAttempt(
     return { error: "That activity isn't assigned to you." };
   }
 
+  // One assignment, one attempt.
+  //
+  // The player locks itself once an activity is completed, but that is a
+  // screen, not a rule: open the same activity in two tabs, finish it in one,
+  // and the other still holds an unlocked copy whose Submit works. That second
+  // submission used to insert a second attempt, which double-counted the
+  // activity, let a patient retry until the score suited them, and showed the
+  // clinician the same assignment twice.
+  //
+  // One attempt per assignment is also the model the rest of the product
+  // already assumes — repeating an activity creates a separate assignment per
+  // session precisely so each one can be completed and marked on its own.
+  const { data: existing } = await supabase
+    .from("activity_attempts")
+    .select("id")
+    .eq("assignment_id", assignmentId)
+    .eq("patient_id", user.id)
+    .maybeSingle();
+
+  if (existing) {
+    return { error: "You've already finished this activity." };
+  }
+
   // canvas_snapshot, not the live template: the patient answered the copy
   // taken when it was assigned, and marking against anything else would
   // score them on questions they were never asked.
   const { correct, total } = scoreCanvas(assignment.canvas_snapshot, payload.responses);
-  const score = total > 0 ? Math.round((correct / total) * 100) : 100;
+  // Null, not 100, when there was nothing to mark — an activity of drawings
+  // and stories has no accuracy, and recording a perfect score for one made
+  // every list read "0/0 (100%)" for a patient who had been assessed on
+  // nothing. The column is nullable precisely for this, and the analytics
+  // layer already takes a zero total out of the denominator rather than
+  // counting it as a zero.
+  const score = total > 0 ? Math.round((correct / total) * 100) : null;
 
   // Also client-supplied and only a soft metric, but a negative or absurd
   // value would still skew the duration averages, so it is clamped to
@@ -106,7 +136,7 @@ export async function submitAttempt(
     assignment.assigned_by,
     "attempt_completed",
     `${profile?.full_name ?? "A patient"} completed an activity`,
-    `${assignment.title} — ${score}%`,
+    `${assignment.title} — ${formatAttemptResult(correct, total, score)}`,
     assignedByClinician ? "/clinician/assignments" : "/parent/missions",
   );
 
