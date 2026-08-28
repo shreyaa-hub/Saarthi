@@ -81,6 +81,61 @@ function canvas(
   };
 }
 
+// A4 at 96dpi, so what is laid out here is exactly what comes out of the
+// printer — see PrintableCanvas. Every printable starter shares the same top
+// block (title, name/date rules, a divider) so a clinic's sheets look like a
+// set rather than a pile of unrelated documents.
+const SHEET_W = 794;
+const SHEET_H = 1123;
+
+function sheet(
+  heading: string,
+  fields: string[],
+  body: TemplateCanvas["elements"],
+): TemplateCanvas {
+  return {
+    width: SHEET_W,
+    height: SHEET_H,
+    background: "#ffffff",
+    pageStyle: "blank",
+    elements: [
+      {
+        id: "sheet-title", type: "text", x: 48, y: 36, w: 700, h: 44,
+        content: heading, fontSize: 28, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "sheet-fields", type: "sheetHeader", x: 48, y: 92, w: 700, h: 44,
+        fields, fontSize: 15, color: "#2a2420",
+      },
+      {
+        id: "sheet-rule", type: "divider", x: 48, y: 144, w: 700, h: 18,
+        color: "#c9bfae", thickness: 2, style: "solid",
+      },
+      ...body,
+    ],
+  };
+}
+
+// A ready-to-use activity rather than a demonstration of one element type:
+// several elements laid out together the way a clinician would actually
+// build a session task. The type demos above answer "what does a drag-match
+// look like"; these answer "what does a session on following directions look
+// like", which is the question somebody opening the library is really asking.
+function activity(heading: string, body: TemplateCanvas["elements"]): TemplateCanvas {
+  return {
+    width: W,
+    height: H,
+    background: "#ffffff",
+    elements: [
+      {
+        id: "title", type: "text", x: 60, y: 36, w: 780, h: 44,
+        content: heading, fontSize: 28, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      ...body,
+    ],
+  };
+}
+
 export const STARTER_TEMPLATES: StarterTemplate[] = [
   {
     id: `${STARTER_ID_PREFIX}multipleChoice`,
@@ -430,6 +485,503 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
       fontSize: 18,
     }),
   },
+
+  // --- Ready-to-use activities -----------------------------------------------
+  // Not demonstrations of an element type — whole session tasks, each built
+  // from several elements the way a clinician actually assembles one.
+
+  {
+    id: `${STARTER_ID_PREFIX}followingDirections`,
+    title: "Activity · Following directions",
+    description:
+      "Two-step directions to put in order, then a comprehension check. A staple of early receptive-language work.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#7c3aed",
+    canvas: activity("Do what it says", [
+      {
+        id: "seq", type: "sequence", x: 60, y: 110, w: 400, h: 300,
+        prompt: "Put the steps in the order I said them.", fontSize: 18,
+        items: [
+          { id: "d1", label: "Touch your nose", order: 1 },
+          { id: "d2", label: "Clap your hands", order: 2 },
+          { id: "d3", label: "Stand up", order: 3 },
+        ],
+      },
+      {
+        id: "check", type: "yesNo", x: 490, y: 110, w: 350, h: 230,
+        prompt: "Did you clap before you stood up?",
+        answer: "yes", yesLabel: "Yes", noLabel: "No", fontSize: 18,
+      },
+      {
+        id: "note", type: "callout", x: 490, y: 360, w: 350, h: 120,
+        title: "For the grown-up",
+        body: "Say the whole instruction once, then wait. Do not repeat it until they have tried.",
+        tone: "tip", fontSize: 14,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}articulationS`,
+    title: "Activity · /s/ sound practice",
+    description:
+      "A repetition drill and a flashcard deck for the /s/ sound. Change the words for any target sound.",
+    domain: "Articulation",
+    medium: "interactive",
+    thumbnailColor: "#ef4444",
+    canvas: activity("Practise the /s/ sound", [
+      {
+        id: "drill", type: "practiceDrill", x: 60, y: 110, w: 400, h: 300,
+        prompt: "Say each word five times. Tap once for every try.", fontSize: 17,
+        words: [
+          { id: "a1", label: "Sun", target: 5 },
+          { id: "a2", label: "Soap", target: 5 },
+          { id: "a3", label: "Sock", target: 5 },
+        ],
+      },
+      {
+        id: "cards", type: "flashcards", x: 490, y: 110, w: 350, h: 380,
+        prompt: "Say the word, then turn the card over.", fontSize: 17,
+        cards: [
+          { id: "c1", front: "Sun", back: "☀️" },
+          { id: "c2", front: "Soap", back: "🧼" },
+          { id: "c3", front: "Sock", back: "🧦" },
+          { id: "c4", front: "Sand", back: "🏖️" },
+        ],
+      },
+      {
+        id: "stars", type: "rewardStars", x: 60, y: 430, w: 400, h: 70,
+        total: 5, earned: 0, color: "#7c3aed", label: "A star for every word you finish",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}storyRetell`,
+    title: "Activity · Retell the story",
+    description:
+      "Put the story in order, then tell it back in your own words. Narrative language, start to finish.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#8b5cf6",
+    canvas: activity("Tell me the story", [
+      {
+        id: "order", type: "sequence", x: 60, y: 110, w: 380, h: 290,
+        prompt: "Put the story in order.", fontSize: 17,
+        items: [
+          { id: "t1", label: "The dog found a ball", order: 1 },
+          { id: "t2", label: "He ran to the park", order: 2 },
+          { id: "t3", label: "The ball went in the pond", order: 3 },
+          { id: "t4", label: "A girl helped him get it", order: 4 },
+        ],
+      },
+      {
+        id: "tell", type: "longAnswer", x: 470, y: 110, w: 370, h: 340,
+        prompt: "Now tell the story in your own words.",
+        placeholder: "Start with what happened first…",
+        minWords: 15, lines: 7, fontSize: 17,
+      },
+      {
+        id: "hint", type: "callout", x: 60, y: 420, w: 380, h: 90,
+        title: "Prompt if they stall",
+        body: "“What happened first? … and then?”",
+        tone: "note", fontSize: 14,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}feelings`,
+    title: "Activity · How are they feeling?",
+    description:
+      "Read a face, then judge a situation. Emotion recognition for social and pragmatic goals.",
+    domain: "Social / Pragmatics",
+    medium: "interactive",
+    thumbnailColor: "#ec4899",
+    canvas: activity("How are they feeling?", [
+      {
+        id: "face", type: "multipleChoice", x: 60, y: 110, w: 780, h: 220,
+        prompt: "Which face is sad?", allowMultiple: false,
+        layout: "grid", columns: 4, imageSize: 80, fontSize: 17,
+        options: [
+          { id: "f1", label: "😀 Happy", correct: false },
+          { id: "f2", label: "😢 Sad", correct: true },
+          { id: "f3", label: "😡 Cross", correct: false },
+          { id: "f4", label: "😲 Surprised", correct: false },
+        ],
+      },
+      {
+        id: "why", type: "yesNo", x: 60, y: 350, w: 380, h: 200,
+        prompt: "Their ice cream fell on the floor. Would they feel sad?",
+        answer: "yes", yesLabel: "Yes", noLabel: "No", fontSize: 17,
+      },
+      {
+        id: "say", type: "longAnswer", x: 470, y: 350, w: 370, h: 200,
+        prompt: "What could you say to help them feel better?",
+        placeholder: "You could say…", minWords: 3, lines: 3, fontSize: 17,
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}prepositions`,
+    title: "Activity · Where is it?",
+    description:
+      "In, on, under, behind — a word bank to choose from, a sentence to finish, and a picture question.",
+    domain: "Language",
+    medium: "interactive",
+    thumbnailColor: "#14b8a6",
+    canvas: activity("Where is it?", [
+      {
+        id: "bank", type: "wordBank", x: 60, y: 110, w: 300, h: 150,
+        title: "Choose a word", words: ["in", "on", "under", "behind"],
+        fontSize: 18, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "gap", type: "fillBlank", x: 400, y: 110, w: 440, h: 150,
+        template: "The cat is ___ the box.", answer: "in", caseSensitive: false, fontSize: 22,
+      },
+      {
+        id: "pick", type: "multipleChoice", x: 60, y: 290, w: 780, h: 230,
+        prompt: "The ball is under the chair. Which picture is right?",
+        allowMultiple: false, layout: "grid", columns: 3, imageSize: 80, fontSize: 17,
+        options: [
+          { id: "p1", label: "Ball on the chair", correct: false },
+          { id: "p2", label: "Ball under the chair", correct: true },
+          { id: "p3", label: "Ball behind the chair", correct: false },
+        ],
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}earlyCounting`,
+    title: "Activity · Counting to five",
+    description:
+      "Count two groups and find the number on a number line. Early maths and number recognition.",
+    domain: "Cognitive",
+    medium: "interactive",
+    thumbnailColor: "#f97316",
+    canvas: activity("Let's count", [
+      {
+        id: "count1", type: "countTap", x: 60, y: 110, w: 380, h: 250,
+        prompt: "How many apples?", emoji: "🍎", count: 3, maxChoice: 5, fontSize: 18,
+      },
+      {
+        id: "count2", type: "countTap", x: 460, y: 110, w: 380, h: 250,
+        prompt: "How many stars?", emoji: "⭐", count: 5, maxChoice: 5, fontSize: 18,
+      },
+      {
+        id: "line", type: "numberLine", x: 60, y: 390, w: 780, h: 80,
+        from: 0, to: 5, step: 1, color: "#2a2420", fontSize: 16,
+      },
+      {
+        id: "hint2", type: "text", x: 60, y: 480, w: 780, h: 40,
+        content: "Point to each number as you count out loud.",
+        fontSize: 16, fontWeight: "normal", color: "#6b6257", align: "left",
+      },
+    ]),
+  },
+
+
+  // --- Printable forms and worksheets ----------------------------------------
+  // The paper a clinic actually runs on. All static: nothing here is scored,
+  // because it is filled in with a pen.
+
+  {
+    id: `${STARTER_ID_PREFIX}sessionNotes`,
+    title: "Form · Session notes",
+    description:
+      "A one-page record of a session — what was worked on, what happened, and what comes next.",
+    domain: "General",
+    medium: "print",
+    thumbnailColor: "#334155",
+    canvas: sheet("Session notes", ["Patient", "Date", "Clinician"], [
+      {
+        id: "goals", type: "text", x: 48, y: 180, w: 700, h: 32,
+        content: "Goals worked on today", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "goal-list", type: "checklist", x: 48, y: 218, w: 700, h: 130,
+        items: ["", "", "", ""], fontSize: 16, color: "#2a2420", lineGap: 18, boxSize: 18,
+      },
+      {
+        id: "obs", type: "text", x: 48, y: 366, w: 700, h: 32,
+        content: "What happened", fontSize: 18, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "obs-lines", type: "writingLines", x: 48, y: 404, w: 700, h: 220,
+        lines: 6, lineGap: 34, color: "#c9bfae", guide: "single",
+      },
+      {
+        id: "data", type: "text", x: 48, y: 644, w: 700, h: 32,
+        content: "Data", fontSize: 18, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "data-table", type: "table", x: 48, y: 682, w: 700, h: 190,
+        headerRow: true,
+        rows: [
+          ["Target", "Trials", "Correct", "%"],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+        ],
+        fontSize: 15, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "next", type: "text", x: 48, y: 890, w: 700, h: 32,
+        content: "Plan for next session", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "next-lines", type: "writingLines", x: 48, y: 928, w: 700, h: 140,
+        lines: 4, lineGap: 34, color: "#c9bfae", guide: "single",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}practiceLog`,
+    title: "Form · Weekly practice log",
+    description:
+      "A fridge-door sheet for families: what to practise, a box to tick each day, and a star for every day done.",
+    domain: "General",
+    medium: "print",
+    thumbnailColor: "#0891b2",
+    canvas: sheet("Practice at home", ["Name", "Week beginning"], [
+      {
+        id: "note", type: "callout", x: 48, y: 180, w: 700, h: 92,
+        title: "How to use this",
+        body: "Five minutes a day beats an hour on Sunday. Tick the box when you have done it.",
+        tone: "tip", fontSize: 15,
+      },
+      {
+        id: "what", type: "wordBank", x: 48, y: 292, w: 700, h: 120,
+        title: "This week we are practising",
+        words: ["", ""], fontSize: 17, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "log", type: "table", x: 48, y: 434, w: 700, h: 300,
+        headerRow: true,
+        rows: [
+          ["Day", "Done", "How did it go?"],
+          ["Monday", "", ""],
+          ["Tuesday", "", ""],
+          ["Wednesday", "", ""],
+          ["Thursday", "", ""],
+          ["Friday", "", ""],
+          ["Saturday", "", ""],
+          ["Sunday", "", ""],
+        ],
+        fontSize: 15, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "stars", type: "rewardStars", x: 48, y: 760, w: 700, h: 90,
+        total: 7, earned: 0, color: "#7c3aed", label: "Colour a star for every day you practise",
+      },
+      {
+        id: "back", type: "text", x: 48, y: 872, w: 700, h: 32,
+        content: "Anything you want to tell us?", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "back-lines", type: "writingLines", x: 48, y: 910, w: 700, h: 150,
+        lines: 4, lineGap: 36, color: "#c9bfae", guide: "single",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}handwriting`,
+    title: "Worksheet · Handwriting practice",
+    description:
+      "Trace the word, then write it yourself. Ruled with a dotted midline, the way handwriting is taught.",
+    domain: "OT / Fine Motor",
+    medium: "print",
+    thumbnailColor: "#f43f5e",
+    canvas: sheet("Handwriting practice", ["Name", "Date"], [
+      {
+        id: "t1", type: "text", x: 48, y: 178, w: 700, h: 30,
+        content: "Trace it", fontSize: 17, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "trace", type: "letterBoxes", x: 48, y: 212, w: 700, h: 64,
+        word: "sun", showLetters: true, boxSize: 52, color: "#2a2420",
+      },
+      {
+        id: "t2", type: "text", x: 48, y: 292, w: 700, h: 30,
+        content: "Now you", fontSize: 17, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "blank1", type: "letterBoxes", x: 48, y: 326, w: 700, h: 64,
+        word: "sun", showLetters: false, boxSize: 52, color: "#2a2420",
+      },
+      {
+        id: "blank2", type: "letterBoxes", x: 48, y: 400, w: 700, h: 64,
+        word: "sun", showLetters: false, boxSize: 52, color: "#2a2420",
+      },
+      {
+        id: "t3", type: "text", x: 48, y: 486, w: 700, h: 30,
+        content: "Write the whole word on the lines", fontSize: 17, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "lines", type: "writingLines", x: 48, y: 520, w: 700, h: 300,
+        lines: 6, lineGap: 46, color: "#c9bfae", guide: "dotted-midline",
+      },
+      {
+        id: "grip", type: "callout", x: 48, y: 850, w: 700, h: 96,
+        title: "For the grown-up",
+        body: "Check the pencil grip before they start, and stop while it is still going well.",
+        tone: "note", fontSize: 15,
+      },
+      {
+        id: "stars2", type: "rewardStars", x: 48, y: 966, w: 700, h: 80,
+        total: 3, earned: 0, color: "#7c3aed", label: "A star for each line you finish",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}visualSchedule`,
+    title: "Worksheet · My day",
+    description:
+      "A visual schedule strip — pictures for each part of the day, with a box to tick as each one is done.",
+    domain: "Behavioral",
+    medium: "print",
+    thumbnailColor: "#10b981",
+    canvas: sheet("My day", ["Name", "Date"], [
+      {
+        id: "how", type: "callout", x: 48, y: 178, w: 700, h: 86,
+        title: "How to use this",
+        body: "Go through it together in the morning. Tick each picture as you finish it.",
+        tone: "tip", fontSize: 15,
+      },
+      // Drawn as a row of sticker + label + arrow rather than a list, because
+      // a visual schedule is read as pictures first and words second.
+      { id: "s1", type: "sticker", x: 60, y: 300, w: 96, h: 96, emoji: "🌅" },
+      { id: "a1", type: "arrow", x: 168, y: 330, w: 70, h: 36, color: "#c9bfae", thickness: 3, head: "end" },
+      { id: "s2", type: "sticker", x: 250, y: 300, w: 96, h: 96, emoji: "🥣" },
+      { id: "a2", type: "arrow", x: 358, y: 330, w: 70, h: 36, color: "#c9bfae", thickness: 3, head: "end" },
+      { id: "s3", type: "sticker", x: 440, y: 300, w: 96, h: 96, emoji: "🎒" },
+      { id: "a3", type: "arrow", x: 548, y: 330, w: 70, h: 36, color: "#c9bfae", thickness: 3, head: "end" },
+      { id: "s4", type: "sticker", x: 630, y: 300, w: 96, h: 96, emoji: "📚" },
+      {
+        id: "labels", type: "table", x: 48, y: 410, w: 700, h: 70,
+        headerRow: false,
+        rows: [["Wake up", "Breakfast", "Get ready", "School"]],
+        fontSize: 15, color: "#2a2420", borderColor: "#ffffff",
+      },
+      {
+        id: "done", type: "checklist", x: 48, y: 500, w: 700, h: 220,
+        items: ["Wake up", "Breakfast", "Get ready", "School", "Home time", "Bedtime"],
+        fontSize: 18, color: "#2a2420", lineGap: 18, boxSize: 22,
+      },
+      {
+        id: "best", type: "text", x: 48, y: 740, w: 700, h: 32,
+        content: "The best bit of my day was…", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "best-lines", type: "writingLines", x: 48, y: 778, w: 700, h: 150,
+        lines: 4, lineGap: 36, color: "#c9bfae", guide: "single",
+      },
+      {
+        id: "stars3", type: "rewardStars", x: 48, y: 950, w: 700, h: 80,
+        total: 6, earned: 0, color: "#10b981", label: "A star for every part you finished",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}goalTracker`,
+    title: "Form · Goal tracker",
+    description:
+      "Goals, baselines and targets on one page, with room to record where the patient is now.",
+    domain: "General",
+    medium: "print",
+    thumbnailColor: "#6366f1",
+    canvas: sheet("Goals and progress", ["Patient", "Review date", "Clinician"], [
+      {
+        id: "gt", type: "table", x: 48, y: 180, w: 700, h: 400,
+        headerRow: true,
+        rows: [
+          ["Goal", "Baseline", "Target", "Now"],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+          ["", "", "", ""],
+        ],
+        fontSize: 15, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "met", type: "text", x: 48, y: 606, w: 700, h: 32,
+        content: "Met this review", fontSize: 18, fontWeight: "bold", color: "#2a2420", align: "left",
+      },
+      {
+        id: "met-list", type: "checklist", x: 48, y: 644, w: 700, h: 130,
+        items: ["", "", "", ""], fontSize: 16, color: "#2a2420", lineGap: 18, boxSize: 18,
+      },
+      {
+        id: "notes", type: "text", x: 48, y: 792, w: 700, h: 32,
+        content: "Notes and next steps", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "notes-lines", type: "writingLines", x: 48, y: 830, w: 700, h: 230,
+        lines: 6, lineGap: 36, color: "#c9bfae", guide: "single",
+      },
+    ]),
+  },
+  {
+    id: `${STARTER_ID_PREFIX}feelingsChart`,
+    title: "Worksheet · How I feel today",
+    description:
+      "A feelings check-in to open a session — pick a face, name it, and say what caused it.",
+    domain: "Social / Pragmatics",
+    medium: "print",
+    thumbnailColor: "#ec4899",
+    canvas: sheet("How I feel today", ["Name", "Date"], [
+      { id: "e1", type: "sticker", x: 70, y: 190, w: 88, h: 88, emoji: "😀" },
+      { id: "e2", type: "sticker", x: 218, y: 190, w: 88, h: 88, emoji: "🙂" },
+      { id: "e3", type: "sticker", x: 366, y: 190, w: 88, h: 88, emoji: "😐" },
+      { id: "e4", type: "sticker", x: 514, y: 190, w: 88, h: 88, emoji: "😢" },
+      { id: "e5", type: "sticker", x: 662, y: 190, w: 88, h: 88, emoji: "😡" },
+      {
+        id: "circle", type: "text", x: 48, y: 292, w: 700, h: 34,
+        content: "Circle the face that looks like you right now.",
+        fontSize: 17, fontWeight: "medium", color: "#2a2420", align: "center",
+      },
+      {
+        id: "words", type: "wordBank", x: 48, y: 344, w: 700, h: 120,
+        title: "Words that might help",
+        words: ["happy", "calm", "tired", "worried", "sad", "cross", "excited", "shy"],
+        fontSize: 17, color: "#2a2420", borderColor: "#c9bfae",
+      },
+      {
+        id: "bubble", type: "speechBubble", x: 48, y: 490, w: 340, h: 150,
+        text: "I feel…", fontSize: 20, color: "#2a2420", fill: "#ede9fe",
+        tail: "left", thought: false,
+      },
+      {
+        id: "thought", type: "speechBubble", x: 408, y: 490, w: 340, h: 150,
+        text: "because…", fontSize: 20, color: "#2a2420", fill: "#e0f2fe",
+        tail: "right", thought: true,
+      },
+      {
+        id: "help", type: "text", x: 48, y: 670, w: 700, h: 32,
+        content: "Something that would help me right now", fontSize: 18, fontWeight: "bold",
+        color: "#2a2420", align: "left",
+      },
+      {
+        id: "help-lines", type: "writingLines", x: 48, y: 708, w: 700, h: 190,
+        lines: 5, lineGap: 36, color: "#c9bfae", guide: "single",
+      },
+      {
+        id: "adult", type: "callout", x: 48, y: 920, w: 700, h: 110,
+        title: "For the grown-up",
+        body: "Name the feeling back to them before you try to fix it. Being understood comes first.",
+        tone: "note", fontSize: 15,
+      },
+    ]),
+  },
+
   {
     id: `${STARTER_ID_PREFIX}worksheet`,
     title: "Starter · Printable home practice",
