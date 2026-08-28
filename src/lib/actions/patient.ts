@@ -119,7 +119,17 @@ export async function submitAttempt(
     score,
   });
 
-  if (attemptError) return { error: attemptError.message };
+  if (attemptError) {
+    // 23505 is a unique violation, which here can only be
+    // activity_attempts_one_per_assignment (0012) catching two genuinely
+    // simultaneous submissions — both passed the check above before either
+    // wrote. The patient gets the same sentence either way rather than a raw
+    // Postgres constraint message.
+    if (attemptError.code === "23505") {
+      return { error: "You've already finished this activity." };
+    }
+    return { error: attemptError.message };
+  }
 
   const [, { data: profile }] = await Promise.all([
     supabase.from("assignments").update({ status: "completed" }).eq("id", assignmentId),

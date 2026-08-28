@@ -13,6 +13,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
+  // Signed in is not enough. This endpoint spends money on every call and
+  // creates a template, which is a clinician's artefact — and sign-up is
+  // open, so without this any visitor could register as a patient and drive
+  // the worksheet generator in a loop. The page that offers this feature is
+  // already behind a clinician role check; the route it posts to was not, and
+  // a route is what an attacker calls.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "clinician") {
+    return NextResponse.json({ error: "Clinicians only." }, { status: 403 });
+  }
+
   const body = await request.json().catch(() => null);
   const topic = String(body?.topic || "").trim();
   const domain = String(body?.domain || "General");
