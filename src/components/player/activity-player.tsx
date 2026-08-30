@@ -14,6 +14,7 @@ import { ElementPlayer } from "./element-player";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useFullscreen } from "@/lib/canvas/use-fullscreen";
+import { fitScale } from "@/lib/canvas/fit-scale";
 import { cn } from "@/lib/utils";
 
 // Below this shrink-to-fit factor the canvas layout is abandoned for a
@@ -100,19 +101,20 @@ export function ActivityPlayer({
     const el = containerRef.current;
     if (!el) return;
     const compute = () => {
-      const availableWidth = el.clientWidth - 32;
-      const availableHeight = el.clientHeight - 32;
-      const next = Math.min(1, availableWidth / canvas.width, availableHeight / canvas.height);
-      setScale(next > 0 ? next : 1);
+      const next = fitScale(el.clientWidth, el.clientHeight, canvas.width, canvas.height, isFullscreen);
+      setScale(next);
       // Below this the shrink-to-fit layout stops being usable rather than
-      // merely small — see STACK_BELOW_SCALE.
-      setStacked(next < STACK_BELOW_SCALE);
+      // merely small — see STACK_BELOW_SCALE. Never in fullscreen, where there
+      // is by definition room to lay the canvas out at size.
+      setStacked(!isFullscreen && next < STACK_BELOW_SCALE);
     };
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [canvas.width, canvas.height]);
+    // isFullscreen: entering or leaving changes both the cap and the padding,
+    // so the scale has to be recomputed, not only when the element resizes.
+  }, [canvas.width, canvas.height, isFullscreen]);
 
   // Reading order for the stacked layout: down the page, then across. The
   // authored canvas is spatial, and a phone is not, so something has to
@@ -282,7 +284,8 @@ export function ActivityPlayer({
       <div
         ref={containerRef}
         className={cn(
-          "canvas-surface flex flex-1 overflow-auto p-4",
+          "canvas-surface flex flex-1 overflow-auto",
+          isFullscreen ? "p-2" : "p-4",
           stacked ? "flex-col items-stretch gap-4" : "items-center justify-center",
         )}
       >

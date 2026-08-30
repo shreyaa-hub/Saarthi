@@ -20,6 +20,7 @@ type LibraryTemplate = {
   domain: string;
   medium: string;
   thumbnail_color: string | null;
+  thumbnail_url: string | null;
   updated_at: string;
 };
 
@@ -111,12 +112,19 @@ export function LibraryTemplateGrid({
           {filtered.map((t) => (
             <StaggerItem key={t.id}>
               <Card className="overflow-hidden transition-all hover:border-primary/40 hover:shadow-md">
-                <div
-                  className="flex h-24 items-center justify-center"
-                  style={{ backgroundColor: `${t.thumbnail_color}22` }}
-                >
-                  <LayoutTemplate className="size-7" style={{ color: t.thumbnail_color ?? undefined }} />
-                </div>
+                {t.thumbnail_url ? (
+                  <div className="h-24 overflow-hidden bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.thumbnail_url} alt="" className="size-full object-cover" />
+                  </div>
+                ) : (
+                  <div
+                    className="flex h-24 items-center justify-center"
+                    style={{ backgroundColor: `${t.thumbnail_color}22` }}
+                  >
+                    <LayoutTemplate className="size-7" style={{ color: t.thumbnail_color ?? undefined }} />
+                  </div>
+                )}
                 <CardContent className="flex flex-col gap-3 pt-4">
                   <div>
                     <p className="truncate font-medium">{t.title}</p>

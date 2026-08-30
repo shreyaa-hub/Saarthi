@@ -48,6 +48,7 @@ import {
   BookOpen,
   ListChecks as ChecklistIcon,
   Table2,
+  ChevronDown,
 } from "lucide-react";
 import type { CanvasStoreApi } from "@/lib/canvas/store";
 import { useCanvasStore } from "@/lib/canvas/store";
@@ -111,6 +112,18 @@ const GROUP_LABELS: Record<string, string> = {
   worksheet: "Worksheet",
   interactive: "Interactive",
 };
+// A one-line hint under each group header, so a collapsed section still says
+// what is inside it before you open it.
+const GROUP_HINTS: Record<string, string> = {
+  content: "Text, images, shapes",
+  worksheet: "Printable building blocks",
+  interactive: "Tasks the patient answers",
+};
+const GROUP_ICONS: Record<string, typeof Shapes> = {
+  content: Shapes,
+  worksheet: FileSignature,
+  interactive: MousePointerClick,
+};
 const GROUP_ORDER = ["content", "worksheet", "interactive"] as const;
 
 type TabId = "elements" | "text" | "uploads" | "layers";
@@ -135,6 +148,20 @@ export function EditorSidebar({
   surface?: ElementSurface;
 }) {
   const [tab, setTab] = useState<TabId>("elements");
+  // Which element groups are expanded. Starts with the one that matters most
+  // for this surface open and the rest collapsed, so the panel opens showing
+  // the tools you actually reach for here rather than a wall of every element
+  // that needs scrolling past. Content is short, so it rides along.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(surface === "worksheet" ? ["content", "worksheet"] : ["content", "interactive"]),
+  );
+  const toggleGroup = (group: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
   const { guest } = useEditorMode();
   const width = useCanvasStore(store, (s) => s.width);
   const height = useCanvasStore(store, (s) => s.height);
@@ -202,33 +229,68 @@ export function EditorSidebar({
 
       <div className="w-60 overflow-y-auto border-r border-border bg-card p-3">
         {tab === "elements" && (
-          <div className="flex flex-col gap-5">
-            <p className="text-xs text-muted-foreground">Click to add, or drag onto the page.</p>
-            {groups.map(({ group, items }) => (
-              <div key={group}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {GROUP_LABELS[group] ?? group}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {items.map((item) => {
-                    const Icon = ICONS[item.type];
-                    return (
-                      <button
-                        key={item.type}
-                        type="button"
-                        draggable
-                        onDragStart={startDrag(item.type)}
-                        onClick={() => addAtCentre(item.type)}
-                        className="flex cursor-grab flex-col items-center gap-1.5 rounded-xl border border-border p-3 text-center text-xs font-medium transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-secondary hover:shadow-sm active:cursor-grabbing"
-                      >
-                        <Icon className="size-4" />
-                        {item.label}
-                      </button>
-                    );
-                  })}
+          <div className="flex flex-col gap-2">
+            <p className="mb-1 text-xs text-muted-foreground">Click to add, or drag onto the page.</p>
+            {groups.map(({ group, items }) => {
+              const open = openGroups.has(group);
+              const GroupIcon = GROUP_ICONS[group] ?? Shapes;
+              const panelId = `elgroup-${group}`;
+              return (
+                <div key={group} className="overflow-hidden rounded-xl border border-border">
+                  {/* The group header is the dropdown control: tap to expand
+                      or collapse, so only the section you want takes up the
+                      panel instead of every element scrolling at once. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group)}
+                    aria-expanded={open}
+                    aria-controls={panelId}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors cursor-pointer",
+                      open ? "bg-secondary" : "hover:bg-muted",
+                    )}
+                  >
+                    <GroupIcon className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold">
+                        {GROUP_LABELS[group] ?? group}
+                        <span className="ml-1.5 font-normal text-muted-foreground">{items.length}</span>
+                      </span>
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {GROUP_HINTS[group]}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "size-4 shrink-0 text-muted-foreground transition-transform",
+                        open && "rotate-180",
+                      )}
+                    />
+                  </button>
+
+                  {open && (
+                    <div id={panelId} className="grid grid-cols-2 gap-2 p-2">
+                      {items.map((item) => {
+                        const Icon = ICONS[item.type];
+                        return (
+                          <button
+                            key={item.type}
+                            type="button"
+                            draggable
+                            onDragStart={startDrag(item.type)}
+                            onClick={() => addAtCentre(item.type)}
+                            className="flex cursor-grab flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-center text-xs font-medium transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-secondary hover:shadow-sm active:cursor-grabbing"
+                          >
+                            <Icon className="size-4" />
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -31,7 +31,7 @@ export async function getPublicTemplates(
 ) {
   let q = supabase
     .from("templates")
-    .select("id, title, domain, medium, thumbnail_color, updated_at")
+    .select("id, title, domain, medium, thumbnail_color, thumbnail_url, updated_at")
     .eq("is_public", true)
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });

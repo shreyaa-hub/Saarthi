@@ -1533,6 +1533,10 @@ export function starterLibraryRows(medium?: TemplateMedium) {
     domain: s.domain as string,
     medium: s.medium as string,
     thumbnail_color: s.thumbnailColor,
+    // Starters are held in code and ship with their coloured-tile look, so
+    // they carry no uploaded thumbnail — but the field has to be present for
+    // them to share the library grid's row type.
+    thumbnail_url: null as string | null,
     updated_at: new Date(0).toISOString(),
   }));
 }

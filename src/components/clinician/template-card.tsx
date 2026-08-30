@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { MoreHorizontal, Copy, Trash2, LayoutTemplate, Globe2, Play } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { MoreHorizontal, Copy, Trash2, LayoutTemplate, Globe2, Play, ImageUp, ImageOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +23,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { duplicateTemplate, deleteTemplate, restoreTemplate } from "@/lib/actions/templates";
+import { duplicateTemplate, deleteTemplate, restoreTemplate, setTemplateThumbnail } from "@/lib/actions/templates";
 import { setTemplatePublic } from "@/lib/actions/library";
+import { uploadImageFile } from "@/lib/canvas/upload-image";
 import { formatDate } from "@/lib/utils";
 import type { Database } from "@/lib/types/database";
 
@@ -40,6 +41,46 @@ export function TemplateCard({ template }: { template: Template }) {
   const [, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPublic, setIsPublic] = useState(template.is_public);
+  // Reflected locally so the card updates the instant the upload finishes,
+  // rather than waiting for a route revalidation to bring the new URL back.
+  const [thumbnailUrl, setThumbnailUrl] = useState(template.thumbnail_url);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onPickThumbnail = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input value so choosing the same file twice still fires
+    // onChange the second time.
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    const result = await uploadImageFile(file);
+    if ("error" in result) {
+      setUploading(false);
+      toast.error(result.error);
+      return;
+    }
+    const { error } = await setTemplateThumbnail(template.id, result.url);
+    setUploading(false);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setThumbnailUrl(result.url);
+    toast.success("Thumbnail updated");
+  };
+
+  const removeThumbnail = () => {
+    startTransition(async () => {
+      const { error } = await setTemplateThumbnail(template.id, null);
+      if (error) toast.error(error);
+      else {
+        setThumbnailUrl(null);
+        toast.success("Thumbnail removed");
+      }
+    });
+  };
 
   const toggleShare = () => {
     const next = !isPublic;
@@ -80,15 +121,43 @@ export function TemplateCard({ template }: { template: Template }) {
 
   return (
     <Card className="group relative overflow-hidden transition-all hover:border-primary/40 hover:shadow-md">
-      <div
-        className="flex h-28 items-center justify-center transition-colors"
-        style={{ backgroundColor: `${template.thumbnail_color}22` }}
-      >
-        <LayoutTemplate
-          className="size-8 transition-transform group-hover:scale-110"
-          style={{ color: template.thumbnail_color ?? undefined }}
-        />
-      </div>
+      {/* The uploaded thumbnail if there is one, otherwise the coloured-tile
+          placeholder the card has always shown. */}
+      {thumbnailUrl ? (
+        <div className="h-28 overflow-hidden bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbnailUrl}
+            alt=""
+            className="size-full object-cover transition-transform group-hover:scale-105"
+          />
+        </div>
+      ) : (
+        <div
+          className="flex h-28 items-center justify-center transition-colors"
+          style={{ backgroundColor: `${template.thumbnail_color}22` }}
+        >
+          <LayoutTemplate
+            className="size-8 transition-transform group-hover:scale-110"
+            style={{ color: template.thumbnail_color ?? undefined }}
+          />
+        </div>
+      )}
+
+      {/* Hidden file input the menu item triggers. Outside the card's Link
+          overlay so its own click is not swallowed. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onPickThumbnail}
+      />
+      {uploading && (
+        <div className="absolute inset-x-0 top-0 flex h-28 items-center justify-center bg-background/70">
+          <Loader2 className="size-5 animate-spin text-primary" />
+        </div>
+      )}
       <CardContent className="flex items-start justify-between gap-2 pt-4">
         <div className="min-w-0">
           <Link
@@ -122,6 +191,23 @@ export function TemplateCard({ template }: { template: Template }) {
                 <Play className="size-4" /> Try it
               </Link>
             </DropdownMenuItem>
+            {/* onSelect fires before the menu unmounts; opening the file
+                picker from inside it is fine because the picker is a separate
+                element, but the default close is prevented so the click that
+                lands on the dialog is not treated as a menu dismissal. */}
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }}
+            >
+              <ImageUp className="size-4" /> {thumbnailUrl ? "Change thumbnail" : "Upload thumbnail"}
+            </DropdownMenuItem>
+            {thumbnailUrl && (
+              <DropdownMenuItem onSelect={removeThumbnail}>
+                <ImageOff className="size-4" /> Remove thumbnail
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onSelect={() =>
                 startTransition(async () => {

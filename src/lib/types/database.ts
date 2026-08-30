@@ -85,6 +85,10 @@ export type Database = {
           status: TemplateStatus;
           canvas: TemplateCanvas;
           thumbnail_color: string | null;
+          // A picture the creator uploads to represent the template on its
+          // cards, replacing the generic icon-on-a-colour placeholder. Null
+          // until one is set (migration 0013).
+          thumbnail_url: string | null;
           deleted_at: string | null;
           is_public: boolean;
           created_at: string;

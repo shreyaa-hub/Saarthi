@@ -263,3 +263,35 @@ export async function purgeTemplate(templateId: string) {
   revalidatePath("/clinician/studio/trash");
   return { error: error?.message ?? null };
 }
+
+// Sets (or clears) a template's thumbnail. The image is uploaded to the
+// template-assets bucket client-side first — same path every other canvas
+// image takes — and this stores the resulting URL. Pass null to remove it.
+//
+// The update is filtered to the caller's own row and reads back what changed:
+// templates_owner_all filters somebody else's template out of the update
+// rather than refusing it, so without the read-back this would report success
+// over a no-op — the same silent-failure shape fixed on setTemplatePublic.
+export async function setTemplateThumbnail(templateId: string, url: string | null) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data, error } = await supabase
+    .from("templates")
+    .update({ thumbnail_url: url })
+    .eq("id", templateId)
+    .eq("owner_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!data) return { error: "That template isn't yours to change." };
+
+  revalidatePath("/clinician/studio");
+  revalidatePath("/library/templates");
+  revalidatePath("/library/worksheets");
+  return { error: null };
+}
