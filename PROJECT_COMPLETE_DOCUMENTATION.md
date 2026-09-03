@@ -44,7 +44,7 @@ There is also a **logged-out visitor**: the public marketing site, the browsable
 - **Blueprint rules** (shared authoring standards).
 
 ### Current state of the project
-Actively developed on branch **`claude/therapy-authoring-studio-iuigcx`**; 49 commits. Working tree is clean. The database has **12 migrations (0001–0012)**. The `README.md` still documents only migrations 0001–0006 (it is out of date; 0007–0012 exist and are described in §8). Out-of-scope-but-stubbed areas (marketing “coming soon”): Admin console, marketplace, wallets/points, gamification, localization. The app is deployable to Vercel or cPanel/Passenger.
+Actively developed on branch **`claude/therapy-authoring-studio-iuigcx`**. The database has **13 migrations (0001–0013)**. The `README.md` still documents only migrations 0001–0006 (it is out of date; 0007–0013 exist and are described in §8). Out-of-scope-but-stubbed areas (marketing “coming soon”): Admin console, marketplace, wallets/points, gamification, localization. The app is deployable to Vercel or cPanel/Passenger.
 
 ---
 
@@ -364,7 +364,7 @@ None (see §2). Recurring assignments materialized at creation.
 
 - **`profiles`** — one row per auth user. `id` (PK, FK → `auth.users`, ON DELETE CASCADE), `role` (`clinician|patient|parent`; original init allowed only clinician/patient, 0002 added `parent`), `full_name`, `email`, `avatar_color`, `headline`, `created_at`. Auto-created by trigger `handle_new_user` on `auth.users` insert (reads `role`/`full_name` from signup metadata).
 - **`clinician_patients`** — caseload link + invite. `id` PK, `clinician_id` FK, `patient_id` FK (nullable until claimed), `display_name`, `invite_code` (unique — makes bearer *become* the patient), `guardian_code` (added 0002, unique — for parents, never grants patient access), `status` (`invited|active|archived`), `notes`, `created_at`.
-- **`templates`** — authored activities. `id`, `owner_id` FK, `title`, `description`, `domain`, `medium` (`interactive|hybrid|print`), `status` (`draft|published|archived`), `canvas` (jsonb `TemplateCanvas`), `thumbnail_color`, `deleted_at` (soft delete), `is_public` (Global Library, distinct from `status`), `thumbnail_url` (added by a later `alter … add column if not exists` — see §23), `created_at`, `updated_at` (bumped by `set_updated_at` trigger).
+- **`templates`** — authored activities. `id`, `owner_id` FK, `title`, `description`, `domain`, `medium` (`interactive|hybrid|print`), `status` (`draft|published|archived`), `canvas` (jsonb `TemplateCanvas`), `thumbnail_color`, `deleted_at` (soft delete), `is_public` (Global Library, distinct from `status`), `thumbnail_url` (nullable, added in migration 0013 — pointer to a creator-uploaded image in the `template-assets` bucket; `thumbnail_color` is the fallback), `created_at`, `updated_at` (bumped by `set_updated_at` trigger).
 - **`assignments`** — a template assigned to a patient, with a frozen snapshot. `id`, `template_id` FK (ON DELETE SET NULL), `clinician_id` FK (nullable since 0003), `assigned_by` FK (0003, NOT NULL — who created it), `patient_id` FK, `title`, `instructions`, `due_date`, `status` (`assigned|in_progress|completed`), `canvas_snapshot` (jsonb), `created_at`.
 - **`activity_attempts`** — a completed run. `id`, `assignment_id` FK (cascade), `patient_id` FK, `responses` (jsonb), `score` (numeric, **nullable** — null when nothing to mark), `correct_count`, `total_count`, `duration_seconds`, `clinician_note`, `completed_at`. **Unique index `activity_attempts_one_per_assignment` on `assignment_id`** (0012, conditional).
 - **`ai_insights`** — cached Claude summaries. `id`, `patient_id`, `clinician_id`, `summary`, `strengths`/`concerns`/`recommendations` (jsonb arrays), `attempts_considered`, `generated_at`. Clinician-only (never shown to patient/parent).
@@ -415,7 +415,7 @@ blueprint_rules (global, created_by nullable)
 ### Indexes / constraints / migrations / seed / queries / ORM
 - **Indexes** on all major FKs + `notifications (user_id, created_at desc)`, `messages (conversation_id, created_at)`, partial unique dedup on notifications, unique `clinician_patients.invite_code`/`guardian_code`, unique conversation FKs, `activity_attempts_one_per_assignment`, partial `templates_public_idx WHERE is_public`.
 - **Constraints**: role/status/medium/message_type CHECKs, `amount_cents >= 0`, goal ranges, goal achieved-date invariant, blueprint body length.
-- **Migrations**: 0001 init; 0002 parents; 0003 parent-assignments (+ closes the “any clinician assigns to any patient” hole); 0004 clinician sees home practice; 0005 clinician billing; 0006 blueprint rules; 0007 guardian message notifications; 0008 lock down attempt records; 0009 revoke EXECUTE from PUBLIC (0007/0008 revokes were no-ops); 0010 patient goals; 0011 parent↔child notifications; 0012 one-attempt-per-assignment (conditional).
+- **Migrations**: 0001 init; 0002 parents; 0003 parent-assignments (+ closes the “any clinician assigns to any patient” hole); 0004 clinician sees home practice; 0005 clinician billing; 0006 blueprint rules; 0007 guardian message notifications; 0008 lock down attempt records; 0009 revoke EXECUTE from PUBLIC (0007/0008 revokes were no-ops); 0010 patient goals; 0011 parent↔child notifications; 0012 one-attempt-per-assignment (conditional); 0013 add `templates.thumbnail_url` (additive, nullable).
 - **Seed data**: 15 blueprint rules (0006). Starter templates/blueprints are **code**, not DB rows (see §10 / `lib/canvas/starters.ts`, `blueprints.ts`).
 - **ORM**: none — Supabase JS query builder + typed `Database`. Reads in `data/*`, writes in `actions/*`.
 
@@ -667,7 +667,7 @@ From `package.json`:
 | `npm run lint` | `eslint`. |
 | `npm test` | `vitest run` — run all unit tests once. |
 
-**Database/migrations:** no npm script; apply SQL manually (Supabase SQL editor, in filename order) or `psql "$DATABASE_URL" -f supabase/migrations/000X_*.sql` (README shows the `psql` commands for 0001–0006; also run 0007–0012). Every migration is idempotent/re-runnable. `notify pgrst, 'reload schema';` fixes PostgREST schema-cache misses.
+**Database/migrations:** no npm script; apply SQL manually (Supabase SQL editor, in filename order) or `psql "$DATABASE_URL" -f supabase/migrations/000X_*.sql` (README shows the `psql` commands for 0001–0006; also run 0007–0013). Every migration is idempotent/re-runnable. `notify pgrst, 'reload schema';` fixes PostgREST schema-cache misses.
 
 **Production start (cPanel/Passenger):** `passenger-server.js` is the entry (Application Manager runs a plain Node file; it boots Next programmatically).
 
@@ -722,7 +722,7 @@ From `package.json`:
 - **Email confirmation off** (README suggests disabling for local dev) means sign-up leaks “User already registered” — a known, documented limitation in `actions/auth.ts` comments.
 - **SMTP / password-reset delivery** and **leaked-password protection** are operational Supabase settings (noted in dev history as pending) — verify in the dashboard.
 - `next.config.ts` sets **no explicit security headers/CSP** (relies on platform defaults).
-- The README’s **stale migration list** could lead an operator to skip 0007–0012, leaving notifications/lockdowns unapplied — apply all 12.
+- The README’s **stale migration list** could lead an operator to skip 0007–0013, leaving notifications/lockdowns/thumbnails unapplied — apply all 13.
 - **Do not** hardcode or expose `NEXT_PUBLIC_*` beyond what’s intended (anon key is public by design; service-role keys must never be added client-side — none are used here).
 
 ---
@@ -748,7 +748,7 @@ Potential bottlenecks (observations): large canvases are stored/serialized whole
 
 - **Standard target: Vercel.** Import the repo, set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (and optionally `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) **before** the build (the public vars are build-time inlined). No build changes needed.
 - **Alternative: cPanel/Passenger (BigRock).** `passenger-server.js` boots Next programmatically; see `docs/deployment.md` for the full guide.
-- **Infrastructure required:** a Supabase project (Postgres/Auth/Storage/Realtime). Run all 12 migrations in order in the SQL editor; disable “Confirm email” for smooth local testing (optional). Configure Supabase **Redirect URLs** allowlist (the reset flow relies on it).
+- **Infrastructure required:** a Supabase project (Postgres/Auth/Storage/Realtime). Run all 13 migrations in order in the SQL editor; disable “Confirm email” for smooth local testing (optional). Configure Supabase **Redirect URLs** allowlist (the reset flow relies on it).
 - **Build process:** `next build` → `next start` (or Passenger). Node ≥ 20.
 - **DB deployment/migrations:** manual SQL apply (idempotent). `notify pgrst, 'reload schema';` if a table 404s from the schema cache.
 - **CI/CD:** none in-repo (no `.github/workflows` observed).
@@ -771,8 +771,8 @@ The history shows a **build-then-harden** pattern: features added broadly, then 
 ## 23. Known Issues & Technical Debt
 
 **Confirmed from code/repo:**
-- **README migration table is stale** (documents only 0001–0006; 0007–0012 exist and matter). — confirmed.
-- **`thumbnail_url` on `templates` has no dedicated migration file**: it’s referenced in code (`setTemplateThumbnail`, library grids) and was added via an `alter table … add column if not exists` applied out-of-band; the current migrations directory ends at 0012, so a fresh DB may lack the column unless that ALTER is run. **Verify this column exists on a fresh apply** (this is the biggest fresh-setup risk). — confirmed gap (no `0013_*` file present).
+- **README migration table is stale** (documents only 0001–0006; 0007–0013 exist and matter). — confirmed.
+- **`README.md` migration table is stale** — it lists only 0001–0006 and its `psql` snippet stops at 0006, so an operator following it verbatim would skip 0007–0013 (notifications, attempt lockdown, PUBLIC revoke, goals, parent↔child notifications, one-attempt index, thumbnail column). Apply all 13. — confirmed.
 - **Realtime RLS-only delivery is unverified** against a live Supabase project (explicit comment). — confirmed as a documented open risk.
 - **Email confirmation off ⇒ signup enumerates existing emails** (“User already registered”). — documented in code.
 - **No CI**, **no E2E/component tests in-repo**, **no server-action/route tests**. — confirmed.
@@ -826,7 +826,7 @@ The history shows a **build-then-harden** pattern: features added broadly, then 
 1. **Prerequisites:** Node ≥ 20, npm, a Supabase project (free tier fine), optionally an Anthropic API key.
 2. **Install:** `npm install`.
 3. **Environment:** `cp .env.local.example .env.local`; fill `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API). Optionally add `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`).
-4. **Database:** in Supabase SQL editor, run **every file in `supabase/migrations/` in filename order (0001 → 0012)**. (Or `psql "$DATABASE_URL" -f …` per file.) They’re idempotent. **Also ensure `templates.thumbnail_url` exists** — if a feature errors about it, run `alter table public.templates add column if not exists thumbnail_url text;` then `notify pgrst, 'reload schema';`.
+4. **Database:** in Supabase SQL editor, run **every file in `supabase/migrations/` in filename order (0001 → 0013)** — do not stop at 0006 as the README’s snippet does. (Or `psql "$DATABASE_URL" -f …` per file.) They’re idempotent. If any feature ever reports a missing table/column from the schema cache, re-run the relevant migration then `notify pgrst, 'reload schema';`.
 5. **Migrations note:** skipping one fails at the first feature that needs it (e.g. skipping 0002 breaks parent sign-up inside the trigger).
 6. **(Optional) Auth setup:** Authentication → Providers → Email → disable “Confirm email” for immediate local sign-in; configure Redirect URLs allowlist for password reset.
 7. **Run locally:** `npm run dev` → http://localhost:3000. Sign up as a clinician; Caseload → Add patient to get an invite code; in an incognito window sign up a patient with that code to see the full loop.
@@ -887,7 +887,7 @@ How the parts connect: your browser shows the pages → when you do something, i
 - **Entry points:** `src/app/layout.tsx`, `src/proxy.ts`, (`passenger-server.js` for cPanel). Auth gate: `requireProfile()`.
 - **Commands:** `npm run dev` · `npm run build` · `npm start` · `npm run lint` · `npm test`. Migrations: run `supabase/migrations/*` in order.
 - **HTTP APIs:** `POST /api/ai/insights`, `POST /api/ai/worksheet`, `GET /auth/confirm`. Everything else = server actions + Supabase RPC.
-- **Database:** Supabase Postgres; core tables `profiles`, `clinician_patients`, `templates`, `assignments`, `activity_attempts`, `ai_insights`, `notifications`, `conversations`/`messages`, `patient_goals`, `parent_children`, `invoices`, `blueprint_rules`, `assets`, `parent_saved_worksheets`. 12 migrations. RLS everywhere.
+- **Database:** Supabase Postgres; core tables `profiles`, `clinician_patients`, `templates`, `assignments`, `activity_attempts`, `ai_insights`, `notifications`, `conversations`/`messages`, `patient_goals`, `parent_children`, `invoices`, `blueprint_rules`, `assets`, `parent_saved_worksheets`. 13 migrations. RLS everywhere.
 - **Auth:** Supabase email/password, JWT cookies, bcrypt; roles clinician/patient/parent; `profiles.role` authoritative; RLS + definer functions enforce access.
 - **Major features:** Studio, scoring, assignment (bulk/recurring), player, per-question review, analytics/pulse, goals, AI insights + worksheet gen, messaging, notifications, library, parent area, guest try, billing (record), print.
 - **Deployment:** Vercel (set `NEXT_PUBLIC_SUPABASE_*` before build) or cPanel/Passenger; run all migrations on Supabase.
@@ -906,7 +906,7 @@ How the parts connect: your browser shows the pages → when you do something, i
 - The canvas type system (`types/canvas.ts`), scoring (`scoring.ts`), review (`review.ts`), goals (`goals.ts`), analytics types/accuracy, the canvas store (`store.ts`).
 - Both AI route handlers and both AI libs; notifications action.
 - Key write actions (`patient.ts`, `templates.ts`, `assignments.ts`, `patients.ts`, `attempts.ts`) read in full; other actions/data verified by exported-signature inventory.
-- **All 12 SQL migrations read in full** — schema, RLS, functions, triggers, storage, realtime, grants.
+- **All SQL migrations 0001–0012 read in full** — schema, RLS, functions, triggers, storage, realtime, grants. Migration **0013** (`templates.thumbnail_url`) arrived via a sibling commit during this session and is summarized from its content.
 - Test inventory (20 files) and DB type file (`types/database.ts`) read in full.
 
 **Inferred (medium confidence — reasonable but not line-by-line verified):**
@@ -917,8 +917,7 @@ How the parts connect: your browser shows the pages → when you do something, i
 
 **Could not fully determine / out of scope here:**
 - **Live runtime behavior** — I did not run the app, the migrations, or connect to a Supabase project; the Realtime RLS-only delivery assumption remains unverified (as the code itself notes).
-- Whether `templates.thumbnail_url` is guaranteed present on a fresh apply — there is **no `0013` migration file** in-repo; the column is added via an out-of-band `ALTER`. Flagged in §23/§26 as the top fresh-setup risk.
 - Contents of the binary PDFs in `docs/` (not parsed), and the exact copy of every marketing page.
 - Any external Supabase dashboard configuration (SMTP, confirmation toggle, redirect allowlist, leaked-password protection) — these live outside the repo.
 
-**Missing files/systems that limit complete understanding:** no CI config, no E2E/component test suite, no committed `.env.local`, and the live Supabase schema/state (the migrations are the source of truth used here). The README’s migration list is stale (0006) relative to the actual 12 migrations; this document reflects the code, not the README.
+**Missing files/systems that limit complete understanding:** no CI config, no E2E/component test suite, no committed `.env.local`, and the live Supabase schema/state (the migrations are the source of truth used here). The README’s migration list is stale (0006) relative to the actual 13 migrations; this document reflects the code, not the README.
