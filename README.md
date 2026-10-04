@@ -1,6 +1,6 @@
 # Verbal Coach — Therapy Authoring Studio
 
-Project contributors: Trilochan P, Abhinav Y, Rahul Anand Y, Shreya S, B. V. A. S. Kowshik
+Project contributors: Shreya S, Kowshik B, Trilochan P, Abhinav Y, Rahul Anand Y 
 
 A canvas-based authoring studio for clinicians: build interactive therapy activities,
 assign them to patients, and monitor progress with AI-assisted insight.
